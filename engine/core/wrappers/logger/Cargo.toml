@@ -1,0 +1,10 @@
+[package]
+name = "wde_logger"
+version = "0.1.0"
+authors = ["MecanicaScience"]
+edition = "2021"
+description = "Wrapper for the logger"
+
+[dependencies]
+tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_info"] }
+tracing-subscriber = "0.3.0"

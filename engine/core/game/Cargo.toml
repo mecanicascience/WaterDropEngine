@@ -1,0 +1,11 @@
+[package]
+name = "wde_game"
+version = "0.1.0"
+authors = ["MecanicaScience"]
+edition = "2021"
+description = "The game root crate"
+
+[dependencies]
+wde_editor_interactions = { path = "../wrappers/editor" }
+wde_logger = { path = "../wrappers/logger" }
+rand = "0.8.5"

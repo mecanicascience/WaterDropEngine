@@ -1,0 +1,14 @@
+[package]
+name = "wde-engine"
+version = "0.1.0"
+authors = ["MecanicaScience"]
+edition = "2021"
+description = "A data-driven game engine"
+readme = "README.md"
+license = "GNU Lesser General Public License v3.0"
+keywords = ["game", "engine", "data-driven", "simulation", "rendering", "graphics"]
+categories = ["game-engines", "graphics", "rendering", "simulation"]
+
+[dependencies]
+wde_game = { path = "./core/game" }
+wde_logger = { path = "./core/wrappers/logger" }
