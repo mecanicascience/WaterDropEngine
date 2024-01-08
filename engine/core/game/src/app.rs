@@ -1,4 +1,5 @@
 use wde_editor_interactions::EditorHandler;
+use wde_logger::error;
 
 pub struct App {}
 
@@ -13,17 +14,21 @@ impl App {
         // Start editor handler if on debug mode
         if cfg!(debug_assertions) {
             let mut editor_handler = EditorHandler::new();
+            if !editor_handler.started() {
+                error!("Editor handler failed to start.");
+            }
+            else {
+                loop {
+                    // Process editor messages
+                    editor_handler.process();
 
-            loop {
-                // Process editor messages
-                editor_handler.process();
+                    // Set last frame
+                    let r = rand::random::<u32>();
+                    editor_handler.set_current_frame(format!("Hello {} world", r).as_bytes());
 
-                // Set last frame
-                let r = rand::random::<u32>();
-                editor_handler.set_current_frame(format!("Hello {} world", r).as_bytes());
-
-                // Sleep for 1 second
-                std::thread::sleep(std::time::Duration::from_secs(1));
+                    // Sleep for 1 second
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
             }
         }
         

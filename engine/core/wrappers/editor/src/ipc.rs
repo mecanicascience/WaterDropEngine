@@ -1,5 +1,18 @@
+use std::sync::{Arc, Mutex};
+
 use tokio::{runtime::Builder, net::windows::named_pipe, io::Interest};
-use wde_logger::{trace, warn, info, throw};
+use wde_logger::{trace, warn, info, throw, error};
+
+/// IPC Channel running status
+#[derive(Debug, Clone, PartialEq)]
+pub enum IPCChannelStatus {
+    /// The IPC channel is starting.
+    Starting,
+    /// The IPC channel is running.
+    Running,
+    /// The IPC channel is not running.
+    NotRunning
+}
 
 /// Define an IPC message.
 /// Raw message format: [channel identifier (uint 8), title (uint 8), payload size (uint 16), payload (raw bytes)]
@@ -38,10 +51,12 @@ pub struct IPC {
     /// The runtime for the IPC channel that receives messages.
     #[allow(dead_code)]
     runtime: tokio::runtime::Runtime,
+    /// Is the server running?
+    started: Arc<Mutex<IPCChannelStatus>>,
     /// The shared list of received messages to read.
-    shared_messages_read: std::sync::Arc<std::sync::Mutex<Vec<IPCMessage>>>,
+    shared_messages_read: Arc<Mutex<Vec<IPCMessage>>>,
     /// The shared list of received messages to write.
-    shared_messages_write: std::sync::Arc<std::sync::Mutex<Vec<IPCMessage>>>
+    shared_messages_write: Arc<Mutex<Vec<IPCMessage>>>
 }
 
 impl IPC {
@@ -58,15 +73,20 @@ impl IPC {
         let runtime = Builder::new_multi_thread().enable_all().build().unwrap();
 
         // Shared list of received messages
-        let shared_messages_read = std::sync::Arc::new(
-            std::sync::Mutex::new(Vec::<IPCMessage>::new())
+        let shared_messages_read = Arc::new(
+            Mutex::new(Vec::<IPCMessage>::new())
         );
         let messages_read = shared_messages_read.clone();
-        let shared_messages_write = std::sync::Arc::new(
-            std::sync::Mutex::new(Vec::<IPCMessage>::new())
+        let shared_messages_write = Arc::new(
+            Mutex::new(Vec::<IPCMessage>::new())
         );
         let messages_write = shared_messages_write.clone();
         let n = name.clone();
+
+        let started = Arc::new(
+            Mutex::new(IPCChannelStatus::Starting)
+        );
+        let s = started.clone();
 
         // Spawn the root task
         runtime.spawn(async move {
@@ -74,17 +94,28 @@ impl IPC {
             let pipe_name: &str = &(r"\\.\pipe\wde\".to_owned() + &name);
 
             // Connect to pipe
-            let client = match named_pipe::ClientOptions::new().open(pipe_name)  {
-                Ok(client) => client,
-                Err(e) if e.kind() == tokio::io::ErrorKind::NotFound => {
-                    throw!("Server not found for IPC with name '{}'. Try starting the server first.", name);
-                }
-                Err(e) if e.raw_os_error() == Some(231) => { // Os error 231 (All pipe instances are busy)
-                    throw!("Server busy for IPC with name '{}'.", name);
-                }
-                Err(e) => {
-                    throw!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
-                }
+            let client = {
+                let mut start = s.lock().unwrap();
+                let cl = match named_pipe::ClientOptions::new().open(pipe_name) {
+                    Ok(client) => client,
+                    Err(e) if e.kind() == tokio::io::ErrorKind::NotFound => {
+                        warn!("Server not found for IPC with name '{}'. Try starting the server first.", name);
+                        *start = IPCChannelStatus::NotRunning;
+                        return;
+                    }
+                    Err(e) if e.raw_os_error() == Some(231) => { // Os error 231 (All pipe instances are busy)
+                        warn!("Server busy for IPC with name '{}'.", name);
+                        *start = IPCChannelStatus::NotRunning;
+                        return;
+                    }
+                    Err(e) => {
+                        warn!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
+                        *start = IPCChannelStatus::NotRunning;
+                        return;
+                    }
+                };
+                *start = IPCChannelStatus::Running;
+                cl
             };
 
             // Log ready
@@ -98,7 +129,8 @@ impl IPC {
                         return;
                     }
                     Err(e) => {
-                        throw!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
+                        error!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
+                        return;
                     }
                 };
 
@@ -229,6 +261,7 @@ impl IPC {
 
         IPC {
             name: n,
+            started,
             runtime,
             shared_messages_read,
             shared_messages_write
@@ -239,6 +272,20 @@ impl IPC {
     /// Reads the messages from the IPC channel.
     /// Clears the messages after reading them.
     pub fn read(&mut self) -> Option<Vec<IPCMessage>> {
+        // Check if server is started
+        let started = self.started.lock().unwrap();
+        match *started {
+            IPCChannelStatus::Starting => {
+                warn!("Cannot read. Server not started for IPC with name '{}'.", self.name);
+                return None;
+            },
+            IPCChannelStatus::NotRunning => {
+                warn!("Cannot read. Server failed to run for IPC with name '{}'.", self.name);
+                return None;
+            },
+            IPCChannelStatus::Running => {}
+        }
+
         // Lock messages
         let mut messages = self.shared_messages_read.lock().unwrap();
 
@@ -259,11 +306,31 @@ impl IPC {
     /// 
     /// * `message` - The message to write.
     pub fn write(&mut self, message: IPCMessage) {
+        // Check if server is started
+        let started = self.started.lock().unwrap();
+        match *started {
+            IPCChannelStatus::Starting => {
+                warn!("Cannot write. Server not started for IPC with name '{}'.", self.name);
+                return;
+            },
+            IPCChannelStatus::NotRunning => {
+                warn!("Cannot write. Server failed to run for IPC with name '{}'.", self.name);
+                return;
+            },
+            IPCChannelStatus::Running => {}
+        }
+
         // Lock messages
         let mut messages = self.shared_messages_write.lock().unwrap();
 
         // Push message
         messages.push(message);
+    }
+
+    /// Returns the status of the IPC channel.
+    pub fn status(&self) -> IPCChannelStatus {
+        let started = self.started.lock().unwrap();
+        started.clone()
     }
 }
 
