@@ -43,12 +43,14 @@ impl App {
 
                     // Handle editor messages and push new frame
                     if editor_handler.is_some() {
+                        let editor = editor_handler.as_mut().unwrap();
+
                         // Process editor messages
-                        editor_handler.as_mut().unwrap().process();
+                        editor.process();
 
                         // Set last frame
                         let r = rand::random::<u32>();
-                        editor_handler.as_mut().unwrap().set_current_frame(format!("Hello {} world", r).as_bytes());
+                        editor.set_current_frame(format!("Hello {} world", r).as_bytes());
                     }
                 },
             }
