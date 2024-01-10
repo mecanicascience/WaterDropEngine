@@ -21,13 +21,14 @@ core/
 |   └── core/
 |
 ├─────── Plateform Independent Layers ──────
-|   └── wrappers/
+|   └── third_party/
 |      ├── editor/
+|      ├── wgpu/
+|      └── window/
+|   |
+|   └── wrappers/
 |      ├── logger/
-|      └── graphics_wgpu/
-|
-├───────────── 3rd Party SDKs ──────────────
-|   └── wgpu
+|      └── math/
 |
 └──────────────── Hardware ─────────────────
 ```

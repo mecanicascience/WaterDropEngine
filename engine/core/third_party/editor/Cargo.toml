@@ -6,7 +6,7 @@ edition = "2021"
 description = "Wrapper for the interactions with the editor"
 
 [dependencies]
-wde_logger = { path = "../logger" }
+wde_logger = { path = "../../wrappers/logger" }
 rand = "0.8.5"
 tokio = { version = "1.35.0", features = ["rt", "rt-multi-thread", "net"] }
 win-sys = "0.3.1"

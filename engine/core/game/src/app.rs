@@ -1,5 +1,6 @@
 use wde_editor_interactions::EditorHandler;
-use wde_logger::error;
+use wde_logger::{error, info};
+use wde_window::{Window, LoopEvent};
 
 pub struct App {}
 
@@ -12,25 +13,46 @@ impl App {
         }
 
         // Start editor handler if on debug mode
+        let mut editor_handler = None;
         if cfg!(debug_assertions) {
-            let mut editor_handler = EditorHandler::new();
-            if !editor_handler.started() {
+            let h = EditorHandler::new();
+            if !h.started() {
                 error!("Editor handler failed to start.");
             }
             else {
-                loop {
-                    // Process editor messages
-                    editor_handler.process();
-
-                    // Set last frame
-                    let r = rand::random::<u32>();
-                    editor_handler.set_current_frame(format!("Hello {} world", r).as_bytes());
-
-                    // Sleep for 1 second
-                    std::thread::sleep(std::time::Duration::from_secs(1));
-                }
+                editor_handler = Some(h);
             }
         }
+
+        // Create window
+        let mut window = Window::new(800, 600, "WaterDropEngine");
+        window.run(move |event| {
+            match event {
+                // Close window when the close button is pressed
+                LoopEvent::Close => {
+                    info!("Closing engine.");
+                    return;
+                },
+                // Resize window when the window is resized
+                LoopEvent::Resize(width, height) => {
+                    info!("Resizing window to {}x{}.", width, height);
+                },
+                // Redraw window when the window is redrawn
+                LoopEvent::Redraw => {
+                    info!("Redrawing window.");
+
+                    // Handle editor messages and push new frame
+                    if editor_handler.is_some() {
+                        // Process editor messages
+                        editor_handler.as_mut().unwrap().process();
+
+                        // Set last frame
+                        let r = rand::random::<u32>();
+                        editor_handler.as_mut().unwrap().set_current_frame(format!("Hello {} world", r).as_bytes());
+                    }
+                },
+            }
+        });
         
         App {}
     }
