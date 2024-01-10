@@ -111,7 +111,7 @@ impl EditorHandler {
         }
     }
 
-    /// Process messages from editor.
+    /// Process messages from editor stored in the cache.
     /// Must be called every frame.
     pub fn process(&mut self) {
         // Check if editor is running

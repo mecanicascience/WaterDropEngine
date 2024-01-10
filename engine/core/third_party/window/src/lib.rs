@@ -12,6 +12,23 @@ pub enum LoopEvent {
     Redraw,
 }
 
+/// Window handler.
+/// 
+/// # Example
+/// 
+/// ```
+/// let mut window = Window::new(800, 600, "WaterDropEngine");
+/// window.run(move |event| {
+///     match event {
+///         // Close window
+///         LoopEvent::Close => { ... },
+///         // Resize window
+///         LoopEvent::Resize(width, height) => { ... },
+///         // Redraw window
+///         LoopEvent::Redraw => { ... },
+///     }
+/// });
+/// ```
 pub struct Window {
     pub title: String,
     pub size: Pair2u,
@@ -96,18 +113,5 @@ impl Window {
             }
         }).unwrap();
 
-    }
-
-
-    /// Should be called when the window is resized.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `width` - New width of the window.
-    /// * `height` - New height of the window.
-    pub fn resize(&mut self, width: u32, height: u32) {
-        info!("Resizing window {}x{}.", width, height);
-        
-        self.size = (width, height);
     }
 }

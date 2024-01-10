@@ -3,7 +3,7 @@ name = "wde_editor_interactions"
 version = "0.1.0"
 authors = ["MecanicaScience"]
 edition = "2021"
-description = "Wrapper for the interactions with the editor"
+description = "Interactions with the editor via IPC and Shared Memory"
 
 [dependencies]
 wde_logger = { path = "../../wrappers/logger" }

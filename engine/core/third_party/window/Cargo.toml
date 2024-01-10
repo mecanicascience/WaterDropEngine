@@ -3,7 +3,7 @@ name = "wde_window"
 version = "0.1.0"
 authors = ["MecanicaScience"]
 edition = "2021"
-description = "Wrapper for the windows manager"
+description = "Provides an interface with the windows system"
 
 [dependencies]
 wde_logger = { path = "../../wrappers/logger" }
