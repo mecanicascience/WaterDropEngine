@@ -1,6 +1,6 @@
 extern crate tracing;
 
-// Export error macro
+// Macro error! is used to log error messages and panic.
 #[macro_export]
 macro_rules! throw {
     ($($arg:tt)*) => ({

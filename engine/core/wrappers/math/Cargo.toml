@@ -3,4 +3,4 @@ name = "wde_math"
 version = "0.1.0"
 authors = ["MecanicaScience"]
 edition = "2021"
-description = "A simple maths library"
+description = "Handle game engine math"

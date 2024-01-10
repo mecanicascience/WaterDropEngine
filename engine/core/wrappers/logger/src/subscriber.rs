@@ -10,11 +10,12 @@ pub enum LEVEL {
     ERROR,
 }
 
-/// Create a new logger.
+/// Create a new logger instance.
+/// This must be called once before any other logging function.
 /// 
 /// # Arguments
 /// 
-/// * `level` - Level of the logger.
+/// * `level` - Maximum level of the logging system.
 pub fn create_logger(level: LEVEL) {
     // Build a tracing subscriber that writes to stdout
     let subscriber = FmtSubscriber::builder()
