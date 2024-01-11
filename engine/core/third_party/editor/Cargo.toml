@@ -7,7 +7,7 @@ description = "Interactions with the editor via IPC and Shared Memory"
 
 [dependencies]
 wde_logger = { path = "../../wrappers/logger" }
-rand = "0.8.5"
-tokio = { version = "1.35.0", features = ["rt", "rt-multi-thread", "net"] }
-win-sys = "0.3.1"
-winapi = { version = "0.3.9", features = ["winuser"] }
+rand = "0.8"
+tokio = { version = "1.35", features = ["rt", "rt-multi-thread", "net"] }
+win-sys = "0.3"
+winapi = { version = "0.3", features = ["winuser"] }

@@ -1,6 +1,6 @@
 use wde_editor_interactions::EditorHandler;
 use wde_logger::{error, info};
-use wde_window::{Window, LoopEvent};
+use wde_wgpu::{LoopEvent, Window};
 
 pub struct App {}
 

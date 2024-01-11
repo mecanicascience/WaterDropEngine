@@ -1,0 +1,13 @@
+[package]
+name = "wde_wgpu"
+version = "0.1.0"
+authors = ["MecanicaScience"]
+edition = "2021"
+description = "Provides an interface with the rendering wgpu backend"
+
+[dependencies]
+wde_logger = { path = "../../wrappers/logger" }
+wde_math = { path = "../../wrappers/math" }
+wgpu = "0.18"
+bytemuck = { version = "1.12", features = [ "derive" ] }
+winit = { version = "0.29", features = ["rwh_05"] }

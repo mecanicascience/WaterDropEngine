@@ -23,8 +23,7 @@ core/
 ├─────── Plateform Independent Layers ──────
 |   └── third_party/
 |      ├── editor/
-|      ├── wgpu/
-|      └── window/
+|      └── wgpu/
 |   |
 |   └── wrappers/
 |      ├── logger/
