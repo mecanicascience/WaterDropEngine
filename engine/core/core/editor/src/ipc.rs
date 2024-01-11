@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use tokio::{runtime::Builder, net::windows::named_pipe, io::Interest};
-use wde_logger::{trace, warn, info, throw, error};
+use tokio::{net::windows::named_pipe, io::Interest, spawn};
+use wde_logger::{trace, warn, debug, throw, error};
 
 /// IPC Channel running status
 #[derive(Debug, Clone, PartialEq)]
@@ -48,9 +48,6 @@ pub struct IPCMessage {
 pub struct IPC {
     /// The name of the IPC channel.
     name: String,
-    /// The runtime for the IPC channel that receives messages.
-    #[allow(dead_code)]
-    runtime: tokio::runtime::Runtime,
     /// Is the server running?
     started: Arc<Mutex<IPCChannelStatus>>,
     /// The shared list of received messages to read.
@@ -69,9 +66,6 @@ impl IPC {
     pub fn new(name: String, allocated_size: usize) -> Self {
         trace!("Creating an IPC channel with name '{}'.", name);
 
-        // Create runtime
-        let runtime = Builder::new_multi_thread().enable_all().build().unwrap();
-
         // Shared list of received messages
         let shared_messages_read = Arc::new(
             Mutex::new(Vec::<IPCMessage>::new())
@@ -89,7 +83,7 @@ impl IPC {
         let s = started.clone();
 
         // Spawn the root task
-        runtime.spawn(async move {
+        spawn(async move {
             // Create pipe name
             let pipe_name: &str = &(r"\\.\pipe\wde\".to_owned() + &name);
 
@@ -119,7 +113,7 @@ impl IPC {
             };
 
             // Log ready
-            info!("An IPC channel with name '{}' has been created.", name);
+            debug!("An IPC channel with name '{}' has been created.", name);
             loop {
                 // Wait for the socket to be readable
                 let ready = match client.ready(Interest::READABLE | Interest::WRITABLE).await {
@@ -256,13 +250,12 @@ impl IPC {
             }
 
             // Server stopped
-            info!("IPC channel named '{}' closed.", name);
+            debug!("IPC channel named '{}' closed.", name);
         });
 
         IPC {
             name: n,
             started,
-            runtime,
             shared_messages_read,
             shared_messages_write
         }

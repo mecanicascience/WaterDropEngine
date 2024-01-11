@@ -1,4 +1,4 @@
-use wde_logger::{trace, info, warn};
+use wde_logger::{trace, warn, debug};
 
 use crate::ipc::{IPC, IPCMessage, IPCChannelStatus};
 use crate::shared_memory::SharedMemory;
@@ -38,7 +38,7 @@ pub struct EditorHandler {
 impl EditorHandler {
     /// Create a new editor handler.
     pub fn new() -> Self {
-        info!("Starting editor handler.");
+        debug!("Starting editor handler.");
 
         // Create IPC write and read channels
         let mut ipc = IPC::new("editor".to_string(), 1_024);
@@ -97,7 +97,7 @@ impl EditorHandler {
                 None => {}
             }
             if received {
-                info!("Received confirmation from editor.");
+                debug!("Received confirmation from editor.");
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(100));

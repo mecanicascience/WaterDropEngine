@@ -2,6 +2,9 @@ use wde_logger::{debug, trace};
 
 use crate::{RenderInstance, BindGroup};
 
+/// Texture view
+pub type TextureView = wgpu::TextureView;
+
 /// Texture usages.
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureUsage {
@@ -24,7 +27,7 @@ pub enum TextureFormat {
 pub struct Texture {
     pub label: String,
     pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
+    pub view: TextureView,
     pub sampler: wgpu::Sampler,
     pub size: (u32, u32),
 }

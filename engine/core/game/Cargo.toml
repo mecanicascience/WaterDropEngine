@@ -6,7 +6,7 @@ edition = "2021"
 description = "The game root crate"
 
 [dependencies]
-wde_wgpu = { path = "../third_party/wgpu" }
-wde_editor_interactions = { path = "../third_party/editor" }
+wde_wgpu = { path = "../core/wgpu" }
+wde_editor_interactions = { path = "../core/editor" }
 wde_logger = { path = "../wrappers/logger" }
 rand = "0.8"

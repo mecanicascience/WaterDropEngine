@@ -7,7 +7,7 @@ core/
 ├────────────────── Game ───────────────────
 |   └── game/
 |
-├────────────────── Engine ───────────────────
+├───────────────── Engine ──────────────────
 |   └── engine/
 |       ├── scene/
 |       └── renderer/
@@ -19,12 +19,9 @@ core/
 |
 ├─────────────── Core Systems ──────────────
 |   └── core/
-|
-├─────── Plateform Independent Layers ──────
-|   └── third_party/
 |      ├── editor/
 |      └── wgpu/
-|   |
+├──────────────── Wrappers ─────────────────
 |   └── wrappers/
 |      ├── logger/
 |      └── math/

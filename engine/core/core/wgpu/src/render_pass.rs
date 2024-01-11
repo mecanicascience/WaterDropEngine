@@ -140,7 +140,7 @@ impl<'a> RenderPass<'a> {
     /// # Arguments
     /// 
     /// * `indices` - Range of indices to draw.
-    /// * `instance_index` - Index of the instance to draw.
+    /// * `instance_index` - Index of the instance to draw. This will use the instance at the index and the next instance.
     pub fn draw_indexed(&mut self, indices: Range<u32>, instance_index: u32) {
         self.render_pass.draw_indexed(indices, 0, instance_index..(instance_index+1));
     }

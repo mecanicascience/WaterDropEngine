@@ -1,8 +1,23 @@
 use wde_logger::{trace, debug};
 
-use crate::{RenderInstance, Buffer};
+use crate::{RenderInstance, Buffer, TextureView};
 
 use super::render_pass::RenderPass;
+
+/// Type of a color.
+pub type Color = wgpu::Color;
+
+/// Type of a load operation.
+pub type LoadOp<V> = wgpu::LoadOp<V>;
+
+/// Type of a store operation.
+pub type StoreOp = wgpu::StoreOp;
+
+/// Load and store operations for the color texture.
+pub struct Operations<V> {
+    pub load: LoadOp<V>,
+    pub store: StoreOp,
+}
 
 /// Create a command buffer.
 /// 
@@ -58,9 +73,9 @@ impl CommandBuffer {
     /// * `color_operations` - The color operations. If `None`, clear the color texture to black.
     /// * `depth_texture` - The depth texture to render to.
     pub fn create_render_pass<'pass>(&'pass mut self, label: &str,
-        color_texture: &'pass wgpu::TextureView,
-        color_operations: Option<wgpu::Operations<wgpu::Color>>,
-        depth_texture: Option<&'pass wgpu::TextureView>) -> RenderPass<'pass> {
+        color_texture: &'pass TextureView,
+        color_operations: Option<Operations<Color>>,
+        depth_texture: Option<&'pass TextureView>) -> RenderPass<'pass> {
         trace!("Creating render pass '{}'", label);
 
         let mut depth_attachment = None;
@@ -75,14 +90,28 @@ impl CommandBuffer {
             });
         }
 
+        let mut wgpu_color_operations = None;
+        if color_operations.as_ref().is_some() {
+            wgpu_color_operations = Some(wgpu::Operations {
+                load: match color_operations.as_ref().unwrap().load {
+                    LoadOp::Clear(color) => wgpu::LoadOp::Clear(color),
+                    LoadOp::Load => wgpu::LoadOp::Load,
+                },
+                store: match color_operations.unwrap().store {
+                    StoreOp::Discard => wgpu::StoreOp::Discard,
+                    StoreOp::Store => wgpu::StoreOp::Store,
+                },
+            });
+        }
+
         let render_pass = self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some(format!("'{}' Render Pass", label).as_str()),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &color_texture,
                 resolve_target: None,
-                ops: color_operations.unwrap_or(wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: wgpu::StoreOp::Store,
+                ops: wgpu_color_operations.unwrap_or(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(Color::BLACK),
+                    store: wgpu::StoreOp::Store
                 }),
             })],
             depth_stencil_attachment: depth_attachment,

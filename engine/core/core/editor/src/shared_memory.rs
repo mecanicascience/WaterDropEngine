@@ -98,7 +98,7 @@ impl SharedMemory {
             }
         }.unwrap();
         trace!("Mapped file view into adress space at location '{tmp_id}'.");
-        info!("Created shared memory of {} bytes at location '{}'.", size, tmp_id);
+        debug!("Created shared memory of {} bytes at location '{}'.", size, tmp_id);
 
         // Return shared memory
         Self {
@@ -133,7 +133,7 @@ impl SharedMemory {
 
 impl Drop for SharedMemory {
     fn drop(&mut self) {
-        info!("Dropping shared memory at location '{}'.", self.shared_index);
+        debug!("Dropping shared memory at location '{}'.", self.shared_index);
 
         // Delete physical file
         if let Err(e) = std::fs::remove_file(&self.file_path) {
