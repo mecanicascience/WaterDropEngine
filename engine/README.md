@@ -17,8 +17,8 @@ core/
 ├──────────────── Resources ────────────────
 |   └── resources/
 |
-├─────────────── Core Systems ──────────────
-|   └── core/
+├─────────── Third Party Systems ───────────
+|   └── third_party/
 |      ├── editor/
 |      └── wgpu/
 ├──────────────── Wrappers ─────────────────
