@@ -84,16 +84,13 @@ struct ResourcesManagerInstance {
 
 impl ResourcesManagerInstance {
     /// Create a new resources manager instance.
-    /// Note: This will create an array for each resource type.
     pub fn new() -> Self {
         Self {
             handle_index_iterator: 0,
             path_to_index: HashMap::new(),
             handle_to_res: HashMap::new(),
 
-            resources: HashMap::from([
-                (ResourceType::Dummy, Vec::new()),
-            ]),
+            resources: HashMap::new(),
         }
     }
 
@@ -110,6 +107,12 @@ impl ResourcesManagerInstance {
         if let Some(index) = self.path_to_index.get(path) {
             // Return resource index
             return *index;
+        }
+        
+        // Check if resource type exists
+        if !self.resources.contains_key(&T::resource_type()) {
+            // Create resource type array
+            self.resources.insert(T::resource_type(), Vec::new());
         }
 
         // Generate new resource handle index
