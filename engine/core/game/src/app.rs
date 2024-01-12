@@ -1,5 +1,6 @@
 use wde_logger::{info, throw};
 use wde_editor_interactions::EditorHandler;
+use wde_resources::{ResourcesManager, DummyResource};
 use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline};
 
 pub struct App {}
@@ -22,6 +23,13 @@ impl App {
             if h.is_some() && h.as_ref().unwrap().started() {
                 editor_handler = Some(h);
             }
+        }
+
+        // Load resource
+        let mut res_manager = ResourcesManager::new();
+        {
+            let handle = res_manager.load::<DummyResource>("test");
+            let _ = res_manager.get::<DummyResource>(handle.clone());
         }
 
         // Create window

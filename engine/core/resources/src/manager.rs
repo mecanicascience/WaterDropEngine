@@ -1,8 +1,8 @@
 use std::{sync::{Arc, Mutex}, collections::HashMap};
 
-use wde_logger::error;
+use wde_logger::{error, trace};
 
-use crate::{DummyResource, Resource, ResourceType};
+use crate::{Resource, ResourceType};
 
 /// The unique identifier of a resource handle
 type ResourceHandleIndex = u32;
@@ -43,7 +43,7 @@ impl ResourceHandle {
         // Return resource handle
         Self {
             label: label.to_string(),
-            resource_type: resource_type,
+            resource_type,
             index,
             manager: m,
         }
@@ -78,19 +78,22 @@ struct ResourcesManagerInstance {
     /// Map from resources index to (handle count, resource array index)
     handle_to_res: HashMap<ResourceHandleIndex, (HandleCount, ResourceArrayIndex)>,
     
-    /// Resources list
-    resources_dummy: Vec<Arc<Mutex<DummyResource>>>,
+    /// Resources list. One array per resource type.
+    resources: HashMap<ResourceType, Vec<Arc<Mutex<dyn Resource>>>>
 }
 
 impl ResourcesManagerInstance {
     /// Create a new resources manager instance.
+    /// Note: This will create an array for each resource type.
     pub fn new() -> Self {
         Self {
             handle_index_iterator: 0,
             path_to_index: HashMap::new(),
             handle_to_res: HashMap::new(),
 
-            resources_dummy: Vec::new(),
+            resources: HashMap::from([
+                (ResourceType::Dummy, Vec::new()),
+            ]),
         }
     }
 
@@ -102,7 +105,7 @@ impl ResourcesManagerInstance {
     /// # Arguments
     /// 
     /// * `path` - Path to the resource.
-    fn load(&mut self, path: &str, resource_type: ResourceType) -> ResourceHandleIndex {
+    fn load<T: Resource>(&mut self, path: &str) -> ResourceHandleIndex {
         // Check if resource is already loaded
         if let Some(index) = self.path_to_index.get(path) {
             // Return resource index
@@ -117,21 +120,16 @@ impl ResourcesManagerInstance {
         self.path_to_index.insert(path.to_string(), index);
 
         // Start loading resource
-        let resource_array_index = match resource_type {
-            ResourceType::Dummy => {
-                // Create dummy resource
-                let resource = DummyResource::new(path);
+        trace!("Loading resource with path {}.", path);
+        let resource = T::new(path);
 
-                // Add resource to resources list
-                self.resources_dummy.push(Arc::new(Mutex::new(resource)));
-
-                // Return resource index
-                self.resources_dummy.len() as ResourceArrayIndex - 1
-            },
-        };
+        // Add resource to resources list
+        let resource_type = T::resource_type();
+        let resources_arr = self.resources.get_mut(&resource_type).unwrap();
+        resources_arr.push(Arc::new(Mutex::new(resource)));
 
         // Add resource to handle to resource map
-        self.handle_to_res.insert(index, (0, resource_array_index));
+        self.handle_to_res.insert(index, (0, resources_arr.len() as ResourceArrayIndex - 1));
 
         // Return resource index
         index
@@ -160,11 +158,9 @@ impl ResourcesManagerInstance {
             self.handle_to_res.remove(&handle);
 
             // Remove resource from resources list
-            match resource_type {
-                ResourceType::Dummy => {
-                    self.resources_dummy.remove(resource_index_g as usize);
-                },
-            }
+            trace!("Unloading resource with index {}. If the program crashes here, you probably dropped the handle too soon. Please use drop(handle) manually.", resource_index_g);
+            let arr = self.resources.get_mut(&resource_type).unwrap();
+            arr.remove(resource_index_g as usize);
         }
     }
 }
@@ -176,6 +172,31 @@ impl ResourcesManagerInstance {
 /// Stores all the resources loaded by the engine, and their handles.
 /// Each resource handle is a reference counted pointer to a resource location.
 /// When all of the handles pointing to a resource location are dropped, the resource is unloaded.
+/// 
+/// # Example
+/// 
+/// ```
+/// // Create a new resources manager instance
+/// let mut res_manager = ResourcesManager::new();
+/// 
+/// // Load resource
+/// {
+///    let handle = res_manager.load::<DummyResource>("test");
+/// 
+///    {
+///       // Clone handle
+///       let handle2 = handle.clone();
+/// 
+///       // Get resource
+///       let res = res_manager.get::<DummyResource>(&handle2);
+///       (...)
+///    } // Drop handle2 -> Resource is still loaded
+/// 
+///    // Get resource
+///    let res = res_manager.get::<DummyResource>(&handle);
+///    (...)
+/// } // Drop handle -> Resource is unloaded
+/// ```
 pub struct ResourcesManager {
     /// Resources manager instance
     instance: Arc<Mutex<ResourcesManagerInstance>>,
@@ -196,23 +217,33 @@ impl ResourcesManager {
     /// # Arguments
     /// 
     /// * `path` - Path to the resource.
-    /// * `resource_type` - Type of the resource.
     /// 
     /// # Returns
     /// 
     /// * `ResourceHandle` - Handle pointing to the resource location.
     /// When all of the handles pointing to a resource location are dropped, the resource is unloaded.
-    pub fn load(&mut self, path: &str, resource_type: ResourceType) -> ResourceHandle {
+    pub fn load<T: Resource>(&mut self, path: &str) -> ResourceHandle {
+        // Get resource type
+        let resource_type = T::resource_type();
+
         // Start loading resource
-        let index: ResourceHandleIndex = self.instance.lock().unwrap().load(path, resource_type);
+        let index: ResourceHandleIndex = self.instance.lock().unwrap().load::<T>(path);
 
         // Create resource handle and return it
         ResourceHandle::new(path, resource_type, index, self.instance.clone())
     }
 
     /// Get a resource from a resource handle.
-    pub fn get_dummy(&self, handle: &ResourceHandle) -> Option<Arc<Mutex<DummyResource>>> {
-        let instance = self.instance.lock().unwrap();
+    /// 
+    /// # Arguments
+    /// 
+    /// * `handle` - Handle pointing to the resource location.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Option<&T>` - The resource if it exists, None otherwise.
+    pub fn get<T: Resource>(&mut self, handle: ResourceHandle) -> Option<&mut T> {
+        let mut instance = self.instance.lock().unwrap();
 
         // Check if handle is valid
         if !instance.handle_to_res.contains_key(&handle.index) {
@@ -221,15 +252,15 @@ impl ResourcesManager {
         }
 
         // Get resource index
-        let (_, resource_index) = instance.handle_to_res.get(&handle.index).unwrap();
+        let (_, resource_index) = instance.handle_to_res.get(&handle.index).unwrap().clone();
 
         // Get resource
-        match handle.resource_type {
-            ResourceType::Dummy => {
-                let resource = instance.resources_dummy[*resource_index as usize].clone();
-
-                return Some(resource);
-            },
+        let resources_arr = instance.resources.get_mut(&T::resource_type()).unwrap();
+        let mut resource_as_dyn = resources_arr.get_mut(resource_index as usize).unwrap().lock().unwrap();
+        let resource_as_t = resource_as_dyn.as_any_mut().downcast_mut::<T>().unwrap();
+        if !resource_as_t.loaded() {
+            return None;
         }
+        Some(unsafe { std::mem::transmute::<&mut T, &mut T>(resource_as_t) })
     }
 }
