@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use tokio::{net::windows::named_pipe, io::Interest, spawn};
-use wde_logger::{trace, debug, error};
+use tokio::{net::windows::named_pipe, io::Interest};
+use wde_logger::{trace, debug, error, throw};
 
 use crate::EditorError;
 
@@ -84,8 +84,16 @@ impl IPC {
         );
         let s = started.clone();
 
+        // Create runtime
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap_or_else(|e| {
+                throw!("Failed to create runtime in the IPC editor manager : {:?}", e);
+            });
+
         // Spawn the root task
-        spawn(async move {
+        runtime.spawn(async move {
             // Create pipe name
             let pipe_name: &str = &(r"\\.\pipe\wde\".to_owned() + &name);
 

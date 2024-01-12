@@ -50,12 +50,14 @@ impl CommandBuffer {
     /// 
     /// * `instance` - The render instance.
     /// * `label` - The label of the command buffer.
-    pub fn new(instance: &RenderInstance, label: &str) -> Self {
+    pub async fn new(instance: &RenderInstance, label: &str) -> Self {
         debug!("Creating command buffer '{}'", label);
 
         // Create command encoder
-        let command_encoder = instance.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(format!("'{}' Command Encoder", label).as_str()),
+        let command_encoder = tokio::task::block_in_place(|| {
+            instance.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some(format!("'{}' Command Encoder", label).as_str()),
+            })
         });
 
         Self {

@@ -47,7 +47,7 @@ impl Texture {
     /// * `size` - Size of the texture.
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
-    pub fn new(instance: &RenderInstance, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsage) -> Self {
+    pub async fn new(instance: &RenderInstance, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsage) -> Self {
         debug!("Creating texture '{}'.", label);
         
         // Create texture
@@ -78,23 +78,25 @@ impl Texture {
         });
 
         // Create texture view
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some(format!("'{}' Texture View", label).as_str()),
-            format: if format == Self::DEPTH_FORMAT {
-                None
-            } else {
-                Some(f)
-            },
-            dimension: if format == Self::DEPTH_FORMAT {
-                None
-            } else {
-                Some(wgpu::TextureViewDimension::D2)
-            },
-            aspect: wgpu::TextureAspect::All,
-            base_mip_level: 0,
-            base_array_layer: 0,
-            mip_level_count: None,
-            array_layer_count: None
+        let view = tokio::task::block_in_place(|| {
+            texture.create_view(&wgpu::TextureViewDescriptor {
+                label: Some(format!("'{}' Texture View", label).as_str()),
+                format: if format == Self::DEPTH_FORMAT {
+                    None
+                } else {
+                    Some(f)
+                },
+                dimension: if format == Self::DEPTH_FORMAT {
+                    None
+                } else {
+                    Some(wgpu::TextureViewDimension::D2)
+                },
+                aspect: wgpu::TextureAspect::All,
+                base_mip_level: 0,
+                base_array_layer: 0,
+                mip_level_count: None,
+                array_layer_count: None
+            })
         });
 
         // If depth texture, set compare sample
@@ -105,19 +107,21 @@ impl Texture {
         };
 
         // Create sampler
-        let sampler = instance.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some(format!("'{}' Texture Sampler", label).as_str()),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 100.0,
-            compare,
-            anisotropy_clamp: 1,
-            border_color: None,
+        let sampler = tokio::task::block_in_place(|| {
+            instance.device.create_sampler(&wgpu::SamplerDescriptor {
+                label: Some(format!("'{}' Texture Sampler", label).as_str()),
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Linear,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                lod_min_clamp: 0.0,
+                lod_max_clamp: 100.0,
+                compare,
+                anisotropy_clamp: 1,
+                border_color: None,
+            })
         });
 
         // Return texture
@@ -137,7 +141,7 @@ impl Texture {
     /// # Arguments
     /// 
     /// * `instance` - Game instance.
-    pub fn create_bind_group(&self, instance: &RenderInstance) -> BindGroup {
+    pub async fn create_bind_group(&self, instance: &RenderInstance) -> BindGroup {
         trace!("Creating bind group for texture '{}'.", self.label);
 
         // Create bind group layout
@@ -159,25 +163,29 @@ impl Texture {
                 count: None,
             }
         ];
-        let layout = instance.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some(format!("Texture '{}' Bind Group Layout", self.label).as_str()),
-            entries: &layout_entries,
+        let layout = tokio::task::block_in_place(|| {
+            instance.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some(format!("Texture '{}' Bind Group Layout", self.label).as_str()),
+                entries: &layout_entries,
+            })
         });
         
         // Create bind group
-        let texture_bind_group = instance.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(format!("'{}' Texture Bind Group", self.label).as_str()),
-            layout: &layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&self.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
-                }
-            ],
+        let texture_bind_group = tokio::task::block_in_place(|| {
+            instance.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some(format!("'{}' Texture Bind Group", self.label).as_str()),
+                layout: &layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&self.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&self.sampler),
+                    }
+                ],
+            })
         });
 
         // Return texture bind group

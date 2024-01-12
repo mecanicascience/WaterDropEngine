@@ -10,6 +10,7 @@ use winit::{
 type EventLoop = winit::event_loop::EventLoop<()>;
 
 /// Type of the window event.
+#[derive(Debug, Clone, Copy)]
 pub enum LoopEvent {
     Close,
     Resize(u32, u32),

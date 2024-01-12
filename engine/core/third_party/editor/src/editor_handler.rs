@@ -53,6 +53,7 @@ impl EditorHandler {
 
         // Wait for editor to connect
         let ipc_running;
+        let mut iterations = 200; // Stop after this amount of iterations
         loop {
             match ipc.status() {
                 IPCChannelStatus::Running => {
@@ -65,6 +66,13 @@ impl EditorHandler {
                 },
                 IPCChannelStatus::Starting => {
                     // Wait for editor to connect
+                    iterations -= 1;
+
+                    // Check if iterations are over
+                    if iterations == 0 {
+                        error!("Editor took too long to start.");
+                        return Err(EditorError::EditorNotRunning);
+                    }
                 }
             }
             std::thread::sleep(std::time::Duration::from_millis(10));

@@ -108,7 +108,7 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroup` - The bind group of the buffer.
-    pub fn create_bind_group(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderType) -> BindGroup {
+    pub async fn create_bind_group(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderType) -> BindGroup {
         trace!("Creating bind group for '{}' Buffer.", self.label);
         
         // Create bind group layout
@@ -130,26 +130,30 @@ impl Buffer {
                 count: None,
             }
         ];
-        let layout = instance.device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
-                label: Some(format!("'{}' Buffer Bind Group Layout", self.label).as_str()),
-                entries: &layout_entries,
-            }
-        );
 
-        // Create bind group
-        let bind_group = instance.device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                label: Some(format!("'{}' Buffer Bind Group", self.label).as_str()),
-                layout: &layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: self.buffer.as_entire_binding(),
-                    }
-                ],
-            }
-        );
+        let bind_group = tokio::task::block_in_place(|| {
+            let layout = instance.device.create_bind_group_layout(
+                &wgpu::BindGroupLayoutDescriptor {
+                    label: Some(format!("'{}' Buffer Bind Group Layout", self.label).as_str()),
+                    entries: &layout_entries,
+                }
+            );
+
+            // Create bind group
+            instance.device.create_bind_group(
+                &wgpu::BindGroupDescriptor {
+                    label: Some(format!("'{}' Buffer Bind Group", self.label).as_str()),
+                    layout: &layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: self.buffer.as_entire_binding(),
+                        }
+                    ],
+                }
+            )
+        });
+        
 
         // Return bind group
         BindGroup::new(
@@ -165,13 +169,13 @@ impl Buffer {
     /// 
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
-    pub fn copy_from_buffer(&mut self, instance: &RenderInstance, buffer: &Buffer) {
+    pub async fn copy_from_buffer(&mut self, instance: &RenderInstance, buffer: &Buffer) {
         trace!("Copying from '{}' to '{}' Buffer.", buffer.label, self.label);
         
         // Create command encoder
         let mut command_buffer = CommandBuffer::new(
             instance,
-            &format!("Copy from '{}' to '{}' Buffer", buffer.label, self.label));
+            &format!("Copy from '{}' to '{}' Buffer", buffer.label, self.label)).await;
 
         // Copy buffer
         command_buffer.copy_buffer_to_buffer(&buffer, &self);

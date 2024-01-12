@@ -152,7 +152,7 @@ impl RenderPipeline {
     /// # Arguments
     /// 
     /// * `instance` - Render instance.
-    pub fn init(&mut self, instance: &RenderInstance) -> Result<(), RenderError> {
+    pub async fn init(&mut self, instance: &RenderInstance) -> Result<(), RenderError> {
         debug!("Creating render pipeline '{}'.", self.label);
         let d = &self.config;
 
@@ -164,75 +164,82 @@ impl RenderPipeline {
         
         // Load shaders
         trace!("Loading shaders for '{}'.", self.label);
-        let shader_module_vert = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("'{}' Render Pipeline Vertex Shader", self.label).as_str()),
-            source: wgpu::ShaderSource::Wgsl(self.config.vertex_shader.clone().into())
-        });
-        let shader_module_frag = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("'{}' Render Pipeline Fragment Shader", self.label).as_str()),
-            source: wgpu::ShaderSource::Wgsl(self.config.fragment_shader.clone().into())
+        let (shader_module_vert, shader_module_frag) = tokio::task::block_in_place(|| {
+            let v = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(format!("'{}' Render Pipeline Vertex Shader", self.label).as_str()),
+                source: wgpu::ShaderSource::Wgsl(self.config.vertex_shader.clone().into())
+            });
+            let f = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(format!("'{}' Render Pipeline Fragment Shader", self.label).as_str()),
+                source: wgpu::ShaderSource::Wgsl(self.config.fragment_shader.clone().into())
+            });
+            (v, f)
         });
 
         // Create pipeline layout
         trace!("Creating render pipeline instance '{}'.", self.label);
-        let layout: wgpu::PipelineLayout = instance.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some(format!("'{}' Render Pipeline Layout", self.label).as_str()),
-            bind_group_layouts: &d.bind_groups.iter().collect::<Vec<&wgpu::BindGroupLayout>>(),
-            push_constant_ranges: &d.push_constants,
+        let layout = tokio::task::block_in_place(|| {
+            instance.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some(format!("'{}' Render Pipeline Layout", self.label).as_str()),
+                bind_group_layouts: &d.bind_groups.iter().collect::<Vec<&wgpu::BindGroupLayout>>(),
+                push_constant_ranges: &d.push_constants,
+            })
         });
 
         // Create pipeline
         let mut res: Result<(), RenderError> = Ok(());
-        let pipeline = instance.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some(format!("'{}' Render Pipeline", self.label).as_str()),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &shader_module_vert,
-                entry_point: "main",
-                buffers: &vec![Vertex::describe()]
-            },
-            fragment: Some(wgpu::FragmentState { // Always write to swapchain format
-                module: &shader_module_frag,
-                entry_point: "main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: match Texture::SWAPCHAIN_FORMAT {
-                        TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8UnormSrgb,
-                        TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
+        let pipeline = tokio::task::block_in_place(|| {
+            instance.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(format!("'{}' Render Pipeline", self.label).as_str()),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader_module_vert,
+                    entry_point: "main",
+                    buffers: &vec![Vertex::describe()]
+                },
+                fragment: Some(wgpu::FragmentState { // Always write to swapchain format
+                    module: &shader_module_frag,
+                    entry_point: "main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: match Texture::SWAPCHAIN_FORMAT {
+                            TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8UnormSrgb,
+                            TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
+                            _ => {
+                                error!("Swapchain format is not supported for render pipeline '{}'.", self.label);
+                                res = Err(RenderError::UnsupportedSwapchainFormat);
+                                wgpu::TextureFormat::Bgra8UnormSrgb
+                            }
+                        },
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: d.primitive_topology,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    conservative: false,
+                    unclipped_depth: false,
+                },
+                depth_stencil: if d.depth_stencil { Some(wgpu::DepthStencilState {
+                    format: match Texture::DEPTH_FORMAT {
+                        TextureFormat::Depth32Float => wgpu::TextureFormat::Depth32Float,
                         _ => {
-                            error!("Swapchain format is not supported for render pipeline '{}'.", self.label);
-                            res = Err(RenderError::UnsupportedSwapchainFormat);
-                            wgpu::TextureFormat::Bgra8UnormSrgb
+                            error!("Depth format is not supported for render pipeline '{}'.", self.label);
+                            res = Err(RenderError::UnsupportedDepthFormat);
+                            wgpu::TextureFormat::Depth32Float
                         }
                     },
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: d.primitive_topology,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false,
-                unclipped_depth: false,
-            },
-            depth_stencil: if d.depth_stencil { Some(wgpu::DepthStencilState {
-                format: match Texture::DEPTH_FORMAT {
-                    TextureFormat::Depth32Float => wgpu::TextureFormat::Depth32Float,
-                    _ => {
-                        error!("Depth format is not supported for render pipeline '{}'.", self.label);
-                        res = Err(RenderError::UnsupportedDepthFormat);
-                        wgpu::TextureFormat::Depth32Float
-                    }
-                },
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }) } else { None },
-            multisample: wgpu::MultisampleState::default(),
-            multiview: Default::default(),
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }) } else { None },
+                multisample: wgpu::MultisampleState::default(),
+                multiview: Default::default(),
+            })
         });
 
         // Set pipeline

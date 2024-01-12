@@ -11,3 +11,4 @@ wde_wgpu = { path = "../third_party/wgpu" }
 wde_editor_interactions = { path = "../third_party/editor" }
 wde_logger = { path = "../wrappers/logger" }
 rand = "0.8"
+tokio = { version = "1.35", features = ["rt", "macros", "sync"] }

@@ -12,4 +12,3 @@ categories = ["game-engines", "graphics", "rendering", "simulation"]
 [dependencies]
 wde_game = { path = "./core/game" }
 wde_logger = { path = "./core/wrappers/logger" }
-tokio = { version = "1.35", features = ["rt", "macros"] }
