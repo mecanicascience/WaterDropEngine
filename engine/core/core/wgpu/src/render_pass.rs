@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use wde_logger::error;
 
-use crate::{BindGroup, ShaderType, Buffer};
+use crate::{BindGroup, ShaderType, Buffer, RenderError};
 
 use super::render_pipeline::RenderPipeline;
 
@@ -30,6 +30,9 @@ use super::render_pipeline::RenderPipeline;
 pub struct RenderPass<'a> {
     pub label: String,
     render_pass: wgpu::RenderPass<'a>,
+    pipeline_set: bool,
+    vertex_buffer_set: bool,
+    index_buffer_set: bool,
 }
 
 impl<'a> RenderPass<'a> {
@@ -43,6 +46,9 @@ impl<'a> RenderPass<'a> {
         Self {
             label: label.to_string(),
             render_pass,
+            pipeline_set: false,
+            vertex_buffer_set: false,
+            index_buffer_set: false,
         }
     }
 
@@ -52,14 +58,19 @@ impl<'a> RenderPass<'a> {
     /// # Arguments
     /// 
     /// * `pipeline` - The pipeline to set.
-    pub fn set_pipeline(&mut self, pipeline: &'a RenderPipeline) -> &mut Self {
+    /// 
+    /// # Errors
+    /// 
+    /// * `RenderError::PipelineNotInitialized` - The pipeline is not initialized.
+    pub fn set_pipeline(&mut self, pipeline: &'a RenderPipeline) -> Result<&mut Self, RenderError> {
         if pipeline.get_pipeline().is_none() {
             error!("Pipeline '{}' is not created yet!", pipeline.label);
+            return Err(RenderError::PipelineNotInitialized);
         }
 
         // Set pipeline
         self.render_pass.set_pipeline(&pipeline.get_pipeline().as_ref().unwrap());
-        self
+        Ok(self)
     }
 
     /// Set a vertex buffer of the render pass.
@@ -131,8 +142,22 @@ impl<'a> RenderPass<'a> {
     /// 
     /// * `vertices` - Range of vertices to draw.
     /// * `instances` - Range of instances to draw.
-    pub fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) {
+    /// 
+    /// # Errors
+    /// 
+    /// * `RenderError::PipelineNotSet` - The pipeline is not set.
+    /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
+    pub fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) -> Result<(), RenderError> {
+        if !self.pipeline_set {
+            error!("Pipeline {} is not set!", self.label);
+            return Err(RenderError::PipelineNotSet);
+        }
+        if !self.vertex_buffer_set {
+            error!("Vertex buffer is not set for pipeline {}!", self.label);
+            return Err(RenderError::MissingVertexBuffer);
+        }
         self.render_pass.draw(vertices, instances);
+        Ok(())
     }
 
     /// Draws primitives from the active vertex buffers as indexed triangles.
@@ -141,7 +166,26 @@ impl<'a> RenderPass<'a> {
     /// 
     /// * `indices` - Range of indices to draw.
     /// * `instance_index` - Index of the instance to draw. This will use the instance at the index and the next instance.
-    pub fn draw_indexed(&mut self, indices: Range<u32>, instance_index: u32) {
+    /// 
+    /// # Errors
+    /// 
+    /// * `RenderError::PipelineNotSet` - The pipeline is not set.
+    /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
+    /// * `RenderError::MissingIndexBuffer` - The index buffer is not set.
+    pub fn draw_indexed(&mut self, indices: Range<u32>, instance_index: u32) -> Result<(), RenderError> {
+        if !self.pipeline_set {
+            error!("Pipeline {} is not set!", self.label);
+            return Err(RenderError::PipelineNotSet);
+        }
+        if !self.vertex_buffer_set {
+            error!("Vertex buffer is not set for pipeline {}!", self.label);
+            return Err(RenderError::MissingVertexBuffer);
+        }
+        if !self.index_buffer_set {
+            error!("Index buffer is not set for pipeline {}!", self.label);
+            return Err(RenderError::MissingIndexBuffer);
+        }
         self.render_pass.draw_indexed(indices, 0, instance_index..(instance_index+1));
+        Ok(())
     }
 }

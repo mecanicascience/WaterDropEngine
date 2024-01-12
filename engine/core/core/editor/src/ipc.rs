@@ -1,7 +1,9 @@
 use std::sync::{Arc, Mutex};
 
 use tokio::{net::windows::named_pipe, io::Interest, spawn};
-use wde_logger::{trace, warn, debug, throw, error};
+use wde_logger::{trace, debug, error};
+
+use crate::EditorError;
 
 /// IPC Channel running status
 #[derive(Debug, Clone, PartialEq)]
@@ -93,17 +95,17 @@ impl IPC {
                 let cl = match named_pipe::ClientOptions::new().open(pipe_name) {
                     Ok(client) => client,
                     Err(e) if e.kind() == tokio::io::ErrorKind::NotFound => {
-                        warn!("Server not found for IPC with name '{}'. Try starting the server first.", name);
+                        error!("Server not found for IPC with name '{}'. Try starting the server first.", name);
                         *start = IPCChannelStatus::NotRunning;
                         return;
                     }
                     Err(e) if e.raw_os_error() == Some(231) => { // Os error 231 (All pipe instances are busy)
-                        warn!("Server busy for IPC with name '{}'.", name);
+                        error!("Server busy for IPC with name '{}'.", name);
                         *start = IPCChannelStatus::NotRunning;
                         return;
                     }
                     Err(e) => {
-                        warn!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
+                        error!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
                         *start = IPCChannelStatus::NotRunning;
                         return;
                     }
@@ -119,7 +121,7 @@ impl IPC {
                 let ready = match client.ready(Interest::READABLE | Interest::WRITABLE).await {
                     Ok(ready) => ready,
                     Err(e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
-                        warn!("Server not ready for IPC with name '{}'.", name);
+                        error!("Server not ready for IPC with name '{}'.", name);
                         return;
                     }
                     Err(e) => {
@@ -166,7 +168,8 @@ impl IPC {
 
                                 // Check if payload size is valid
                                 if payload_size > allocated_size as u16 {
-                                    throw!("Payload size '{}' is bigger than the allocated size '{}'.", payload_size, allocated_size);
+                                    error!("Payload size '{}' is bigger than the allocated size '{}'.", payload_size, allocated_size);
+                                    break;
                                 }
 
                                 // Get payload
@@ -264,17 +267,17 @@ impl IPC {
 
     /// Reads the messages from the IPC channel.
     /// Clears the messages after reading them.
-    pub fn read(&mut self) -> Option<Vec<IPCMessage>> {
+    pub fn read(&mut self) -> Result<Option<Vec<IPCMessage>>, EditorError> {
         // Check if server is started
         let started = self.started.lock().unwrap();
         match *started {
             IPCChannelStatus::Starting => {
-                warn!("Cannot read. Server not started for IPC with name '{}'.", self.name);
-                return None;
+                error!("Cannot read. Server not started for IPC with name '{}'.", self.name);
+                return Err(EditorError::IPCServerNotStarted);
             },
             IPCChannelStatus::NotRunning => {
-                warn!("Cannot read. Server failed to run for IPC with name '{}'.", self.name);
-                return None;
+                error!("Cannot read. Server failed to run for IPC with name '{}'.", self.name);
+                return Err(EditorError::IPCServerFailed);
             },
             IPCChannelStatus::Running => {}
         }
@@ -287,9 +290,9 @@ impl IPC {
             let mut new_messages = Vec::<IPCMessage>::new();
             std::mem::swap(&mut new_messages, &mut *messages);
             messages.clear();
-            Some(new_messages)
+            Ok(Some(new_messages))
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -303,11 +306,11 @@ impl IPC {
         let started = self.started.lock().unwrap();
         match *started {
             IPCChannelStatus::Starting => {
-                warn!("Cannot write. Server not started for IPC with name '{}'.", self.name);
+                error!("Cannot write. Server not started for IPC with name '{}'.", self.name);
                 return;
             },
             IPCChannelStatus::NotRunning => {
-                warn!("Cannot write. Server failed to run for IPC with name '{}'.", self.name);
+                error!("Cannot write. Server failed to run for IPC with name '{}'.", self.name);
                 return;
             },
             IPCChannelStatus::Running => {}
@@ -326,10 +329,3 @@ impl IPC {
         started.clone()
     }
 }
-
-impl Drop for IPC {
-    fn drop(&mut self) {
-        trace!("Dropping IPC channel with name '{}'.", self.name);
-    }
-}
-

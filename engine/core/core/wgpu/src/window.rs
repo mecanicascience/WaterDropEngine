@@ -1,4 +1,4 @@
-use wde_logger::debug;
+use wde_logger::{debug, error, throw};
 use wde_math::Pair2u;
 use winit::{
     event::{Event, WindowEvent},
@@ -63,6 +63,11 @@ impl Window {
     }
 
     /// Create the window.
+    /// If the event loop or window fails to be created, the application will panic.
+    /// 
+    /// # Returns
+    /// 
+    /// * `event_loop` - The event loop of the window.
     pub fn create(&mut self) -> EventLoop {
         debug!("Creating window.");
 
@@ -91,13 +96,18 @@ impl Window {
     /// * `callback` - Callback function that is called when an event is received.
     pub fn run<F>(&mut self, event_loop: EventLoop, mut callback: F) where F: FnMut(LoopEvent) + 'static {
         debug!("Starting window main loop.");
+
+        // Check if the window is created
+        if self.window.is_none() {
+            throw!("Window is not created. Call 'create()' before 'run()'.");
+        }
         
         // Get window index
         let window_index = self.window.as_ref().unwrap().id();
         event_loop.set_control_flow(ControlFlow::Poll); // Poll events even when the application is not focused
 
         // Main loop
-        event_loop.run(move |event, elwt| {
+        let event_loop_res = event_loop.run(move |event, elwt| {
             match event {
                 // Close window when the close button is pressed
                 Event::WindowEvent {
@@ -133,7 +143,11 @@ impl Window {
                 // Ignore other events
                 _ => ()
             }
-        }).unwrap();
+        });
 
+        // Check if the event loop failed
+        if event_loop_res.is_err() {
+            error!("Failed to run event loop: {}", event_loop_res.err().unwrap());
+        }
     }
 }

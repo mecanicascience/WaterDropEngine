@@ -1,5 +1,5 @@
 use wde_editor_interactions::EditorHandler;
-use wde_logger::{error, info};
+use wde_logger::{info, throw};
 use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline};
 
 pub struct App {}
@@ -15,11 +15,11 @@ impl App {
         // Start editor handler if on debug mode
         let mut editor_handler = None;
         if cfg!(debug_assertions) {
-            let h = EditorHandler::new();
-            if !h.started() {
-                error!("Editor handler failed to start.");
-            }
-            else {
+            let h = match EditorHandler::new() {
+                Ok(h) => Some(h),
+                Err(_) => None
+            };
+            if h.is_some() && h.as_ref().unwrap().started() {
                 editor_handler = Some(h);
             }
         }
@@ -46,7 +46,10 @@ impl App {
                 return vec4<f32>(0.0, 0.0, 0.0, 1.0);
             }
             ", wde_wgpu::ShaderType::Vertex)
-            .init(&render_instance);
+            .init(&render_instance)
+            .unwrap_or_else(|e| {
+                throw!("Failed to initialize render pipeline : {:?}", e);
+            });
 
         // Run window
         window.run(event_loop, move |event| {
@@ -68,13 +71,16 @@ impl App {
                     // Handle editor messages and push new frame
                     if editor_handler.is_some() {
                         let editor = editor_handler.as_mut().unwrap();
-
-                        // Process editor messages
-                        editor.process();
-
-                        // Set last frame
-                        let r = rand::random::<u32>();
-                        editor.set_current_frame(format!("Hello {} world", r).as_bytes());
+                        if editor.is_some() {
+                            match editor.as_mut().unwrap().process() {
+                                Ok(_) => {
+                                    // Set last frame
+                                    let r = rand::random::<u32>();
+                                    let _ = editor.as_mut().unwrap().set_current_frame(format!("Hello {} world", r).as_bytes());
+                                },
+                                Err(_) => {}
+                            }
+                        }
                     }
 
                     // Handle render event
@@ -96,17 +102,19 @@ impl App {
                                     None);
 
                                 // Set render pipeline
-                                render_pass.set_pipeline(&render_pipeline);
-
-                                // Draw frame
-                                render_pass.draw_indexed(0..6, 0);
+                                match render_pass.set_pipeline(&render_pipeline) {
+                                    Ok(_) => {
+                                        let _ = render_pass.draw_indexed(0..6, 0);
+                                    },
+                                    Err(_) => {}
+                                }
                             }
 
                             // Submit command buffer
                             command_buffer.submit(&render_instance);
 
                             // Present frame
-                            render_instance.present(render_texture);
+                            let _ = render_instance.present(render_texture);
                         },
                         // Close window
                         RenderEvent::Close => {

@@ -1,5 +1,6 @@
-use wde_logger::{trace, warn, debug};
+use wde_logger::{trace, debug, error};
 
+use crate::EditorError;
 use crate::ipc::{IPC, IPCMessage, IPCChannelStatus};
 use crate::shared_memory::SharedMemory;
 
@@ -37,7 +38,11 @@ pub struct EditorHandler {
 
 impl EditorHandler {
     /// Create a new editor handler.
-    pub fn new() -> Self {
+    /// 
+    /// # Errors
+    /// 
+    /// * `EditorError::SharedMemoryFailed` - Shared memory failed.
+    pub fn new() -> Result<Self, EditorError> {
         debug!("Starting editor handler.");
 
         // Create IPC write and read channels
@@ -64,16 +69,19 @@ impl EditorHandler {
             }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
+        if shared_memory.is_err() {
+            return Err(EditorError::SharedMemoryFailed);
+        }
         if !ipc_running {
-            return EditorHandler {
+            return Ok(EditorHandler {
                 ipc,
-                shared_memory, 
+                shared_memory: shared_memory.unwrap(),
                 status: ipc_running
-            };
+            });
         }
 
         // Send shared memory index to editor
-        let identifier = shared_memory.get_index().to_string().as_bytes().to_vec();
+        let identifier = shared_memory.as_ref().unwrap().get_index().to_string().as_bytes().to_vec();
         trace!("Sending shared memory index to editor: '{}'.", std::str::from_utf8(&identifier).unwrap());
         ipc.write(IPCMessage {
             channel: EditorChannels::SharedMemoryIndex as u8,
@@ -86,50 +94,66 @@ impl EditorHandler {
         loop {
             let mut received = false;
             match ipc.read() {
-                Some(messages) => {
-                    for message in messages {
-                        if message.channel == EditorChannels::SharedMemoryIndex as u8 && message.title == 1 {
-                            received = true;
-                            break;
+                Ok(messages) => match messages {
+                    Some(messages) => {
+                        for message in messages {
+                            if message.channel == EditorChannels::SharedMemoryIndex as u8 && message.title == 1 {
+                                received = true;
+                                break;
+                            }
                         }
-                    }
+                    },
+                    None => {}
                 },
-                None => {}
+                Err(e) => {
+                    return Err(e);
+                }
             }
             if received {
-                debug!("Received confirmation from editor.");
+                trace!("Received confirmation from editor.");
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
         // Return object
-        EditorHandler {
+        Ok(EditorHandler {
             ipc,
-            shared_memory,
+            shared_memory: shared_memory.unwrap(),
             status: ipc_running
-        }
+        })
     }
 
     /// Process messages from editor stored in the cache.
     /// Must be called every frame.
-    pub fn process(&mut self) {
+    /// 
+    /// # Errors
+    /// 
+    /// * `EditorError::EditorNotRunning` - The editor is not running.
+    pub fn process(&mut self) -> Result<(), EditorError> {
         // Check if editor is running
         if !self.status {
-            warn!("Editor is not running.");
+            error!("Editor is not running.");
+            return Err(EditorError::EditorNotRunning);
         }
 
         trace!("Processing messages from editor.");
         match self.ipc.read() {
-            Some(messages) => {
-                for message in messages {
-                    match message.channel {
-                        _ => {} // TODO
+            Ok(messages) => match messages {
+                Some(messages) => {
+                    for message in messages {
+                        match message.channel {
+                            _ => {} // TODO
+                        }
                     }
-                }
+                },
+                None => {}
             },
-            None => {}
+            Err(e) => {
+                return Err(e);
+            }
         }
+        Ok(())
     }
 
     /// Write to shared memory the current frame.
@@ -137,14 +161,20 @@ impl EditorHandler {
     /// # Arguments
     /// 
     /// * `data` - Data to write to shared memory
-    pub fn set_current_frame(&mut self, data: &[u8]) {
+    /// 
+    /// # Errors
+    /// 
+    /// * `EditorError::EditorNotRunning` - The editor is not running.
+    pub fn set_current_frame(&mut self, data: &[u8]) -> Result<(), EditorError> {
         // Check if editor is running
         if !self.status {
-            warn!("Editor is not running.");
+            error!("Editor is not running.");
+            return Err(EditorError::EditorNotRunning);
         }
 
         trace!("Writing current frame to shared memory.");
         self.shared_memory.write(&data);
+        Ok(())
     }
 
     /// Check if editor handler started correctly.

@@ -3,6 +3,8 @@ use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_SHARE_DELETE, FI
 use std::os::windows::{fs::OpenOptionsExt, io::AsRawHandle};
 use win_sys::{CreateFileMapping, HANDLE, PAGE_READWRITE, MapViewOfFile, FILE_MAP_READ, FILE_MAP_WRITE, ViewOfFile, FileMapping};
 
+use crate::EditorError;
+
 /// Shared memory wrapper.
 /// 
 /// # Example
@@ -29,7 +31,7 @@ impl SharedMemory {
     /// # Arguments
     /// 
     /// * `size` - Size of the shared memory to allocate.
-    pub fn new(size: usize) -> Self {
+    pub fn new(size: usize) -> Result<Self, EditorError> {
         trace!("Creating shared memory of {} bytes.", size);
 
         // Create random temporary file name
@@ -38,14 +40,16 @@ impl SharedMemory {
         file_path.push("WaterDropEngine");
         if !file_path.is_dir() {
             if let Err(e) = std::fs::create_dir_all(&file_path) {
-                throw!("Unable to create temporary directory at {} : {e}.", file_path.to_str().unwrap());
+                error!("Unable to create temporary directory at {} : {e}.", file_path.to_str().unwrap());
+                return Err(EditorError::SharedMemoryCannotCreateDir);
             }
         }
         file_path.push(tmp_id.clone());
 
         // Check if file already exists
         if file_path.exists() {
-            throw!("File already exists at '{}'.", file_path.to_str().unwrap());
+            error!("File already exists at '{}'.", file_path.to_str().unwrap());
+            return Err(EditorError::SharedMemoryAlreadyExists);
         }
 
         // Create physical file
@@ -58,7 +62,8 @@ impl SharedMemory {
             .open(&file_path) {
                 Ok(file) => Some(file),
                 Err(e) => {
-                    throw!("Unable to open physical file '{}' : {e}.", file_path.to_str().unwrap())
+                    error!("Unable to open physical file '{}' : {e}.", file_path.to_str().unwrap());
+                    return Err(EditorError::SharedMemoryCannotCreateFile);
                 }
             }.unwrap();
         trace!("Created temporary file at '{}'.", file_path.to_str().unwrap());
@@ -80,7 +85,8 @@ impl SharedMemory {
         ) {
             Ok(file_mapping) => Some(file_mapping),
             Err(e) => {
-                throw!("Unable to create file view: {e}")
+                error!("Unable to create file view: {e}");
+                return Err(EditorError::SharedMemoryCannotCreateFileView);
             }
         }.unwrap();
 
@@ -94,19 +100,20 @@ impl SharedMemory {
         ) {
             Ok(mapped_view) => Some(mapped_view),
             Err(e) => {
-                throw!("Unable to map file mapping into adress space: {e}")
+                error!("Unable to map file mapping into adress space: {e}");
+                return Err(EditorError::SharedMemoryCannotMapFileView);
             }
         }.unwrap();
         trace!("Mapped file view into adress space at location '{tmp_id}'.");
         debug!("Created shared memory of {} bytes at location '{}'.", size, tmp_id);
 
         // Return shared memory
-        Self {
+        Ok(Self {
             file_path: file_path.to_str().unwrap().to_string(),
             shared_index: tmp_id,
             file_view,
             file_mapping,
-        }
+        })
     }
 
 

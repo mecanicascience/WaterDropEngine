@@ -1,7 +1,7 @@
-use wde_logger::{trace, error, debug, throw};
+use wde_logger::{trace, error, debug};
 use wgpu::{ShaderStages, BindGroupLayout};
 
-use crate::{RenderInstance, Texture, Vertex, TextureFormat};
+use crate::{RenderInstance, Texture, Vertex, TextureFormat, RenderError};
 
 /// List of available shaders.
 pub enum ShaderType {
@@ -152,15 +152,18 @@ impl RenderPipeline {
     /// # Arguments
     /// 
     /// * `instance` - Render instance.
-    pub fn init(&mut self, instance: &RenderInstance) {
+    pub fn init(&mut self, instance: &RenderInstance) -> Result<(), RenderError> {
         debug!("Creating render pipeline '{}'.", self.label);
         let d = &self.config;
+
+        // Security checks
+        if d.vertex_shader.is_empty() || d.fragment_shader.is_empty() {
+            error!("Render pipeline '{}' does not have a vertex or fragment shader.", self.label);
+            return Err(RenderError::MissingShader);
+        }
         
         // Load shaders
         trace!("Loading shaders for '{}'.", self.label);
-        if d.vertex_shader.is_empty() || d.fragment_shader.is_empty() {
-            error!("Render pipeline '{}' does not have a vertex or fragment shader.", self.label);
-        }
         let shader_module_vert = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some(format!("'{}' Render Pipeline Vertex Shader", self.label).as_str()),
             source: wgpu::ShaderSource::Wgsl(self.config.vertex_shader.clone().into())
@@ -179,6 +182,7 @@ impl RenderPipeline {
         });
 
         // Create pipeline
+        let mut res: Result<(), RenderError> = Ok(());
         let pipeline = instance.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(format!("'{}' Render Pipeline", self.label).as_str()),
             layout: Some(&layout),
@@ -194,7 +198,11 @@ impl RenderPipeline {
                     format: match Texture::SWAPCHAIN_FORMAT {
                         TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8UnormSrgb,
                         TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
-                        _ => throw!("Swapchain format is not supported!")
+                        _ => {
+                            error!("Swapchain format is not supported for render pipeline '{}'.", self.label);
+                            res = Err(RenderError::UnsupportedSwapchainFormat);
+                            wgpu::TextureFormat::Bgra8UnormSrgb
+                        }
                     },
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
@@ -212,7 +220,11 @@ impl RenderPipeline {
             depth_stencil: if d.depth_stencil { Some(wgpu::DepthStencilState {
                 format: match Texture::DEPTH_FORMAT {
                     TextureFormat::Depth32Float => wgpu::TextureFormat::Depth32Float,
-                    _ => throw!("Depth format is not supported!")
+                    _ => {
+                        error!("Depth format is not supported for render pipeline '{}'.", self.label);
+                        res = Err(RenderError::UnsupportedDepthFormat);
+                        wgpu::TextureFormat::Depth32Float
+                    }
                 },
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::Less,
@@ -226,6 +238,7 @@ impl RenderPipeline {
         // Set pipeline
         self.pipeline = Some(pipeline);
         self.layout = Some(layout);
+        res
     }
 
 
