@@ -1,5 +1,5 @@
-use wde_editor_interactions::EditorHandler;
 use wde_logger::{info, throw};
+use wde_editor_interactions::EditorHandler;
 use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline};
 
 pub struct App {}
@@ -15,9 +15,9 @@ impl App {
         // Start editor handler if on debug mode
         let mut editor_handler = None;
         if cfg!(debug_assertions) {
-            let h = match EditorHandler::new() {
+            let h: Option<EditorHandler> = match EditorHandler::new() {
                 Ok(h) => Some(h),
-                Err(_) => None
+                Err(_) => None,
             };
             if h.is_some() && h.as_ref().unwrap().started() {
                 editor_handler = Some(h);
