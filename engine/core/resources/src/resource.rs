@@ -12,6 +12,8 @@ pub struct LoadedFlag {
 pub enum ResourceType {
     /// Model resource.
     Model,
+    /// Shader resource.
+    Shader,
 }
 
 

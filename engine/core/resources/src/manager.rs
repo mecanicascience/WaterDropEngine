@@ -301,7 +301,7 @@ impl ResourcesManager {
     /// # Returns
     /// 
     /// * `Option<&T>` - The resource if it exists, None otherwise.
-    pub fn get<T: Resource>(&mut self, handle: ResourceHandle) -> Option<&mut T> {
+    pub fn get<T: Resource>(&mut self, handle: &ResourceHandle) -> Option<&mut T> {
         let mut instance = self.instance.lock().unwrap();
 
         // Check if handle is valid
@@ -321,6 +321,40 @@ impl ResourcesManager {
             return None;
         }
         Some(unsafe { std::mem::transmute::<&mut T, &mut T>(resource_as_t) })
+    }
+
+    /// Wait synchronously for a resource to be loaded.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `handle` - Handle pointing to the resource location.
+    /// * `render_instance` - The render instance.
+    pub async fn wait_for(&mut self, handle: &ResourceHandle, render_instance: &RenderInstance) {
+        debug!("Waiting synchronously for resource with index '{}' to be loaded.", handle.index);
+        let mut instance = self.instance.lock().unwrap();
+
+        // Check if handle is valid
+        if !instance.handle_to_res.contains_key(&handle.index) {
+            error!("Invalid resource handle with index '{}'.", handle.index);
+            return;
+        }
+
+        // Get resource index
+        let (_, resource_index) = instance.handle_to_res.get(&handle.index).unwrap().clone();
+
+        // Get resource
+        let resources_arr = instance.resources.get_mut(&handle.resource_type).unwrap();
+        let mut resource_as_dyn = resources_arr.get_mut(resource_index as usize).unwrap().lock().unwrap();
+
+        // Wait for resource to be async loaded
+        while !resource_as_dyn.async_loaded() {
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+        }
+
+        // Sync load resource
+        if !resource_as_dyn.loaded() {
+            resource_as_dyn.sync_load(render_instance);
+        }
     }
 }
 

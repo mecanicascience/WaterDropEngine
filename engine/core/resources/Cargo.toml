@@ -9,6 +9,6 @@ description = "Game engine resources manager."
 wde_wgpu = { path = "../third_party/wgpu" }
 wde_logger = { path = "../wrappers/logger" }
 wde_math = { path = "../wrappers/math" }
-tokio = { version = "1.35", features = ["rt", "macros"] }
+tokio = { version = "1.35", features = ["rt", "macros", "fs", "io-util", "time"] }
 bytemuck = { version = "1.14", features = [ "derive" ] }
 tobj = "4.0"

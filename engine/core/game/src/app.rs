@@ -1,8 +1,8 @@
 use tokio::sync::mpsc;
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
-use wde_resources::{ResourcesManager, ModelResource};
-use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline, Event, WindowEvent};
+use wde_resources::{ResourcesManager, ModelResource, ShaderResource};
+use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline, Event, WindowEvent, ShaderType};
 
 pub struct App {}
 
@@ -115,23 +115,20 @@ impl App {
         // Load model
         let handle = res_manager.load::<ModelResource>("models/cube.obj");
 
+        // Create shaders
+        let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/vertex.wgsl");
+        let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/frag.wgsl");
+
+        // Wait for shaders to load
+        res_manager.wait_for(&vertex_shader_handle, &render_instance).await;
+        res_manager.wait_for(&fragment_shader_handle, &render_instance).await;
+
         // Create default render pipeline
         let mut render_pipeline = RenderPipeline::new("Main Render");
         let _ = render_pipeline
-            .set_shader("
-                @fragment
-                fn main() -> @location(0) vec4<f32> {
-                    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
-                }
-            ", wde_wgpu::ShaderType::Fragment)
-            .set_shader("
-                @vertex
-                fn main() -> @builtin(position) vec4<f32> {
-                    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
-                }
-            ", wde_wgpu::ShaderType::Vertex)
+            .set_shader(&res_manager.get::<ShaderResource>(&vertex_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Vertex)
+            .set_shader(&res_manager.get::<ShaderResource>(&fragment_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
             .init(&render_instance).await;
-
 
         loop {
             // Wait for next event
@@ -185,7 +182,7 @@ impl App {
                         None);
 
                     // Set vertex buffer
-                    match res_manager.get::<ModelResource>(handle.clone()) {
+                    match res_manager.get::<ModelResource>(&handle) {
                         Some(m) => {
                             // Set buffers
                             render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
@@ -213,9 +210,6 @@ impl App {
             // Clear the receiver channel
             while let Ok(_) = event_r.try_recv() {}
         }
-
-        // Drop resource
-        drop(handle);
 
         // Join window thread
         info!("Joining window thread.");

@@ -6,21 +6,21 @@ use wde_wgpu::{Vertex, Buffer, RenderInstance, BufferUsage};
 
 use crate::{Resource, ResourceType, LoadedFlag};
 
-/// Represents the bounding box of a model, centered at the origin.
+/// Bounding box of a model, centered at the origin.
 #[derive(Clone, Copy)]
 pub struct ModelBoundingBox {
     pub min: Vec3f,
     pub max: Vec3f
 }
 
-/// Temporary data to be transferred to the model resource.
+/// Temporary data to be transferred.
 struct TempModelData {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub bounding_box: ModelBoundingBox,
 }
 
-/// Describe a model.
+/// Resource data.
 pub struct ModelData {
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
@@ -29,7 +29,9 @@ pub struct ModelData {
     pub bounding_box: ModelBoundingBox,
 }
 
-/// Model resource.
+/// Store a model resource loaded from a model file.
+/// This resource is loaded asynchronously.
+/// The data are stored in the `data` field when loaded.
 pub struct ModelResource {
     /// Label of the model.
     pub label: String,
@@ -58,6 +60,7 @@ impl Resource for ModelResource {
         let (sync_sender, sync_receiver) = std::sync::mpsc::sync_channel(1);
         let path_c = label.to_string();
         
+        // Create async task
         tokio::task::spawn(async move {
             let mut vertices: Vec<Vertex> = Vec::new();
             let mut indices: Vec<u32> = Vec::new();
@@ -157,7 +160,9 @@ impl Resource for ModelResource {
                 indices,
                 bounding_box,
             };
-            sync_sender.send(data).unwrap();
+            sync_sender.send(data).unwrap_or_else(|e| {
+                error!("Failed to send model data : {}", e);
+            });
         });
 
         Self {
@@ -178,7 +183,17 @@ impl Resource for ModelResource {
         debug!("Sync loading model '{}'.", self.label);
 
         // Receive data
-        let temp_data = self.sync_receiver.recv().unwrap();
+        let temp_data = self.sync_receiver.recv().unwrap_or_else(|e| {
+            error!("Failed to receive model data : {}", e);
+            TempModelData {
+                vertices: Vec::new(),
+                indices: Vec::new(),
+                bounding_box: ModelBoundingBox {
+                    min: Vec3f::new(0.0, 0.0, 0.0),
+                    max: Vec3f::new(0.0, 0.0, 0.0),
+                },
+            }
+        });
 
         // Create vertex buffer
         let vertex_buffer = Buffer::new(

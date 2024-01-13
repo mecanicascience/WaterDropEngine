@@ -11,6 +11,9 @@ pub enum ShaderType {
     Fragment
 }
 
+/// Type of the shader module.
+pub type ShaderModule = wgpu::ShaderModule;
+
 /// List of available topologies.
 pub enum Topology {
     PointList,
@@ -147,7 +150,6 @@ impl RenderPipeline {
             range: offset..offset + size,
         });
     }
-
 
     /// Initialize a new render pipeline.
     /// 
