@@ -196,7 +196,7 @@ impl App {
                             // Set render pipeline
                             match render_pass.set_pipeline(&render_pipeline) {
                                 Ok(_) => {
-                                    let _ = render_pass.draw_indexed(0..6, 0);
+                                    let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
                                 },
                                 Err(_) => {}
                             }
