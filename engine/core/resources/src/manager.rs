@@ -1,16 +1,19 @@
-use std::{sync::{Arc, Mutex}, collections::HashMap};
+use std::{sync::{Arc, Mutex}, collections::{HashMap, VecDeque}};
 
 use wde_logger::{error, trace, debug, info};
 use wde_wgpu::RenderInstance;
 
 use crate::{Resource, ResourceType};
 
+/// Maximum number of resources per type
+const MAX_RESOURCES_PER_TYPE: usize = 100;
+
 /// The unique identifier of a resource handle
-type ResourceHandleIndex = u32;
+type ResourceHandleIndex = usize;
 /// Number of handles pointing to a resource location
-type HandleCount = u32;
+type HandleCount = usize;
 /// Index pointing to a resource in the resources array
-type ResourceArrayIndex = u32;
+type ResourceArrayIndex = usize;
 
 
 /// Represents a handle pointing to a resource location.
@@ -80,7 +83,9 @@ struct ResourcesManagerInstance {
     handle_to_res: HashMap<ResourceHandleIndex, (HandleCount, ResourceArrayIndex)>,
 
     /// Resources list. One array per resource type.
-    resources: HashMap<ResourceType, Vec<Arc<Mutex<dyn Resource>>>>,
+    resources: HashMap<ResourceType, Vec<Option<Arc<Mutex<dyn Resource>>>>>,
+    /// Pool of available resources indices.
+    resources_indices_pool: HashMap<ResourceType, VecDeque<usize>>,
     /// Resources indices that are currently async loading
     resources_async_loading: Vec<(ResourceType, ResourceHandleIndex)>
 }
@@ -95,8 +100,9 @@ impl ResourcesManagerInstance {
             path_to_index: HashMap::new(),
             handle_to_res: HashMap::new(),
 
-            resources_async_loading: Vec::new(),
             resources: HashMap::new(),
+            resources_indices_pool: HashMap::new(),
+            resources_async_loading: Vec::new(),
         }
     }
 
@@ -111,14 +117,22 @@ impl ResourcesManagerInstance {
     fn load<T: Resource>(&mut self, path: &str) -> ResourceHandleIndex {
         // Check if resource is already loaded
         if let Some(index) = self.path_to_index.get(path) {
-            // Return resource index
-            return *index;
+            if self.handle_to_res.contains_key(&index) && self.handle_to_res.get(&index).unwrap().0 > 0 {
+                // Return resource index
+                return *index;
+            }
         }
         
         // Check if resource type exists
-        if !self.resources.contains_key(&T::resource_type()) {
+        let resource_type = T::resource_type();
+        if !self.resources.contains_key(&resource_type) {
             // Create resource type array
-            self.resources.insert(T::resource_type(), Vec::new());
+            self.resources.insert(resource_type, Vec::from_iter((0..MAX_RESOURCES_PER_TYPE).map(|_| None)));
+            // Create resource type indices pool
+            self.resources_indices_pool.insert(
+                resource_type,
+                VecDeque::from_iter((0..MAX_RESOURCES_PER_TYPE).map(|i| i))
+            );
         }
         
         // Generate new resource handle index
@@ -133,14 +147,13 @@ impl ResourcesManagerInstance {
         let resource = T::new(path);
         
         // Add resource to resources list
-        let resource_type = T::resource_type();
         let resources_arr = self.resources.get_mut(&resource_type).unwrap();
-        resources_arr.push(Arc::new(Mutex::new(resource)));
-        let res_index = resources_arr.len() as ResourceArrayIndex - 1;
+        let resource_index = self.resources_indices_pool.get_mut(&resource_type).unwrap().pop_front().unwrap();
+        resources_arr[resource_index] = Some(Arc::new(Mutex::new(resource)));
         
         // Add resource to handle to resource map and async loading list
-        self.handle_to_res.insert(index, (0, res_index));
-        self.resources_async_loading.push((resource_type, res_index));
+        self.handle_to_res.insert(index, (0, resource_index));
+        self.resources_async_loading.push((resource_type, resource_index));
 
         // Return resource index
         index
@@ -175,8 +188,11 @@ impl ResourcesManagerInstance {
 
             // Remove resource from resources list
             debug!("Unloading resource with index '{}'.", resource_index_g);
-            let arr = self.resources.get_mut(&resource_type).unwrap();
-            arr.remove(resource_index_g as usize);
+            let resources_arr = self.resources.get_mut(&resource_type).unwrap();
+            resources_arr[resource_index_g] = None;
+
+            // Add resource index to indices pool
+            self.resources_indices_pool.get_mut(&resource_type).unwrap().push_back(resource_index_g);
         }
     }
 }
@@ -254,10 +270,15 @@ impl ResourcesManager {
             let resources_arr = instance.resources
                 .get_mut(&resource_type).unwrap()
                 .get(resource_index as usize).unwrap();
+
+            // Check if resource is not none
+            if resources_arr.is_none() {
+                continue;
+            }
             
             // If resource is loaded, sync load it and remove it from async loading list
-            if resources_arr.lock().unwrap().async_loaded() {
-                resources_arr.lock().unwrap().sync_load(render_instance);
+            if resources_arr.as_ref().unwrap().lock().unwrap().async_loaded() {
+                resources_arr.as_ref().unwrap().lock().unwrap().sync_load(render_instance);
                 should_remove.push((resource_type, resource_index));
             }
         }
@@ -315,7 +336,11 @@ impl ResourcesManager {
 
         // Get resource
         let resources_arr = instance.resources.get_mut(&T::resource_type()).unwrap();
-        let mut resource_as_dyn = resources_arr.get_mut(resource_index as usize).unwrap().lock().unwrap();
+        let resource_unlocked = resources_arr.get_mut(resource_index as usize).unwrap();
+        if resource_unlocked.is_none() {
+            return None;
+        }
+        let mut resource_as_dyn = resource_unlocked.as_mut().unwrap().lock().unwrap();
         let resource_as_t = resource_as_dyn.as_any_mut().downcast_mut::<T>().unwrap();
         if !resource_as_t.loaded() {
             return None;
@@ -344,7 +369,12 @@ impl ResourcesManager {
 
         // Get resource
         let resources_arr = instance.resources.get_mut(&handle.resource_type).unwrap();
-        let mut resource_as_dyn = resources_arr.get_mut(resource_index as usize).unwrap().lock().unwrap();
+        let resource_unlocked = resources_arr.get_mut(resource_index as usize).unwrap();
+        if resource_unlocked.is_none() {
+            error!("Resource with index '{}' is not loaded.", handle.index);
+            return;
+        }
+        let mut resource_as_dyn = resource_unlocked.as_mut().unwrap().lock().unwrap();
 
         // Wait for resource to be async loaded
         while !resource_as_dyn.async_loaded() {

@@ -13,6 +13,7 @@ impl App {
             // Set the RUST_BACKTRACE environment variable to 1
             std::env::set_var("RUST_BACKTRACE", "0");
         }
+        debug!("======== Starting engine ========");
 
 
         // Create window
@@ -131,6 +132,8 @@ impl App {
             .init(&render_instance).await;
 
         loop {
+            debug!("\n\n\n======== Next frame ========");
+
             // Wait for next event
             let ev = event_r.recv().await;
             if ev.is_none() { break; }
@@ -212,6 +215,9 @@ impl App {
             // Clear the receiver channel
             while let Ok(_) = event_r.try_recv() {}
         }
+
+        // End
+        debug!("\n\n\n======== Ending engine ========");
 
         // Join window thread
         info!("Joining window thread.");
