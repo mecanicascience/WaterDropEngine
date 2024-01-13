@@ -1,4 +1,4 @@
-use wde_logger::{debug, trace};
+use wde_logger::{trace, info};
 
 use crate::{RenderInstance, BindGroup};
 
@@ -48,7 +48,7 @@ impl Texture {
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
     pub async fn new(instance: &RenderInstance, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsage) -> Self {
-        debug!("Creating texture '{}'.", label);
+        info!("Creating texture '{}'.", label);
         
         // Create texture
         let f = match format {
@@ -225,5 +225,11 @@ impl Texture {
                 depth_or_array_layers: 1,
             },
         );
+    }
+}
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        info!("Dropping texture '{}'.", self.label);
     }
 }

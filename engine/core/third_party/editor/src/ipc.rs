@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use tokio::{net::windows::named_pipe, io::Interest};
-use wde_logger::{trace, debug, error, throw};
+use wde_logger::{trace, debug, error};
 
 use crate::EditorError;
 
@@ -66,7 +66,7 @@ impl IPC {
     /// * `name` - The name of the IPC channel.
     /// * `allocated_size` - The allocated size for the IPC channel.
     pub fn new(name: String, allocated_size: usize) -> Self {
-        trace!("Creating an IPC channel with name '{}'.", name);
+        debug!("Creating an IPC channel with name '{}'.", name);
 
         // Shared list of received messages
         let shared_messages_read = Arc::new(
@@ -84,16 +84,8 @@ impl IPC {
         );
         let s = started.clone();
 
-        // Create runtime
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap_or_else(|e| {
-                throw!("Failed to create runtime in the IPC editor manager : {:?}", e);
-            });
-
         // Spawn the root task
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             // Create pipe name
             let pipe_name: &str = &(r"\\.\pipe\wde\".to_owned() + &name);
 
@@ -113,7 +105,7 @@ impl IPC {
                         return;
                     }
                     Err(e) => {
-                        error!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
+                        error!("The pipe connection encountered an error for IPC with name '{}': {:?}.", name, e);
                         *start = IPCChannelStatus::NotRunning;
                         return;
                     }
@@ -133,7 +125,7 @@ impl IPC {
                         return;
                     }
                     Err(e) => {
-                        error!("The pipe connection encountered an error for IPC with name '{}': {}", name, e);
+                        error!("The pipe connection encountered an error for IPC with name '{}': {:?}.", name, e);
                         return;
                     }
                 };
@@ -335,5 +327,11 @@ impl IPC {
     pub fn status(&self) -> IPCChannelStatus {
         let started = self.started.lock().unwrap();
         started.clone()
+    }
+}
+
+impl Drop for IPC {
+    fn drop(&mut self) {
+        debug!("Dropping IPC channel with name '{}'.", self.name);
     }
 }

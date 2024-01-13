@@ -1,6 +1,7 @@
 use std::{sync::{Arc, Mutex}, collections::HashMap};
 
-use wde_logger::{error, trace};
+use wde_logger::{error, trace, debug, info};
+use wde_wgpu::RenderInstance;
 
 use crate::{Resource, ResourceType};
 
@@ -77,19 +78,24 @@ struct ResourcesManagerInstance {
     path_to_index: HashMap<String, ResourceHandleIndex>,
     /// Map from resources index to (handle count, resource array index)
     handle_to_res: HashMap<ResourceHandleIndex, (HandleCount, ResourceArrayIndex)>,
-    
+
     /// Resources list. One array per resource type.
-    resources: HashMap<ResourceType, Vec<Arc<Mutex<dyn Resource>>>>
+    resources: HashMap<ResourceType, Vec<Arc<Mutex<dyn Resource>>>>,
+    /// Resources indices that are currently async loading
+    resources_async_loading: Vec<(ResourceType, ResourceHandleIndex)>
 }
 
 impl ResourcesManagerInstance {
     /// Create a new resources manager instance.
     pub fn new() -> Self {
+        trace!("Creating resources manager instance.");
+
         Self {
             handle_index_iterator: 0,
             path_to_index: HashMap::new(),
             handle_to_res: HashMap::new(),
 
+            resources_async_loading: Vec::new(),
             resources: HashMap::new(),
         }
     }
@@ -114,25 +120,27 @@ impl ResourcesManagerInstance {
             // Create resource type array
             self.resources.insert(T::resource_type(), Vec::new());
         }
-
+        
         // Generate new resource handle index
         let index = self.handle_index_iterator;
         self.handle_index_iterator += 1;
-
+        
         // Add resource to path to resource map
         self.path_to_index.insert(path.to_string(), index);
-
+        
         // Start loading resource
-        trace!("Loading resource with path {}.", path);
+        debug!("Loading resource with path '{}'.", path);
         let resource = T::new(path);
-
+        
         // Add resource to resources list
         let resource_type = T::resource_type();
         let resources_arr = self.resources.get_mut(&resource_type).unwrap();
         resources_arr.push(Arc::new(Mutex::new(resource)));
-
-        // Add resource to handle to resource map
-        self.handle_to_res.insert(index, (0, resources_arr.len() as ResourceArrayIndex - 1));
+        let res_index = resources_arr.len() as ResourceArrayIndex - 1;
+        
+        // Add resource to handle to resource map and async loading list
+        self.handle_to_res.insert(index, (0, res_index));
+        self.resources_async_loading.push((resource_type, res_index));
 
         // Return resource index
         index
@@ -160,8 +168,13 @@ impl ResourcesManagerInstance {
             // Remove resource from handle to resource map
             self.handle_to_res.remove(&handle);
 
+            // Remove resource from async loading list
+            if let Some(index) = self.resources_async_loading.iter().position(|&r| r == (resource_type, resource_index_g)) {
+                self.resources_async_loading.remove(index);
+            }
+
             // Remove resource from resources list
-            trace!("Unloading resource with index {}. If the program crashes here, you probably dropped the handle too soon. Please use drop(handle) manually.", resource_index_g);
+            debug!("Unloading resource with index '{}'. If crash here, use drop(handle) manually.", resource_index_g);
             let arr = self.resources.get_mut(&resource_type).unwrap();
             arr.remove(resource_index_g as usize);
         }
@@ -190,7 +203,7 @@ impl ResourcesManagerInstance {
 ///       // Clone handle
 ///       let handle2 = handle.clone();
 /// 
-///       // Get resource
+///       // Get resource (returns None if resource is not yet loaded)
 ///       let res = res_manager.get::<DummyResource>(&handle2);
 ///       (...)
 ///    } // Drop handle2 -> Resource is still loaded
@@ -199,6 +212,12 @@ impl ResourcesManagerInstance {
 ///    let res = res_manager.get::<DummyResource>(&handle);
 ///    (...)
 /// } // Drop handle -> Resource is unloaded
+/// 
+/// // Update resources manager (every frame)
+/// loop {
+///     res_manager.update(&render_instance);
+///     (...)
+/// }
 /// ```
 pub struct ResourcesManager {
     /// Resources manager instance
@@ -208,8 +227,45 @@ pub struct ResourcesManager {
 impl ResourcesManager {
     /// Create a new resources manager instance.
     pub fn new() -> Self {
+        info!("Creating resources manager.");
+
         Self {
             instance: Arc::new(Mutex::new(ResourcesManagerInstance::new())),
+        }
+    }
+
+    /// Update the resources manager.
+    /// This will check if async loaded resources are loaded, and if so, remove them from the async loading list.
+    /// Then, it will run the sync loading and set the loaded flag to true.
+    /// In particular, it will transfer the data on the GPU.
+    /// This function should be called at the beginning of each frame.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `render_instance` - The render instance.
+    pub fn update(&mut self, render_instance: &RenderInstance) {
+        debug!("Updating resources manager.");
+        let mut instance = self.instance.lock().unwrap();
+
+        // Check if async loaded resources are loaded
+        let mut should_remove = Vec::new();
+        for (resource_type, resource_index) in instance.resources_async_loading.clone() {
+            // Get resource
+            let resources_arr = instance.resources
+                .get_mut(&resource_type).unwrap()
+                .get(resource_index as usize).unwrap();
+            
+            // If resource is loaded, sync load it and remove it from async loading list
+            if resources_arr.lock().unwrap().async_loaded() {
+                resources_arr.lock().unwrap().sync_load(render_instance);
+                should_remove.push((resource_type, resource_index));
+            }
+        }
+
+        // Remove async loaded resources from async loading list
+        for (resource_type, resource_index) in should_remove {
+            let index = instance.resources_async_loading.iter().position(|&r| r == (resource_type, resource_index)).unwrap();
+            instance.resources_async_loading.remove(index);
         }
     }
 
@@ -250,7 +306,7 @@ impl ResourcesManager {
 
         // Check if handle is valid
         if !instance.handle_to_res.contains_key(&handle.index) {
-            error!("Invalid resource handle.");
+            error!("Invalid resource handle with index '{}'.", handle.index);
             return None;
         }
 
@@ -265,5 +321,11 @@ impl ResourcesManager {
             return None;
         }
         Some(unsafe { std::mem::transmute::<&mut T, &mut T>(resource_as_t) })
+    }
+}
+
+impl Drop for ResourcesManager {
+    fn drop(&mut self) {
+        info!("Dropping resources manager.");
     }
 }

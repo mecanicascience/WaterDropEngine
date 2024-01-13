@@ -1,4 +1,4 @@
-use wde_logger::{debug, trace, warn, error, throw};
+use wde_logger::{debug, trace, warn, error, throw, info};
 
 use crate::{Window, TextureView};
 
@@ -88,7 +88,7 @@ impl RenderInstance {
     /// * `label` - Label of the instance.
     /// * `window` - Window of the instance. If `None`, the instance will be created without a surface.
     pub async fn new(label: &str, window: Option<&Window>) -> Self {
-        debug!("Creating render instance '{}'.", label);
+        info!("Creating render instance '{}'.", label);
 
         // Create wgpu instance
         trace!("Creating wgpu instance for '{}'.", label);
@@ -142,7 +142,7 @@ impl RenderInstance {
                 None,
             )
             .await
-            .unwrap_or_else(|e| throw!("Failed to create device: {:?} for '{}'.", e, label));
+            .unwrap_or_else(|e| throw!("Failed to create device for '{}': {:?}.", label, e));
 
         // If no surface, return instance
         if surface.is_none() {
@@ -187,28 +187,33 @@ impl RenderInstance {
     }
 
     /// Get the render texture.
-    pub fn get_current_texture(&mut self) -> RenderEvent {
+    /// 
+    /// # Arguments
+    /// 
+    /// * `render_instance` - Instance of the render.
+    pub fn get_current_texture(render_instance: &RenderInstance) -> RenderEvent {
         // If no surface, return
-        if self.surface.is_none() {
-            warn!("Cannot render to texture without a surface for '{}'.", self.label);
+        if render_instance.surface.is_none() {
+            warn!("Cannot render to texture without a surface for '{}'.", render_instance.label);
             return RenderEvent::None;
         }
 
         // Get current texture
-        trace!("Getting current texture for '{}'.", self.label);
-        let render_texture = self.surface.as_ref().unwrap().get_current_texture();
+        debug!("Getting current texture for '{}'.", render_instance.label);
+        let render_texture = render_instance.surface.as_ref().unwrap().get_current_texture();
 
         // Check if texture is acquired
+        trace!("Checking if texture is acquired for '{}'.", render_instance.label);
         match render_texture {
             Ok(surface_texture) => {
                 // Create render view
-                trace!("Creating render view for '{}'.", self.label);
+                trace!("Creating render view for '{}'.", render_instance.label);
                 let render_view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor {
                     label: Some("Render Texture"),
-                    format: match self.surface_config.as_ref().unwrap().format {
+                    format: match render_instance.surface_config.as_ref().unwrap().format {
                         wgpu::TextureFormat::Bgra8UnormSrgb => Some(wgpu::TextureFormat::Bgra8UnormSrgb),
                         wgpu::TextureFormat::Rgba8UnormSrgb => Some(wgpu::TextureFormat::Rgba8UnormSrgb),
-                        _ => throw!("Unsupported surface format for '{}'.", self.label)
+                        _ => throw!("Unsupported surface format for '{}'.", render_instance.label)
                     },
                     dimension: Some(wgpu::TextureViewDimension::D2),
                     aspect: wgpu::TextureAspect::All,
@@ -226,18 +231,17 @@ impl RenderInstance {
             // Surface lost or outdated (minimized or moved to another screen)
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 // Resize surface
-                let conf = self.surface_config.as_mut().unwrap().clone();
-                let _ = self.resize(conf.width, conf.height);
+                let conf = render_instance.surface_config.as_ref().unwrap().clone();
                 return RenderEvent::Resize(conf.width, conf.height);
             },
             // System out of memory
             Err(wgpu::SurfaceError::OutOfMemory) => {
-                error!("System out of memory for '{}'.", self.label);
+                error!("System out of memory for '{}'.", render_instance.label);
                 return RenderEvent::Close;
             }
             // Timeout of the surface
             Err(wgpu::SurfaceError::Timeout) => {
-                warn!("Timeout of the surface for '{}'.", self.label);
+                warn!("Timeout of the surface for '{}'.", render_instance.label);
                 return RenderEvent::None;
             }
         }
@@ -261,7 +265,7 @@ impl RenderInstance {
         }
 
         // Present render texture
-        trace!("Presenting render texture for '{}'.", self.label);
+        debug!("Presenting render texture for '{}'.", self.label);
         render_texture.texture.present();
         Ok(())
     }
@@ -277,7 +281,7 @@ impl RenderInstance {
     /// # Errors
     /// 
     /// * `RenderError::CannotResize` - Cannot resize render instance surface.
-    fn resize(&mut self, width: u32, height: u32) -> Result<(), RenderError> {
+    pub fn resize(&mut self, width: u32, height: u32) -> Result<(), RenderError> {
         trace!("Resizing render instance to {}x{} for '{}'.", width, height, self.label);
         // If no surface, return
         if self.surface.is_none() {
@@ -290,5 +294,11 @@ impl RenderInstance {
         self.surface_config.as_mut().unwrap().height = height;
         self.surface.as_ref().unwrap().configure(&self.device, &self.surface_config.as_ref().unwrap());
         Ok(())
+    }
+}
+
+impl Drop for RenderInstance {
+    fn drop(&mut self) {
+        info!("Dropping render instance '{}'.", self.label);
     }
 }

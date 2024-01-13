@@ -1,4 +1,4 @@
-use wde_logger::{trace, error, debug};
+use wde_logger::{trace, error, info};
 use wgpu::{ShaderStages, BindGroupLayout};
 
 use crate::{RenderInstance, Texture, Vertex, TextureFormat, RenderError};
@@ -68,6 +68,8 @@ impl RenderPipeline {
     /// 
     /// * `label` - Label of the render pipeline for debugging.
     pub fn new(label: &str) -> Self {
+        info!("Creating render pipeline '{}'.", label);
+
         Self {
             label: label.to_string(),
             pipeline: None,
@@ -153,7 +155,7 @@ impl RenderPipeline {
     /// 
     /// * `instance` - Render instance.
     pub async fn init(&mut self, instance: &RenderInstance) -> Result<(), RenderError> {
-        debug!("Creating render pipeline '{}'.", self.label);
+        trace!("Initializing render pipeline '{}'.", self.label);
         let d = &self.config;
 
         // Security checks
@@ -265,5 +267,11 @@ impl RenderPipeline {
     /// * `Option<&PipelineLayout>` - The pipeline layout.
     pub fn get_layout(&self) -> Option<&PipelineLayout> {
         self.layout.as_ref()
+    }
+}
+
+impl Drop for RenderPipeline {
+    fn drop(&mut self) {
+        info!("Dropping render pipeline '{}'.", self.label);
     }
 }

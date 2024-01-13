@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use wde_logger::error;
+use wde_logger::{error, debug};
 
 use crate::{BindGroup, ShaderType, Buffer, RenderError};
 
@@ -43,6 +43,8 @@ impl<'a> RenderPass<'a> {
     /// * `label` - The label of the render pass.
     /// * `render_pass` - The render pass to create.
     pub fn new(label: &str, render_pass: wgpu::RenderPass<'a>) -> Self {
+        debug!("Creating render pass '{}'.", label);
+
         Self {
             label: label.to_string(),
             render_pass,
@@ -64,12 +66,13 @@ impl<'a> RenderPass<'a> {
     /// * `RenderError::PipelineNotInitialized` - The pipeline is not initialized.
     pub fn set_pipeline(&mut self, pipeline: &'a RenderPipeline) -> Result<&mut Self, RenderError> {
         if pipeline.get_pipeline().is_none() {
-            error!("Pipeline '{}' is not created yet!", pipeline.label);
+            error!("Pipeline '{}' is not created yet.", pipeline.label);
             return Err(RenderError::PipelineNotInitialized);
         }
 
         // Set pipeline
         self.render_pass.set_pipeline(&pipeline.get_pipeline().as_ref().unwrap());
+        self.pipeline_set = true;
         Ok(self)
     }
 
@@ -81,6 +84,7 @@ impl<'a> RenderPass<'a> {
     /// * `buffer` - The buffer to set.
     pub fn set_vertex_buffer(&mut self, binding: u32, buffer: &'a Buffer) -> &mut Self {
         self.render_pass.set_vertex_buffer(binding, buffer.buffer.slice(..));
+        self.vertex_buffer_set = true;
         self
     }
 
@@ -91,6 +95,7 @@ impl<'a> RenderPass<'a> {
     /// * `buffer` - The buffer to set.
     pub fn set_index_buffer(&mut self, buffer: &'a Buffer) -> &mut Self {
         self.render_pass.set_index_buffer(buffer.buffer.slice(..), wgpu::IndexFormat::Uint32);
+        self.index_buffer_set = true;
         self
     }
 
@@ -149,11 +154,11 @@ impl<'a> RenderPass<'a> {
     /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
     pub fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) -> Result<(), RenderError> {
         if !self.pipeline_set {
-            error!("Pipeline {} is not set!", self.label);
+            error!("Pipeline is not set for render pass '{}'.", self.label);
             return Err(RenderError::PipelineNotSet);
         }
         if !self.vertex_buffer_set {
-            error!("Vertex buffer is not set for pipeline {}!", self.label);
+            error!("Vertex buffer is not set for render pass '{}'.", self.label);
             return Err(RenderError::MissingVertexBuffer);
         }
         self.render_pass.draw(vertices, instances);
@@ -174,18 +179,24 @@ impl<'a> RenderPass<'a> {
     /// * `RenderError::MissingIndexBuffer` - The index buffer is not set.
     pub fn draw_indexed(&mut self, indices: Range<u32>, instance_index: u32) -> Result<(), RenderError> {
         if !self.pipeline_set {
-            error!("Pipeline {} is not set!", self.label);
+            error!("Pipeline is not set for render pass '{}'.", self.label);
             return Err(RenderError::PipelineNotSet);
         }
         if !self.vertex_buffer_set {
-            error!("Vertex buffer is not set for pipeline {}!", self.label);
+            error!("Vertex buffer is not set for render pass '{}'.", self.label);
             return Err(RenderError::MissingVertexBuffer);
         }
         if !self.index_buffer_set {
-            error!("Index buffer is not set for pipeline {}!", self.label);
+            error!("Index buffer is not set for render pass '{}'.", self.label);
             return Err(RenderError::MissingIndexBuffer);
         }
         self.render_pass.draw_indexed(indices, 0, instance_index..(instance_index+1));
         Ok(())
+    }
+}
+
+impl Drop for RenderPass<'_> {
+    fn drop(&mut self) {
+        debug!("Dropping render pass '{}'.", self.label);
     }
 }

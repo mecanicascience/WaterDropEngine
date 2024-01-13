@@ -8,3 +8,7 @@ description = "Game engine resources manager."
 [dependencies]
 wde_wgpu = { path = "../third_party/wgpu" }
 wde_logger = { path = "../wrappers/logger" }
+wde_math = { path = "../wrappers/math" }
+tokio = { version = "1.35", features = ["rt", "macros"] }
+bytemuck = { version = "1.14", features = [ "derive" ] }
+tobj = "4.0"

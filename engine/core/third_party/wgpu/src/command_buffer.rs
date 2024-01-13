@@ -51,7 +51,7 @@ impl CommandBuffer {
     /// * `instance` - The render instance.
     /// * `label` - The label of the command buffer.
     pub async fn new(instance: &RenderInstance, label: &str) -> Self {
-        debug!("Creating command buffer '{}'", label);
+        debug!("Creating command buffer '{}'.", label);
 
         // Create command encoder
         let command_encoder = tokio::task::block_in_place(|| {
@@ -78,7 +78,7 @@ impl CommandBuffer {
         color_texture: &'pass TextureView,
         color_operations: Option<Operations<Color>>,
         depth_texture: Option<&'pass TextureView>) -> RenderPass<'pass> {
-        trace!("Creating render pass '{}'", label);
+        trace!("Creating render pass in command buffer '{}'.", label);
 
         let mut depth_attachment = None;
         if depth_texture.is_some() {
@@ -131,6 +131,7 @@ impl CommandBuffer {
     /// * `instance` - The render instance.
     pub fn submit(self, instance: &RenderInstance) {
         instance.queue.submit(std::iter::once(self.encoder.finish()));
+        debug!("Submitted command buffer '{}'.", self.label);
     }
 
 
@@ -141,7 +142,7 @@ impl CommandBuffer {
     /// * `source` - The source buffer.
     /// * `destination` - The destination buffer.
     pub fn copy_buffer_to_buffer(&mut self, source: &Buffer, destination: &Buffer) {
-        trace!("Copying buffer '{}' to buffer '{}'", source.label, destination.label);
+        trace!("Copying buffer '{}' to buffer '{}'.", source.label, destination.label);
 
         self.encoder.copy_buffer_to_buffer(
             &source.buffer, 0,

@@ -32,7 +32,7 @@ impl SharedMemory {
     /// 
     /// * `size` - Size of the shared memory to allocate.
     pub fn new(size: usize) -> Result<Self, EditorError> {
-        trace!("Creating shared memory of {} bytes.", size);
+        debug!("Creating shared memory of {} bytes.", size);
 
         // Create random temporary file name
         let tmp_id = format!("wde_{:X}", rand::random::<u64>());
@@ -40,7 +40,7 @@ impl SharedMemory {
         file_path.push("WaterDropEngine");
         if !file_path.is_dir() {
             if let Err(e) = std::fs::create_dir_all(&file_path) {
-                error!("Unable to create temporary directory at {} : {e}.", file_path.to_str().unwrap());
+                error!("Unable to create temporary directory at '{}' : {:?}.", file_path.to_str().unwrap(), e);
                 return Err(EditorError::SharedMemoryCannotCreateDir);
             }
         }
@@ -62,7 +62,7 @@ impl SharedMemory {
             .open(&file_path) {
                 Ok(file) => Some(file),
                 Err(e) => {
-                    error!("Unable to open physical file '{}' : {e}.", file_path.to_str().unwrap());
+                    error!("Unable to open physical file '{}' : {:?}.", file_path.to_str().unwrap(), e);
                     return Err(EditorError::SharedMemoryCannotCreateFile);
                 }
             }.unwrap();
@@ -85,7 +85,7 @@ impl SharedMemory {
         ) {
             Ok(file_mapping) => Some(file_mapping),
             Err(e) => {
-                error!("Unable to create file view: {e}");
+                error!("Unable to create file view: {:?}.", e);
                 return Err(EditorError::SharedMemoryCannotCreateFileView);
             }
         }.unwrap();
@@ -100,7 +100,7 @@ impl SharedMemory {
         ) {
             Ok(mapped_view) => Some(mapped_view),
             Err(e) => {
-                error!("Unable to map file mapping into adress space: {e}");
+                error!("Unable to map file mapping into adress space: {:?}.", e);
                 return Err(EditorError::SharedMemoryCannotMapFileView);
             }
         }.unwrap();
@@ -144,7 +144,7 @@ impl Drop for SharedMemory {
 
         // Delete physical file
         if let Err(e) = std::fs::remove_file(&self.file_path) {
-            throw!("Unable to delete physical file at '{}' : {e}.", self.file_path);
+            error!("Unable to delete physical file at '{}' : {:?}.", self.file_path, e);
         }
     }
 }

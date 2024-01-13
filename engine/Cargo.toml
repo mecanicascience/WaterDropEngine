@@ -9,6 +9,11 @@ license = "GNU Lesser General Public License v3.0"
 keywords = ["game", "engine", "data-driven", "simulation", "rendering", "graphics"]
 categories = ["game-engines", "graphics", "rendering", "simulation"]
 
+[build-dependencies]
+anyhow = "1.0"
+fs_extra = "1.2"
+
 [dependencies]
 wde_game = { path = "./core/game" }
 wde_logger = { path = "./core/wrappers/logger" }
+tokio = { version = "1.35", features = ["rt", "macros"] }

@@ -1,4 +1,4 @@
-use wde_logger::{debug, trace};
+use wde_logger::{trace, info};
 use wgpu::util::DeviceExt;
 
 use crate::{RenderInstance, BindGroup, ShaderType, CommandBuffer};
@@ -49,7 +49,7 @@ impl Buffer {
     /// * `usage` - The usage of the buffer (vertex, index, uniform, storage).
     /// * `content` - The content of the buffer.
     pub fn new(instance: &RenderInstance, label: &str, size: usize, usage: BufferUsage, content: Option<&[u8]>) -> Self {
-        debug!("Creating '{}' Buffer.", label);
+        info!("Creating '{}' Buffer.", label);
 
         // In case the content is not provided, create an empty buffer.
         match content {
@@ -198,5 +198,11 @@ impl Buffer {
             &self.buffer,
             offset as u64,
             content);
+    }
+}
+
+impl Drop for Buffer {
+    fn drop(&mut self) {
+        info!("Dropping '{}' Buffer.", self.label);
     }
 }

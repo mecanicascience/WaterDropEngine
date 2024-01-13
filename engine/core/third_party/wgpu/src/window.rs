@@ -1,10 +1,14 @@
-use wde_logger::{debug, error, throw};
+use wde_logger::{throw, info};
 use wde_math::Pair2u;
 use winit::{
-    event::{Event, WindowEvent},
-    event_loop::ControlFlow,
-    window::WindowBuilder,
+    event_loop::{ControlFlow, EventLoopBuilder},
+    window::WindowBuilder, platform::windows::EventLoopBuilderExtWindows,
 };
+
+/// Type of an event
+pub type Event = winit::event::Event<()>;
+pub type WindowEvent = winit::event::WindowEvent;
+pub type WindowIndex = winit::window::WindowId;
 
 /// Type of a loop
 type EventLoop = winit::event_loop::EventLoop<()>;
@@ -54,7 +58,7 @@ impl Window {
     /// * `height` - Height of the window.
     /// * `title` - Title of the window.
     pub fn new(width: u32, height: u32, title: &str) -> Self {
-        debug!("Creating window {}x{}.", width, height);
+        info!("Creating window of size {}x{}.", width, height);
 
         Self {
             title: title.to_string(),
@@ -70,10 +74,10 @@ impl Window {
     /// 
     /// * `event_loop` - The event loop of the window.
     pub fn create(&mut self) -> EventLoop {
-        debug!("Creating window.");
+        info!("Creating window.");
 
         // Create event loop and window
-        let event_loop = EventLoop::new().unwrap();
+        let event_loop = EventLoopBuilder::new().with_any_thread(true).build().unwrap();
         let window = Some(WindowBuilder::new()
             .with_title(self.title.clone())
             .with_inner_size(winit::dpi::LogicalSize::new(self.size.0, self.size.1))
@@ -94,9 +98,13 @@ impl Window {
     /// 
     /// # Arguments
     /// 
-    /// * `callback` - Callback function that is called when an event is received.
-    pub fn run<F>(&mut self, event_loop: EventLoop, mut callback: F) where F: FnMut(LoopEvent) + 'static {
-        debug!("Starting window main loop.");
+    /// * `event_loop` - The event loop of the window.
+    /// 
+    /// # Returns
+    /// 
+    /// * `window_index` - The index of the window.
+    pub fn run(&mut self, event_loop: &EventLoop) -> WindowIndex {
+        info!("Starting window main loop.");
 
         // Check if the window is created
         if self.window.is_none() {
@@ -107,48 +115,23 @@ impl Window {
         let window_index = self.window.as_ref().unwrap().id();
         event_loop.set_control_flow(ControlFlow::Poll); // Poll events even when the application is not focused
 
-        // Main loop
-        let event_loop_res = event_loop.run(move |event, elwt| {
-            match event {
-                // Close window when the close button is pressed
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    window_id,
-                } if window_id == window_index => {
-                    callback(LoopEvent::Close);
-                    elwt.exit();
-                },
+        // Return window index
+        window_index
+    }
 
-                // Resize window when requested
-                Event::WindowEvent {
-                    event: WindowEvent::Resized(size),
-                    window_id,
-                } if window_id == window_index => {
-                    callback(LoopEvent::Resize(size.width, size.height));
-                    self.size = (size.width, size.height);
-                },
+    /// Resize the window.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `width` - The new width of the window.
+    /// * `height` - The new height of the window.
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.size = (width, height);
+    }
+}
 
-                // Ask for redraw when all events are processed
-                Event::AboutToWait => {
-                    self.window.as_ref().unwrap().request_redraw();
-                },
-
-                // Redraw window when requested
-                Event::WindowEvent {
-                    event: WindowEvent::RedrawRequested,
-                    ..
-                } => {
-                    callback(LoopEvent::Redraw);
-                },
-
-                // Ignore other events
-                _ => ()
-            }
-        });
-
-        // Check if the event loop failed
-        if event_loop_res.is_err() {
-            error!("Failed to run event loop: {}", event_loop_res.err().unwrap());
-        }
+impl Drop for Window {
+    fn drop(&mut self) {
+        info!("Dropping window.");
     }
 }

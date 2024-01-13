@@ -1,4 +1,4 @@
-use wde_logger::{trace, debug, error};
+use wde_logger::{trace, error, info};
 
 use crate::EditorError;
 use crate::ipc::{IPC, IPCMessage, IPCChannelStatus};
@@ -43,7 +43,7 @@ impl EditorHandler {
     /// 
     /// * `EditorError::SharedMemoryFailed` - Shared memory failed.
     pub fn new() -> Result<Self, EditorError> {
-        debug!("Starting editor handler.");
+        info!("Starting editor handler.");
 
         // Create IPC write and read channels
         let mut ipc = IPC::new("editor".to_string(), 1_024);
@@ -188,5 +188,11 @@ impl EditorHandler {
     /// Check if editor handler started correctly.
     pub fn started(&self) -> bool {
         self.status
+    }
+}
+
+impl Drop for EditorHandler {
+    fn drop(&mut self) {
+        info!("Dropping editor handler.");
     }
 }
