@@ -94,7 +94,7 @@ impl RenderInstance {
         trace!("Creating wgpu instance for '{}'.", label);
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            flags: wgpu::InstanceFlags::empty(),
+            flags: wgpu::InstanceFlags::VALIDATION,
             dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
             gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
         });

@@ -174,7 +174,7 @@ impl ResourcesManagerInstance {
             }
 
             // Remove resource from resources list
-            debug!("Unloading resource with index '{}'. If crash here, use drop(handle) manually.", resource_index_g);
+            debug!("Unloading resource with index '{}'.", resource_index_g);
             let arr = self.resources.get_mut(&resource_type).unwrap();
             arr.remove(resource_index_g as usize);
         }

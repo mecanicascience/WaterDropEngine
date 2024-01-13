@@ -132,7 +132,9 @@ impl App {
 
         loop {
             // Wait for next event
-            match event_r.recv().await.unwrap() {
+            let ev = event_r.recv().await;
+            if ev.is_none() { break; }
+            match ev.unwrap() {
                 LoopEvent::Close => { break; },
                 LoopEvent::Redraw => { },
                 LoopEvent::Resize(_, _) => { continue; },
@@ -214,12 +216,6 @@ impl App {
         // Join window thread
         info!("Joining window thread.");
         window_join.join().unwrap();
-
-        // Dropping modules
-        info!("Dropping modules.");
-        drop(res_manager);
-        drop(window);
-        drop(render_instance);
         
         App {}
     }
