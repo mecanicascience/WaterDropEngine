@@ -13,6 +13,7 @@ pub type Vec4u = cgmath::Vector4<u32>;
 pub type Mat4f = cgmath::Matrix4<f32>;
 pub type Mat4i = cgmath::Matrix4<i32>;
 pub type Mat4u = cgmath::Matrix4<u32>;
+pub use cgmath::SquareMatrix;
 
 /// Quaternions
 pub type Quatf = cgmath::Quaternion<f32>;
