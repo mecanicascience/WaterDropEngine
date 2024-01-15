@@ -1,0 +1,14 @@
+[package]
+name = "wde_ecs"
+version = "0.1.0"
+authors = ["MecanicaScience"]
+edition = "2021"
+description = "ECS implementation"
+
+[dependencies]
+wde_resources = { path = "../../resources" }
+wde_logger = { path = "../../wrappers/logger" }
+wde_math = { path = "../../wrappers/math" }
+bytemuck = { version = "1.12", features = [ "derive" ] }
+bit-vec = "0.6"
+bit-set = "0.5"
