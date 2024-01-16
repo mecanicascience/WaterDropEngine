@@ -32,6 +32,10 @@ impl CameraUniform {
     /// 
     /// * `camera` - The camera component.
     /// * `transform` - The transform component.
+    /// 
+    /// # Returns
+    /// 
+    /// The world to screen matrix ((openGL to WGPU) * projection * view).
     pub fn get_world_to_screen(camera: CameraComponent, transform: TransformComponent) -> Mat4f {
         // World to camera
         let view = TransformComponent::transform_world_to_obj(transform);
