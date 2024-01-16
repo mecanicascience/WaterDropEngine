@@ -277,8 +277,9 @@ impl ResourcesManager {
             }
             
             // If resource is loaded, sync load it and remove it from async loading list
-            if resources_arr.as_ref().unwrap().lock().unwrap().async_loaded() {
-                resources_arr.as_ref().unwrap().lock().unwrap().sync_load(render_instance);
+            let mut res_ref = resources_arr.as_ref().unwrap().lock().unwrap();
+            if res_ref.async_loaded() && !res_ref.loaded() {
+                res_ref.sync_load(render_instance);
                 should_remove.push((resource_type, resource_index));
             }
         }

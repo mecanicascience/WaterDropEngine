@@ -94,7 +94,7 @@ impl Buffer {
     /// 
     /// * `BindGroupLayout` - The bind group layout of the buffer.
     pub async fn create_bind_group_layout(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroupLayout {
-        trace!("Creating bind group for '{}' Buffer.", self.label);
+        trace!("Creating bind group layout for '{}' Buffer.", self.label);
         
         // Create bind group layout
         let layout_entries = vec![
