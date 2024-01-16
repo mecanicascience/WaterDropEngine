@@ -1,21 +1,16 @@
 use wde_logger::{trace, info};
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, BindGroupLayout};
 
-use crate::{RenderInstance, BindGroup, ShaderType, CommandBuffer};
+use crate::{RenderInstance, BindGroup, CommandBuffer};
 
 /// Buffer usages.
-pub enum BufferUsage {
-    Vertex,
-    Index,
-    Uniform,
-    Storage,
-}
+pub type BufferUsage = wgpu::BufferUsages;
+
+/// Shader stages.
+pub type ShaderStages = wgpu::ShaderStages;
 
 /// Buffer binding types.
-pub enum BufferBindingType {
-    Uniform,
-    Storage { read_only: bool },
-}
+pub type BufferBindingType = wgpu::BufferBindingType;
 
 /// Create a buffer.
 /// 
@@ -59,12 +54,7 @@ impl Buffer {
                     &wgpu::util::BufferInitDescriptor {
                         label: Some(format!("'{}' Buffer", label).as_str()),
                         contents: content,
-                        usage: match usage {
-                            BufferUsage::Vertex => wgpu::BufferUsages::VERTEX,
-                            BufferUsage::Index => wgpu::BufferUsages::INDEX,
-                            BufferUsage::Uniform => wgpu::BufferUsages::UNIFORM,
-                            BufferUsage::Storage => wgpu::BufferUsages::STORAGE,
-                        },
+                        usage 
                     }
                 );
                 
@@ -79,12 +69,7 @@ impl Buffer {
                     &wgpu::BufferDescriptor {
                         label: Some(format!("'{}' Buffer", label).as_str()),
                         size: size as u64,
-                        usage: match usage {
-                            BufferUsage::Vertex => wgpu::BufferUsages::VERTEX,
-                            BufferUsage::Index => wgpu::BufferUsages::INDEX,
-                            BufferUsage::Uniform => wgpu::BufferUsages::UNIFORM,
-                            BufferUsage::Storage => wgpu::BufferUsages::STORAGE,
-                        },
+                        usage,
                         mapped_at_creation: false,
                     }
                 );
@@ -95,6 +80,48 @@ impl Buffer {
                 }
             },
         }
+    }
+
+    /// Create a bind group layout for the buffer.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instance` - The render instance.
+    /// * `binding_type` - The type of the buffer.
+    /// * `visibility` - The list of shader stages that can access the buffer.
+    /// 
+    /// # Returns
+    /// 
+    /// * `BindGroupLayout` - The bind group layout of the buffer.
+    pub async fn create_bind_group_layout(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroupLayout {
+        trace!("Creating bind group for '{}' Buffer.", self.label);
+        
+        // Create bind group layout
+        let layout_entries = vec![
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility,
+                ty: wgpu::BindingType::Buffer {
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                    ty: binding_type,
+                },
+                count: None,
+            }
+        ];
+
+        let bind_group_layout = tokio::task::block_in_place(|| {
+            instance.device.create_bind_group_layout(
+                &wgpu::BindGroupLayoutDescriptor {
+                    label: Some(format!("'{}' Buffer Bind Group Layout", self.label).as_str()),
+                    entries: &layout_entries,
+                }
+            )
+        });
+        
+
+        // Return bind group layout
+        bind_group_layout
     }
 
     /// Create a bind group for the buffer.
@@ -108,37 +135,13 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroup` - The bind group of the buffer.
-    pub async fn create_bind_group(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderType) -> BindGroup {
+    pub async fn create_bind_group(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroup {
         trace!("Creating bind group for '{}' Buffer.", self.label);
-        
+
         // Create bind group layout
-        let layout_entries = vec![
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: match visibility {
-                    ShaderType::Vertex => wgpu::ShaderStages::VERTEX,
-                    ShaderType::Fragment => wgpu::ShaderStages::FRAGMENT
-                },
-                ty: wgpu::BindingType::Buffer {
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                    ty: match binding_type {
-                        BufferBindingType::Uniform => wgpu::BufferBindingType::Uniform,
-                        BufferBindingType::Storage { read_only } => wgpu::BufferBindingType::Storage { read_only },
-                    },
-                },
-                count: None,
-            }
-        ];
+        let layout = self.create_bind_group_layout(instance, binding_type, visibility).await;
 
         let bind_group = tokio::task::block_in_place(|| {
-            let layout = instance.device.create_bind_group_layout(
-                &wgpu::BindGroupLayoutDescriptor {
-                    label: Some(format!("'{}' Buffer Bind Group Layout", self.label).as_str()),
-                    entries: &layout_entries,
-                }
-            );
-
             // Create bind group
             instance.device.create_bind_group(
                 &wgpu::BindGroupDescriptor {

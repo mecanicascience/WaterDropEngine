@@ -1,8 +1,10 @@
 use tokio::sync::mpsc;
+use wde_ecs::{World, TransformComponent, LabelComponent, RenderComponentDynamic, TransformUniform, CameraUniform, CameraComponent};
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
+use wde_math::{QUATF_IDENTITY, ONE_VEC3F, Vec3f};
 use wde_resources::{ResourcesManager, ModelResource, ShaderResource};
-use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline, Event, WindowEvent, ShaderType};
+use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline, Event, WindowEvent, ShaderType, Buffer, ShaderStages};
 
 pub struct App {}
 
@@ -112,9 +114,89 @@ impl App {
                 Err(_) => {}
             }
         }
-        
-        // Load model
-        let handle = res_manager.load::<ModelResource>("models/cube.obj");
+
+        // Create world
+        let mut world = World::new();
+        world
+            .register_component::<LabelComponent>()
+            .register_component::<TransformComponent>()
+            .register_component::<RenderComponentDynamic>();
+
+
+
+        // Create camera
+        let camera = match world.create_entity() {
+            Some(e) => e,
+            None => throw!("Failed to create entity. No more entity slots available."),
+        };
+        world
+            .add_component(camera, LabelComponent { label : "Camera".to_string() }).unwrap()
+            .add_component(camera, TransformComponent {
+                position: Vec3f { x: 0.0, y: 0.0, z: 1.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
+            }).unwrap();
+
+        // Create camera uniform buffer
+        let mut camera_buffer = Buffer::new(
+            &render_instance,
+            "Camera buffer",
+            std::mem::size_of::<CameraUniform>(),
+            wde_wgpu::BufferUsage::UNIFORM | wde_wgpu::BufferUsage::COPY_DST,
+            None);
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.world_to_screen = CameraUniform::get_world_to_screen(
+            CameraComponent { aspect: 16.0 / 9.0, fovy: 60.0, znear: 0.1, zfar: 1000.0 },
+            world.get_component::<TransformComponent>(camera).unwrap().clone()
+        ).into();
+        camera_buffer.write(&render_instance, bytemuck::cast_slice(&[camera_uniform]), 0);
+
+        // Create camera uniform buffer bind group layout
+        let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
+            &render_instance,
+            wde_wgpu::BufferBindingType::Uniform,
+            ShaderStages::VERTEX).await;
+        let camera_buffer_bind_group = camera_buffer.create_bind_group(
+            &render_instance,
+            wde_wgpu::BufferBindingType::Uniform,
+            ShaderStages::VERTEX).await;
+
+
+        // Create cube
+        let cube = match world.create_entity() {
+            Some(e) => e,
+            None => throw!("Failed to create entity. No more entity slots available."),
+        };
+
+        // Set model to cube
+        world
+            .add_component(cube, LabelComponent { label : "Cube".to_string() }).unwrap()
+            .add_component(cube, TransformComponent {
+                position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+            }).unwrap()
+            .add_component(cube, RenderComponentDynamic {
+                model: res_manager.load::<ModelResource>("models/cube.obj")
+            }).unwrap();
+
+        // Create uniform buffer
+        let mut model_buffer = Buffer::new(
+            &render_instance,
+            "Cube buffer",
+            std::mem::size_of::<TransformUniform>(),
+            wde_wgpu::BufferUsage::UNIFORM | wde_wgpu::BufferUsage::COPY_DST,
+            None);
+        let transform_uniform = TransformUniform::new(
+            world.get_component::<TransformComponent>(cube).unwrap().clone()
+        );
+        model_buffer.write(&render_instance, bytemuck::cast_slice(&[transform_uniform]), 0);
+        let model_buffer_bind_group_layout = model_buffer.create_bind_group_layout(
+            &render_instance,
+            wde_wgpu::BufferBindingType::Uniform,
+            ShaderStages::VERTEX).await;
+        let model_buffer_bind_group = model_buffer.create_bind_group(
+            &render_instance,
+            wde_wgpu::BufferBindingType::Uniform,
+            ShaderStages::VERTEX).await;
+
+
 
         // Create shaders
         let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/vertex.wgsl");
@@ -129,12 +211,16 @@ impl App {
         let _ = render_pipeline
             .set_shader(&res_manager.get::<ShaderResource>(&vertex_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Vertex)
             .set_shader(&res_manager.get::<ShaderResource>(&fragment_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
+            .add_bind_group(camera_buffer_bind_group_layout)
+            .add_bind_group(model_buffer_bind_group_layout)
             .init(&render_instance).await;
+            
 
+        // Main loop
         loop {
             debug!("\n\n\n======== Next frame ========");
 
-            // Wait for next event
+            // Wait for next render event
             let ev = event_r.recv().await;
             if ev.is_none() { break; }
             match ev.unwrap() {
@@ -144,51 +230,12 @@ impl App {
             }
             trace!("Handling next frame.");
 
+
             // Update resources manager
             res_manager.update(&render_instance);
 
-            // Try to render in parallel
-            let first_thread = tokio::spawn(async move {
-                // Load model
-                let handle = res_manager.load::<ModelResource>("models/cube.obj");
 
-                // Create shaders
-                let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/vertex.wgsl");
-                let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/frag.wgsl");
-
-                // Wait for shaders to load
-                res_manager.wait_for(&vertex_shader_handle, &render_instance).await;
-                res_manager.wait_for(&fragment_shader_handle, &render_instance).await;
-
-                // Create default render pipeline
-                let mut render_pipeline = RenderPipeline::new("Main Render");
-                let _ = render_pipeline
-                    .set_shader(&res_manager.get::<ShaderResource>(&vertex_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Vertex)
-                    .set_shader(&res_manager.get::<ShaderResource>(&fragment_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
-                    .init(&render_instance).await;
-            });
-
-            let second_thread = tokio::spawn(async move {
-                // Load model
-                let handle = res_manager.load::<ModelResource>("models/cube.obj");
-
-                // Create shaders
-                let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/vertex.wgsl");
-                let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/frag.wgsl");
-
-                // Wait for shaders to load
-                res_manager.wait_for(&vertex_shader_handle, &render_instance).await;
-                res_manager.wait_for(&fragment_shader_handle, &render_instance).await;
-
-                // Create default render pipeline
-                let mut render_pipeline = RenderPipeline::new("Main Render");
-                let _ = render_pipeline
-                    .set_shader(&res_manager.get::<ShaderResource>(&vertex_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Vertex)
-                    .set_shader(&res_manager.get::<ShaderResource>(&fragment_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
-                    .init(&render_instance).await;
-            });
-
-            // Render
+            // Handle render event
             let mut should_close = false;
             let render_texture: Option<wde_wgpu::RenderTexture> = match RenderInstance::get_current_texture(&render_instance) {
                 // Redraw to render texture
@@ -209,6 +256,8 @@ impl App {
             };
             if should_close { break; }
 
+
+            // Render to texture
             if render_texture.is_some() {
                 debug!("Rendering to texture.");
 
@@ -228,9 +277,13 @@ impl App {
                         None);
 
                     // Set vertex buffer
-                    match res_manager.get::<ModelResource>(&handle) {
+                    match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(cube).unwrap().model) {
                         Some(m) => {
-                            // Set buffers
+                            // Set uniform and storage buffers
+                            render_pass.set_bind_group(0, &camera_buffer_bind_group);
+                            render_pass.set_bind_group(1, &model_buffer_bind_group);
+
+                            // Set model buffers
                             render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
                             render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
 

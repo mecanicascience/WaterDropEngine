@@ -1,5 +1,32 @@
 use wde_math::{Mat4f, Quatf, Vec3f, SquareMatrix};
 
+/// Define the transform uniform buffer aligned to 16 bytes for the GPU.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TransformUniform {
+    /// From object to world space.
+    object_to_world: [[f32; 4]; 4]
+}
+
+impl TransformUniform {
+    /// Create a new transform uniform.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `transform` - The transform component.
+    /// 
+    /// # Returns
+    /// 
+    /// The transform uniform.
+    pub fn new(transform: TransformComponent) -> Self {
+        Self {
+            object_to_world: TransformComponent::transform_obj_to_world(transform).into()
+        }
+    }
+}
+
+
+
 /// Store the position, rotation and scale of an entity.
 #[derive(Copy, Clone)]
 pub struct TransformComponent {

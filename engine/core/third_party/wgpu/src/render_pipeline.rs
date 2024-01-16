@@ -125,6 +125,7 @@ impl RenderPipeline {
     }
 
     /// Add a bind group via its layout to the render pipeline.
+    /// Note that the order of the bind groups will be the same as the order of the bindings in the shaders.
     /// 
     /// # Arguments
     /// 

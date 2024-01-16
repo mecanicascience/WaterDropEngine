@@ -176,9 +176,8 @@ impl World {
     /// 
     /// * `Some(T)` - The component value.
     /// * `None` - If the entity does not have the component.
-    pub fn get_component<T: 'static>(&self, entity: EntityIndex) -> Option<T> {
-        self.component_manager.get_component::<T>(entity);
-        None
+    pub fn get_component<T: 'static>(&self, entity: EntityIndex) -> Option<&T> {
+        self.component_manager.get_component::<T>(entity)
     }
 
     /// Sets the value of a component for an entity.

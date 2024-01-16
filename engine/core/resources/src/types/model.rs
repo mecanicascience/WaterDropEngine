@@ -200,7 +200,7 @@ impl Resource for ModelResource {
             &instance,
             format!("'{}' Vertex", self.label).as_str(),
             std::mem::size_of::<Vertex>() * temp_data.vertices.len(),
-            BufferUsage::Vertex,
+            BufferUsage::VERTEX,
             Some(bytemuck::cast_slice(&temp_data.vertices)));
 
         // Create index buffer
@@ -208,7 +208,7 @@ impl Resource for ModelResource {
             &instance,
             format!("'{}' Index", self.label).as_str(),
             std::mem::size_of::<u32>() * temp_data.indices.len(),
-            BufferUsage::Index,
+            BufferUsage::INDEX,
             Some(bytemuck::cast_slice(&temp_data.indices)));
 
         // Set data
