@@ -30,13 +30,6 @@ fn main(
     model: ModelInput
 ) -> VertexOutput {
     var out: VertexOutput;
-
-    let camera_matrix = mat4x4<f32>(
-        0.9308, -0.0340, -0.2949, -0.2948,
-        0.0000, 1.7282, -0.0665, -0.0665,
-        -0.2879, -0.1100, -0.9533, -0.9532,
-        0.2797, -1.3955, 2.9978, 3.0975
-    );
     
     out.clip_position = in_camera.world_to_screen
         * in_model.data
