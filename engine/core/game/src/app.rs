@@ -147,6 +147,47 @@ impl App {
             // Update resources manager
             res_manager.update(&render_instance);
 
+            // Try to render in parallel
+            let first_thread = tokio::spawn(async move {
+                // Load model
+                let handle = res_manager.load::<ModelResource>("models/cube.obj");
+
+                // Create shaders
+                let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/vertex.wgsl");
+                let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/frag.wgsl");
+
+                // Wait for shaders to load
+                res_manager.wait_for(&vertex_shader_handle, &render_instance).await;
+                res_manager.wait_for(&fragment_shader_handle, &render_instance).await;
+
+                // Create default render pipeline
+                let mut render_pipeline = RenderPipeline::new("Main Render");
+                let _ = render_pipeline
+                    .set_shader(&res_manager.get::<ShaderResource>(&vertex_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Vertex)
+                    .set_shader(&res_manager.get::<ShaderResource>(&fragment_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
+                    .init(&render_instance).await;
+            });
+
+            let second_thread = tokio::spawn(async move {
+                // Load model
+                let handle = res_manager.load::<ModelResource>("models/cube.obj");
+
+                // Create shaders
+                let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/vertex.wgsl");
+                let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/frag.wgsl");
+
+                // Wait for shaders to load
+                res_manager.wait_for(&vertex_shader_handle, &render_instance).await;
+                res_manager.wait_for(&fragment_shader_handle, &render_instance).await;
+
+                // Create default render pipeline
+                let mut render_pipeline = RenderPipeline::new("Main Render");
+                let _ = render_pipeline
+                    .set_shader(&res_manager.get::<ShaderResource>(&vertex_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Vertex)
+                    .set_shader(&res_manager.get::<ShaderResource>(&fragment_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
+                    .init(&render_instance).await;
+            });
+
             // Render
             let mut should_close = false;
             let render_texture: Option<wde_wgpu::RenderTexture> = match RenderInstance::get_current_texture(&render_instance) {
