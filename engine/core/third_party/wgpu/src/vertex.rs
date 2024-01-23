@@ -6,7 +6,7 @@
 /// * `tex_uv`   - The texture UV of the vertex (location 1).
 /// * `normal`   - The normal of the vertex (location 2).
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug)]
 pub struct Vertex {
     pub position: [f32; 3],
     pub tex_uv: [f32; 2],

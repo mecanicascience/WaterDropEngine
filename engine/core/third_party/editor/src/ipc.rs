@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use tokio::{net::windows::named_pipe, io::Interest};
+use tracing::{Instrument, Span};
 use wde_logger::{trace, debug, error};
 
 use crate::EditorError;
@@ -47,6 +48,7 @@ pub struct IPCMessage {
 ///     None => {}
 /// }
 /// ```
+#[derive(Debug)]
 pub struct IPC {
     /// The name of the IPC channel.
     name: String,
@@ -65,8 +67,9 @@ impl IPC {
     /// 
     /// * `name` - The name of the IPC channel.
     /// * `allocated_size` - The allocated size for the IPC channel.
+    #[tracing::instrument]
     pub fn new(name: String, allocated_size: usize) -> Self {
-        debug!("Creating an IPC channel with name '{}'.", name);
+        debug!(name, "Creating an IPC channel.");
 
         // Shared list of received messages
         let shared_messages_read = Arc::new(
@@ -85,7 +88,10 @@ impl IPC {
         let s = started.clone();
 
         // Spawn the root task
-        tokio::spawn(async move {
+        let task = async move {
+            // Create span
+            let _span = tracing::span!(tracing::Level::INFO, "IPC", name = name.as_str());
+
             // Create pipe name
             let pipe_name: &str = &(r"\\.\pipe\wde\".to_owned() + &name);
 
@@ -95,17 +101,17 @@ impl IPC {
                 let cl = match named_pipe::ClientOptions::new().open(pipe_name) {
                     Ok(client) => client,
                     Err(e) if e.kind() == tokio::io::ErrorKind::NotFound => {
-                        error!("Server not found for IPC with name '{}'. Try starting the server first.", name);
+                        error!(name, "Server not found. Try starting the server first.");
                         *start = IPCChannelStatus::NotRunning;
                         return;
                     }
                     Err(e) if e.raw_os_error() == Some(231) => { // Os error 231 (All pipe instances are busy)
-                        error!("Server busy for IPC with name '{}'.", name);
+                        error!(name, "Server busy.");
                         *start = IPCChannelStatus::NotRunning;
                         return;
                     }
                     Err(e) => {
-                        error!("The pipe connection encountered an error for IPC with name '{}': {:?}.", name, e);
+                        error!(name, "The pipe connection encountered an error : {:?}.", e);
                         *start = IPCChannelStatus::NotRunning;
                         return;
                     }
@@ -115,17 +121,17 @@ impl IPC {
             };
 
             // Log ready
-            debug!("An IPC channel with name '{}' has been created.", name);
+            debug!(name, "An IPC channel has been created.");
             loop {
                 // Wait for the socket to be readable
                 let ready = match client.ready(Interest::READABLE | Interest::WRITABLE).await {
                     Ok(ready) => ready,
                     Err(e) if e.kind() == tokio::io::ErrorKind::WouldBlock => {
-                        error!("Server not ready for IPC with name '{}'.", name);
+                        error!(name, "Server not ready.");
                         return;
                     }
                     Err(e) => {
-                        error!("The pipe connection encountered an error for IPC with name '{}': {:?}.", name, e);
+                        error!(name, "The pipe connection encountered an error: {:?}.", e);
                         return;
                     }
                 };
@@ -168,7 +174,7 @@ impl IPC {
 
                                 // Check if payload size is valid
                                 if payload_size > allocated_size as u16 {
-                                    error!("Payload size '{}' is bigger than the allocated size '{}'.", payload_size, allocated_size);
+                                    error!(name, payload_size, allocated_size, "Payload size is bigger than the allocated size.");
                                     break;
                                 }
 
@@ -232,7 +238,7 @@ impl IPC {
                             Ok(n) => {
                                 // If n is 0, the other side closed the socket, so we'll just terminate
                                 if n == 0 {
-                                    trace!("Server closed IPC channel named '{}'.", name);
+                                    trace!(name, "Server closed.");
                                     break;
                                 }
 
@@ -253,8 +259,11 @@ impl IPC {
             }
 
             // Server stopped
-            debug!("IPC channel named '{}' closed.", name);
-        });
+            debug!(name, "IPC channel closed.");
+        };
+
+        // Spawn the task
+        tokio::spawn(task.instrument(Span::current()));
 
         IPC {
             name: n,
@@ -267,16 +276,17 @@ impl IPC {
 
     /// Reads the messages from the IPC channel.
     /// Clears the messages after reading them.
+    #[tracing::instrument]
     pub fn read(&mut self) -> Result<Option<Vec<IPCMessage>>, EditorError> {
         // Check if server is started
         let started = self.started.lock().unwrap();
         match *started {
             IPCChannelStatus::Starting => {
-                error!("Cannot read. Server not started for IPC with name '{}'.", self.name);
+                error!(self.name, "Cannot read. Server not started.");
                 return Err(EditorError::IPCServerNotStarted);
             },
             IPCChannelStatus::NotRunning => {
-                error!("Cannot read. Server failed to run for IPC with name '{}'.", self.name);
+                error!(self.name, "Cannot read. Server failed to run.");
                 return Err(EditorError::IPCServerFailed);
             },
             IPCChannelStatus::Running => {}
@@ -301,16 +311,17 @@ impl IPC {
     /// # Arguments
     /// 
     /// * `message` - The message to write.
+    #[tracing::instrument]
     pub fn write(&mut self, message: IPCMessage) {
         // Check if server is started
         let started = self.started.lock().unwrap();
         match *started {
             IPCChannelStatus::Starting => {
-                error!("Cannot write. Server not started for IPC with name '{}'.", self.name);
+                error!(self.name, "Cannot write. Server not started.");
                 return;
             },
             IPCChannelStatus::NotRunning => {
-                error!("Cannot write. Server failed to run for IPC with name '{}'.", self.name);
+                error!(self.name, "Cannot write. Server failed to run.");
                 return;
             },
             IPCChannelStatus::Running => {}
@@ -325,13 +336,20 @@ impl IPC {
 
     /// Returns the status of the IPC channel.
     pub fn status(&self) -> IPCChannelStatus {
-        let started = self.started.lock().unwrap();
+        let started_lock = self.started.lock();
+        let started = match started_lock {
+            Ok(started) => started,
+            Err(_) => {
+                return IPCChannelStatus::NotRunning;
+            }
+        };
         started.clone()
     }
 }
 
 impl Drop for IPC {
+    #[tracing::instrument]
     fn drop(&mut self) {
-        debug!("Dropping IPC channel with name '{}'.", self.name);
+        debug!(self.name, "Dropping IPC channel.");
     }
 }

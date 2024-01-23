@@ -1,5 +1,6 @@
 use std::{any::Any, sync::{Arc, Mutex}};
 
+use tracing::Instrument;
 use wde_logger::{debug, error, trace, info};
 use wde_math::Vec3f;
 use wde_wgpu::{Vertex, Buffer, RenderInstance, BufferUsage};
@@ -7,13 +8,14 @@ use wde_wgpu::{Vertex, Buffer, RenderInstance, BufferUsage};
 use crate::{Resource, ResourceType, LoadedFlag};
 
 /// Bounding box of a model, centered at the origin.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ModelBoundingBox {
     pub min: Vec3f,
     pub max: Vec3f
 }
 
 /// Temporary data to be transferred.
+#[derive(Clone, Debug)]
 struct TempModelData {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
@@ -21,6 +23,7 @@ struct TempModelData {
 }
 
 /// Resource data.
+#[derive(Debug)]
 pub struct ModelData {
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
@@ -32,6 +35,7 @@ pub struct ModelData {
 /// Store a model resource loaded from a model file.
 /// This resource is loaded asynchronously.
 /// The data are stored in the `data` field when loaded.
+#[derive(Debug)]
 pub struct ModelResource {
     /// Label of the model.
     pub label: String,
@@ -51,8 +55,9 @@ impl Resource for ModelResource {
     /// # Arguments
     /// 
     /// * `label` - The label of the model.
+    #[tracing::instrument]
     fn new(label: &str) -> Self {
-        info!("Creating model resource '{}'.", label);
+        info!(label, "Creating model resource.");
 
         // Create sync resources
         let async_loaded = LoadedFlag { flag: Arc::new(Mutex::new(false)), };
@@ -61,7 +66,7 @@ impl Resource for ModelResource {
         let path_c = label.to_string();
         
         // Create async task
-        tokio::task::spawn(async move {
+        let task = async move {
             let mut vertices: Vec<Vertex> = Vec::new();
             let mut indices: Vec<u32> = Vec::new();
 
@@ -72,7 +77,7 @@ impl Resource for ModelResource {
                 .join(path_c.clone().replace("/", "\\"));
 
             // Open file
-            trace!("Loading model from file: '{}'.", path_c);
+            trace!(path_c, "Loading model.");
             let load_res = tobj::load_obj(
                     path_f,
                     &tobj::LoadOptions {
@@ -81,7 +86,7 @@ impl Resource for ModelResource {
                     }
                 );
             if let Err(e) = load_res {
-                error!("Failed to load model from file: '{}' : {:?}.", path_c, e);
+                error!(path_c, "Failed to load model : {:?}.", e);
                 return;
             }
             let (models, _) = load_res.unwrap();
@@ -96,7 +101,7 @@ impl Resource for ModelResource {
             for (_, m) in models.iter().enumerate() {
                 let mesh = &m.mesh;
                 if mesh.positions.len() % 3 != 0 {
-                    error!("Mesh positions are not divisible by 3 for model '{}'.", path_c);
+                    error!(path_c, "Mesh positions are not divisible by 3.");
                     return;
                 }
 
@@ -152,7 +157,7 @@ impl Resource for ModelResource {
             *flag = true;
 
             // Log that the model is async loaded
-            debug!("Model '{}' is async loaded.", path_c);
+            debug!(path_c, "Model is async loaded.");
 
             // Send data
             let data = TempModelData {
@@ -161,9 +166,10 @@ impl Resource for ModelResource {
                 bounding_box,
             };
             sync_sender.send(data).unwrap_or_else(|e| {
-                error!("Failed to send model data : {}", e);
+                error!("Failed to send model data : {}.", e);
             });
-        });
+        };
+        tokio::task::spawn(task.instrument(tracing::info_span!("Model Async Loading")));
 
         Self {
             label: label.to_string(),
@@ -174,17 +180,18 @@ impl Resource for ModelResource {
         }
     }
 
+    #[tracing::instrument]
     fn sync_load(&mut self, instance: &RenderInstance) {
         // Check if the model is async loaded
         if !self.async_loaded() {
             error!("Trying to sync load a model that is not async loaded.");
             return;
         }
-        debug!("Sync loading model '{}'.", self.label);
+        debug!(self.label, "Sync loading model.");
 
         // Receive data
         let temp_data = self.sync_receiver.recv().unwrap_or_else(|e| {
-            error!("Failed to receive model data : {}", e);
+            error!("Failed to receive model data : {}.", e);
             TempModelData {
                 vertices: Vec::new(),
                 indices: Vec::new(),
@@ -233,7 +240,8 @@ impl Resource for ModelResource {
 }
 
 impl Drop for ModelResource {
+    #[tracing::instrument]
     fn drop(&mut self) {
-        info!("Unloading model resource '{}'.", self.label);
+        info!(self.label, "Unloading model resource.");
     }
 }

@@ -14,6 +14,7 @@ pub type LoadOp<V> = wgpu::LoadOp<V>;
 pub type StoreOp = wgpu::StoreOp;
 
 /// Load and store operations for the color texture.
+#[derive(Clone, Copy, Debug)]
 pub struct Operations<V> {
     pub load: LoadOp<V>,
     pub store: StoreOp,
@@ -38,6 +39,7 @@ pub struct Operations<V> {
 /// // Submit the command buffer
 /// command_buffer.submit(&instance);
 /// ```
+#[derive(Debug)]
 pub struct CommandBuffer {
     pub label: String,
     encoder: wgpu::CommandEncoder,
@@ -50,14 +52,13 @@ impl CommandBuffer {
     /// 
     /// * `instance` - The render instance.
     /// * `label` - The label of the command buffer.
+    #[tracing::instrument]
     pub async fn new(instance: &RenderInstance, label: &str) -> Self {
-        debug!("Creating command buffer '{}'.", label);
+        debug!(label, "Creating command buffer.");
 
         // Create command encoder
-        let command_encoder = tokio::task::block_in_place(|| {
-            instance.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some(format!("'{}' Command Encoder", label).as_str()),
-            })
+        let command_encoder = instance.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some(format!("'{}' Command Encoder", label).as_str()),
         });
 
         Self {
@@ -74,11 +75,12 @@ impl CommandBuffer {
     /// * `color_texture` - The color texture to render to.
     /// * `color_operations` - The color operations. If `None`, clear the color texture to black.
     /// * `depth_texture` - The depth texture to render to.
+    #[tracing::instrument]
     pub fn create_render_pass<'pass>(&'pass mut self, label: &str,
         color_texture: &'pass TextureView,
         color_operations: Option<Operations<Color>>,
         depth_texture: Option<&'pass TextureView>) -> RenderPass<'pass> {
-        trace!("Creating render pass in command buffer '{}'.", label);
+        trace!(label, "Creating render pass.");
 
         let mut depth_attachment = None;
         if depth_texture.is_some() {
@@ -129,9 +131,10 @@ impl CommandBuffer {
     /// # Arguments
     /// 
     /// * `instance` - The render instance.
+    #[tracing::instrument]
     pub fn submit(self, instance: &RenderInstance) {
         instance.queue.submit(std::iter::once(self.encoder.finish()));
-        debug!("Submitted command buffer '{}'.", self.label);
+        debug!(self.label, "Submitted command buffer.");
     }
 
 
@@ -141,8 +144,9 @@ impl CommandBuffer {
     /// 
     /// * `source` - The source buffer.
     /// * `destination` - The destination buffer.
+    #[tracing::instrument]
     pub fn copy_buffer_to_buffer(&mut self, source: &Buffer, destination: &Buffer) {
-        trace!("Copying buffer '{}' to buffer '{}'.", source.label, destination.label);
+        trace!(src=source.label, dest=destination.label, "Copying buffer to buffer.");
 
         self.encoder.copy_buffer_to_buffer(
             &source.buffer, 0,

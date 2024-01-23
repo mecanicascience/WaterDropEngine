@@ -1,17 +1,20 @@
-use std::{any::Any, sync::{Arc, Mutex}};
+use std::{any::Any, fmt::Formatter, sync::{Arc, Mutex}};
 
 use tokio::io::AsyncReadExt;
+use tracing::Instrument;
 use wde_logger::{debug, error, info};
 use wde_wgpu::RenderInstance;
 
 use crate::{Resource, ResourceType, LoadedFlag};
 
 /// Temporary data to be transferred.
+#[derive(Clone, Debug)]
 struct TempShaderData {
     pub content: String,
 }
 
 /// Resource data.
+#[derive(Debug)]
 pub struct ShaderData {
     pub module: String,
 }
@@ -32,14 +35,25 @@ pub struct ShaderResource {
     sync_receiver: std::sync::mpsc::Receiver<TempShaderData>
 }
 
+impl std::fmt::Debug for ShaderResource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ShaderResource")
+            .field("label", &self.label)
+            .field("loaded", &self.loaded)
+            .field("async_loaded", &self.async_loaded)
+            .finish()
+    }
+}
+
 impl Resource for ShaderResource {
     /// Create a new shader resource.
     /// 
     /// # Arguments
     /// 
     /// * `label` - The label of the shader.
+    #[tracing::instrument]
     fn new(label: &str) -> Self {
-        info!("Creating shader resource '{}'.", label);
+        info!(label, "Creating shader resource.");
 
         // Create sync resources
         let async_loaded = LoadedFlag { flag: Arc::new(Mutex::new(false)), };
@@ -48,7 +62,7 @@ impl Resource for ShaderResource {
         let path_c = label.to_string();
         
         // Create async task
-        tokio::task::spawn(async move {
+        let task = async move {
             // File path
             let path_f = std::env::current_exe().unwrap().as_path()
                 .parent().unwrap()
@@ -58,7 +72,7 @@ impl Resource for ShaderResource {
             // Open file
             let file_status = tokio::fs::File::open(path_f).await;
             if file_status.is_err() {
-                error!("Failed to open shader file '{}'.", path_c);
+                error!(path_c, "Failed to open shader file.");
                 return;
             }
 
@@ -66,7 +80,7 @@ impl Resource for ShaderResource {
             let mut content_buffer = Vec::new();
             let read_status = file_status.unwrap().read_to_end(&mut content_buffer).await;
             if read_status.is_err() {
-                error!("Failed to read shader file '{}'.", path_c);
+                error!(path_c, "Failed to read shader file.");
                 return;
             }
 
@@ -75,14 +89,15 @@ impl Resource for ShaderResource {
             *flag = true;
 
             // Log that the shader is async loaded
-            debug!("Shader '{}' is async loaded.", path_c);
+            debug!(path_c, "Shader is async loaded.");
 
             // Send data
             let data = TempShaderData { content: String::from_utf8(content_buffer).unwrap() };
             sync_sender.send(data).unwrap_or_else(|e| {
-                error!("Failed to send shader data : {}", e);
+                error!("Failed to send shader data : {}.", e);
             });
-        });
+        };
+        tokio::task::spawn(task.instrument(tracing::info_span!("Shader Async Loading")));
 
         Self {
             label: label.to_string(),
@@ -93,18 +108,19 @@ impl Resource for ShaderResource {
         }
     }
 
+    #[tracing::instrument]
     fn sync_load(&mut self, _: &RenderInstance) {
         // Check if the model is async loaded
         if !self.async_loaded() {
             error!("Trying to sync load a shader that is not async loaded.");
             return;
         }
-        debug!("Sync loading shader '{}'.", self.label);
+        debug!(self.label, "Sync loading shader.");
 
         // Set data
         self.data = Some(ShaderData {
             module: self.sync_receiver.recv().unwrap_or_else(|e| {
-                error!("Failed to receive shader data : {}", e);
+                error!("Failed to receive shader data : {}.", e);
                 TempShaderData { content: String::new() }
             }).content
         });
@@ -122,7 +138,8 @@ impl Resource for ShaderResource {
 }
 
 impl Drop for ShaderResource {
+    #[tracing::instrument]
     fn drop(&mut self) {
-        info!("Unloading shader resource '{}'.", self.label);
+        info!(self.label, "Unloading shader resource.");
     }
 }

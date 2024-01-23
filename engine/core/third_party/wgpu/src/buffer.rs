@@ -1,3 +1,5 @@
+use std::fmt::Formatter;
+
 use wde_logger::{trace, info};
 use wgpu::{util::DeviceExt, BindGroupLayout};
 
@@ -33,6 +35,15 @@ pub struct Buffer {
     pub buffer: wgpu::Buffer,
 }
 
+impl std::fmt::Debug for Buffer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Buffer")
+            .field("label", &self.label)
+            .field("buffer_size", &self.buffer.size())
+            .finish()
+    }
+}
+
 impl Buffer {
     /// Create a new buffer.
     /// 
@@ -43,8 +54,9 @@ impl Buffer {
     /// * `size` - The size of the buffer.
     /// * `usage` - The usage of the buffer (vertex, index, uniform, storage).
     /// * `content` - The content of the buffer.
+    #[tracing::instrument]
     pub fn new(instance: &RenderInstance, label: &str, size: usize, usage: BufferUsage, content: Option<&[u8]>) -> Self {
-        info!("Creating '{}' Buffer.", label);
+        info!(label, "Creating new buffer.");
 
         // In case the content is not provided, create an empty buffer.
         match content {
@@ -93,8 +105,9 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroupLayout` - The bind group layout of the buffer.
+    #[tracing::instrument]
     pub async fn create_bind_group_layout(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroupLayout {
-        trace!("Creating bind group layout for '{}' Buffer.", self.label);
+        trace!(self.label, "Creating bind group layout.");
         
         // Create bind group layout
         let layout_entries = vec![
@@ -110,18 +123,12 @@ impl Buffer {
             }
         ];
 
-        let bind_group_layout = tokio::task::block_in_place(|| {
-            instance.device.create_bind_group_layout(
-                &wgpu::BindGroupLayoutDescriptor {
-                    label: Some(format!("'{}' Buffer Bind Group Layout", self.label).as_str()),
-                    entries: &layout_entries,
-                }
-            )
-        });
-        
-
-        // Return bind group layout
-        bind_group_layout
+        instance.device.create_bind_group_layout(
+            &wgpu::BindGroupLayoutDescriptor {
+                label: Some(format!("'{}' Buffer Bind Group Layout", self.label).as_str()),
+                entries: &layout_entries,
+            }
+        )
     }
 
     /// Create a bind group for the buffer.
@@ -135,28 +142,26 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroup` - The bind group of the buffer.
+    #[tracing::instrument]
     pub async fn create_bind_group(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroup {
-        trace!("Creating bind group for '{}' Buffer.", self.label);
+        trace!(self.label, "Creating bind group.");
 
         // Create bind group layout
         let layout = self.create_bind_group_layout(instance, binding_type, visibility).await;
 
-        let bind_group = tokio::task::block_in_place(|| {
-            // Create bind group
-            instance.device.create_bind_group(
-                &wgpu::BindGroupDescriptor {
-                    label: Some(format!("'{}' Buffer Bind Group", self.label).as_str()),
-                    layout: &layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: self.buffer.as_entire_binding(),
-                        }
-                    ],
-                }
-            )
-        });
-        
+        // Create bind group
+        let bind_group = instance.device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                label: Some(format!("'{}' Buffer Bind Group", self.label).as_str()),
+                layout: &layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: self.buffer.as_entire_binding(),
+                    }
+                ],
+            }
+        );
 
         // Return bind group
         BindGroup::new(
@@ -172,8 +177,9 @@ impl Buffer {
     /// 
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
+    #[tracing::instrument]
     pub async fn copy_from_buffer(&mut self, instance: &RenderInstance, buffer: &Buffer) {
-        trace!("Copying from '{}' to '{}' Buffer.", buffer.label, self.label);
+        trace!(src=buffer.label, dest=self.label, "Copying data from buffer to buffer.");
         
         // Create command encoder
         let mut command_buffer = CommandBuffer::new(
@@ -194,8 +200,9 @@ impl Buffer {
     /// * `instance` - The render instance.
     /// * `content` - The content to write to the buffer.
     /// * `offset` - The offset to write the content to.
+    #[tracing::instrument]
     pub fn write(&mut self, instance: &RenderInstance, content: &[u8], offset: usize) {
-        trace!("Writing to '{}' Buffer.", self.label);
+        trace!(self.label, "Writing to buffer.");
 
         instance.queue.write_buffer(
             &self.buffer,
@@ -205,7 +212,8 @@ impl Buffer {
 }
 
 impl Drop for Buffer {
+    #[tracing::instrument]
     fn drop(&mut self) {
-        info!("Dropping '{}' Buffer.", self.label);
+        info!(self.label, "Dropping buffer.");
     }
 }

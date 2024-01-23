@@ -25,14 +25,24 @@ pub struct SharedMemory {
     file_view: ViewOfFile,
 }
 
+impl std::fmt::Debug for SharedMemory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SharedMemory")
+            .field("file_path", &self.file_path)
+            .field("shared_index", &self.shared_index)
+            .finish()
+    }
+}
+
 impl SharedMemory {
     /// Create a new shared memory space.
     /// 
     /// # Arguments
     /// 
     /// * `size` - Size of the shared memory to allocate.
+    #[tracing::instrument]
     pub fn new(size: usize) -> Result<Self, EditorError> {
-        debug!("Creating shared memory of {} bytes.", size);
+        debug!(size, "Creating shared memory.");
 
         // Create random temporary file name
         let tmp_id = format!("wde_{:X}", rand::random::<u64>());
@@ -40,7 +50,7 @@ impl SharedMemory {
         file_path.push("WaterDropEngine");
         if !file_path.is_dir() {
             if let Err(e) = std::fs::create_dir_all(&file_path) {
-                error!("Unable to create temporary directory at '{}' : {:?}.", file_path.to_str().unwrap(), e);
+                error!(file_path=file_path.to_str().unwrap(), "Unable to create temporary directory : {:?}.", e);
                 return Err(EditorError::SharedMemoryCannotCreateDir);
             }
         }
@@ -48,7 +58,7 @@ impl SharedMemory {
 
         // Check if file already exists
         if file_path.exists() {
-            error!("File already exists at '{}'.", file_path.to_str().unwrap());
+            error!(file_path=file_path.to_str().unwrap(), "File already exists.");
             return Err(EditorError::SharedMemoryAlreadyExists);
         }
 
@@ -62,11 +72,11 @@ impl SharedMemory {
             .open(&file_path) {
                 Ok(file) => Some(file),
                 Err(e) => {
-                    error!("Unable to open physical file '{}' : {:?}.", file_path.to_str().unwrap(), e);
+                    error!(file_path=file_path.to_str().unwrap(), "Unable to open physical file : {:?}.", e);
                     return Err(EditorError::SharedMemoryCannotCreateFile);
                 }
             }.unwrap();
-        trace!("Created temporary file at '{}'.", file_path.to_str().unwrap());
+        trace!(file_path=file_path.to_str().unwrap(), "Created temporary file.");
 
         // Set file size by writing to the last byte
         // This is the same as [high_size 0xFFFF FFFF 0000 0000 * map_size] + [low_size 0000 0000 FFFF FFFF * map_size]
@@ -122,8 +132,9 @@ impl SharedMemory {
     /// # Arguments
     /// 
     /// * `data` - Data to write to the shared memory.
+    #[tracing::instrument]
     pub fn write(&mut self, data: &[u8]) {
-        trace!("Writing {} bytes to shared memory.", data.len());
+        trace!(size=data.len(), "Writing to shared memory.");
 
         // Write data to shared memory
         unsafe {
@@ -139,12 +150,13 @@ impl SharedMemory {
 }
 
 impl Drop for SharedMemory {
+    #[tracing::instrument]
     fn drop(&mut self) {
-        debug!("Dropping shared memory at location '{}'.", self.shared_index);
+        debug!(self.shared_index, "Dropping shared memory.");
 
         // Delete physical file
         if let Err(e) = std::fs::remove_file(&self.file_path) {
-            error!("Unable to delete physical file at '{}' : {:?}.", self.file_path, e);
+            error!(self.file_path, "Unable to delete physical file : {:?}.", e);
         }
     }
 }

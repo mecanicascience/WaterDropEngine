@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex}, collections::{HashMap, VecDeque}};
+use std::{collections::{HashMap, VecDeque}, fmt::Formatter, sync::{Arc, Mutex}};
 
 use wde_logger::{error, trace, debug, info};
 use wde_wgpu::RenderInstance;
@@ -29,6 +29,16 @@ pub struct ResourceHandle {
     manager: Arc<Mutex<ResourcesManagerInstance>>,
 }
 
+impl std::fmt::Debug for ResourceHandle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResourceHandle")
+            .field("label", &self.label)
+            .field("resource_type", &self.resource_type)
+            .field("index", &self.index)
+            .finish()
+    }
+}
+
 impl ResourceHandle {
     /// Create a new resource handle.
     /// 
@@ -38,6 +48,7 @@ impl ResourceHandle {
     /// * `resource_type` - Type of the resource.
     /// * `index` - Index of the resource handle.
     /// * `manager` - Resources manager instance.
+    #[tracing::instrument]
     fn new(label: &str, resource_type: ResourceType, index: ResourceHandleIndex, manager: Arc<Mutex<ResourcesManagerInstance>>) -> Self {
         let m = manager.clone();
         
@@ -54,11 +65,13 @@ impl ResourceHandle {
     }
 }
 impl Drop for ResourceHandle {
+    #[tracing::instrument]
     fn drop(&mut self) {
         self.manager.lock().unwrap().remove_handle(self.index, self.resource_type);
     }
 }
 impl Clone for ResourceHandle {
+    #[tracing::instrument]
     fn clone(&self) -> Self {
         self.manager.lock().unwrap().add_handle(self.index);
         Self {
@@ -90,8 +103,24 @@ struct ResourcesManagerInstance {
     resources_async_loading: Vec<(ResourceType, ResourceHandleIndex)>
 }
 
+impl std::fmt::Debug for ResourcesManagerInstance {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let resources = self.resources.iter().map(|(k, v)| (k, v.len())).collect::<HashMap<_, _>>();
+
+        f.debug_struct("ResourcesManagerInstance")
+            .field("handle_index_iterator", &self.handle_index_iterator)
+            .field("path_to_index", &self.path_to_index)
+            .field("handle_to_res", &self.handle_to_res)
+            .field("resources", &resources)
+            .field("resources_indices_pool", &self.resources_indices_pool)
+            .field("resources_async_loading", &self.resources_async_loading)
+            .finish()
+    }
+}
+
 impl ResourcesManagerInstance {
     /// Create a new resources manager instance.
+    #[tracing::instrument]
     pub fn new() -> Self {
         trace!("Creating resources manager instance.");
 
@@ -143,7 +172,7 @@ impl ResourcesManagerInstance {
         self.path_to_index.insert(path.to_string(), index);
         
         // Start loading resource
-        debug!("Loading resource with path '{}'.", path);
+        debug!(path, "Loading resource.");
         let resource = T::new(path);
         
         // Add resource to resources list
@@ -187,7 +216,7 @@ impl ResourcesManagerInstance {
             }
 
             // Remove resource from resources list
-            debug!("Unloading resource with index '{}'.", resource_index_g);
+            debug!(resource_index_g, "Unloading resource.");
             let resources_arr = self.resources.get_mut(&resource_type).unwrap();
             resources_arr[resource_index_g] = None;
 
@@ -235,6 +264,7 @@ impl ResourcesManagerInstance {
 ///     (...)
 /// }
 /// ```
+#[derive(Debug)]
 pub struct ResourcesManager {
     /// Resources manager instance
     instance: Arc<Mutex<ResourcesManagerInstance>>,
@@ -242,6 +272,7 @@ pub struct ResourcesManager {
 
 impl ResourcesManager {
     /// Create a new resources manager instance.
+    #[tracing::instrument]
     pub fn new() -> Self {
         info!("Creating resources manager.");
 
@@ -259,6 +290,7 @@ impl ResourcesManager {
     /// # Arguments
     /// 
     /// * `render_instance` - The render instance.
+    #[tracing::instrument]
     pub fn update(&mut self, render_instance: &RenderInstance) {
         debug!("Updating resources manager.");
         let mut instance = self.instance.lock().unwrap();
@@ -328,7 +360,7 @@ impl ResourcesManager {
 
         // Check if handle is valid
         if !instance.handle_to_res.contains_key(&handle.index) {
-            error!("Invalid resource handle with index '{}'.", handle.index);
+            error!(handle.index, "Invalid resource handle.");
             return None;
         }
 
@@ -355,13 +387,14 @@ impl ResourcesManager {
     /// 
     /// * `handle` - Handle pointing to the resource location.
     /// * `render_instance` - The render instance.
+    #[tracing::instrument]
     pub async fn wait_for(&mut self, handle: &ResourceHandle, render_instance: &RenderInstance) {
-        debug!("Waiting synchronously for resource with index '{}' to be loaded.", handle.index);
+        debug!(handle.index, "Waiting synchronously for resource to be loaded.");
         let mut instance = self.instance.lock().unwrap();
 
         // Check if handle is valid
         if !instance.handle_to_res.contains_key(&handle.index) {
-            error!("Invalid resource handle with index '{}'.", handle.index);
+            error!(handle.index, "Invalid resource handle.");
             return;
         }
 
@@ -372,7 +405,7 @@ impl ResourcesManager {
         let resources_arr = instance.resources.get_mut(&handle.resource_type).unwrap();
         let resource_unlocked = resources_arr.get_mut(resource_index as usize).unwrap();
         if resource_unlocked.is_none() {
-            error!("Resource with index '{}' is not loaded.", handle.index);
+            error!(handle.index, "Resource is not loaded.");
             return;
         }
         let mut resource_as_dyn = resource_unlocked.as_mut().unwrap().lock().unwrap();
@@ -390,6 +423,7 @@ impl ResourcesManager {
 }
 
 impl Drop for ResourcesManager {
+    #[tracing::instrument]
     fn drop(&mut self) {
         info!("Dropping resources manager.");
     }

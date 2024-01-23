@@ -1,4 +1,5 @@
 /// Structure for a bind group.
+#[derive(Debug)]
 pub struct BindGroup {
     pub label: String,
     group: wgpu::BindGroup
@@ -11,6 +12,7 @@ impl BindGroup {
     /// 
     /// * `label` - The label of the bind group.
     /// * `group` - The group of the bind group.
+    #[tracing::instrument]
     pub fn new(label: String, group: wgpu::BindGroup) -> Self {
         Self {
             label,

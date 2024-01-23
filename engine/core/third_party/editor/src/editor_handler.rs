@@ -30,6 +30,7 @@ enum EditorChannels {
 ///    editor_handler.set_current_frame(last_frame);
 /// }
 /// ```
+#[derive(Debug)]
 pub struct EditorHandler {
     ipc: IPC,
     shared_memory: SharedMemory,
@@ -42,6 +43,7 @@ impl EditorHandler {
     /// # Errors
     /// 
     /// * `EditorError::SharedMemoryFailed` - Shared memory failed.
+    #[tracing::instrument]
     pub fn new() -> Result<Self, EditorError> {
         info!("Starting editor handler.");
 
@@ -90,7 +92,7 @@ impl EditorHandler {
 
         // Send shared memory index to editor
         let identifier = shared_memory.as_ref().unwrap().get_index().to_string().as_bytes().to_vec();
-        trace!("Sending shared memory index to editor: '{}'.", std::str::from_utf8(&identifier).unwrap());
+        trace!(identifier=std::str::from_utf8(&identifier).unwrap(), "Sending shared memory index to editor.");
         ipc.write(IPCMessage {
             channel: EditorChannels::SharedMemoryIndex as u8,
             title: 0,
@@ -138,6 +140,7 @@ impl EditorHandler {
     /// # Errors
     /// 
     /// * `EditorError::EditorNotRunning` - The editor is not running.
+    #[tracing::instrument]
     pub fn process(&mut self) -> Result<(), EditorError> {
         // Check if editor is running
         if !self.status {
@@ -173,6 +176,7 @@ impl EditorHandler {
     /// # Errors
     /// 
     /// * `EditorError::EditorNotRunning` - The editor is not running.
+    #[tracing::instrument]
     pub fn set_current_frame(&mut self, data: &[u8]) -> Result<(), EditorError> {
         // Check if editor is running
         if !self.status {
@@ -192,6 +196,7 @@ impl EditorHandler {
 }
 
 impl Drop for EditorHandler {
+    #[tracing::instrument]
     fn drop(&mut self) {
         info!("Dropping editor handler.");
     }

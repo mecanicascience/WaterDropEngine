@@ -36,6 +36,7 @@ impl CameraUniform {
     /// # Returns
     /// 
     /// The world to screen matrix ((openGL to WGPU) * projection * view).
+    #[tracing::instrument]
     pub fn get_world_to_screen(camera: CameraComponent, transform: TransformComponent) -> Mat4f {
         // World to camera
         let view = TransformComponent::transform_world_to_obj(transform);
@@ -54,6 +55,7 @@ impl CameraUniform {
 
 
 /// Store the camera data component.
+#[derive(Debug, Copy, Clone)]
 pub struct CameraComponent {
     // Camera projection
     pub aspect: f32,

@@ -12,6 +12,7 @@ wde_wgpu = { path = "../third_party/wgpu" }
 wde_editor_interactions = { path = "../third_party/editor" }
 wde_logger = { path = "../wrappers/logger" }
 wde_math = { path = "../wrappers/math" }
+tracing = "0.1"
 rand = "0.8"
 tokio = { version = "1.35", features = ["rt", "macros", "sync"] }
 bytemuck = { version = "1.12", features = [ "derive" ] }

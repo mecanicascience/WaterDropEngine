@@ -3,6 +3,7 @@ use std::{any::Any, sync::{Arc, Mutex}};
 use wde_wgpu::RenderInstance;
 
 // Struct to hold the resource loading flag
+#[derive(Debug)]
 pub struct LoadedFlag {
     pub flag: Arc<Mutex<bool>>,
 }

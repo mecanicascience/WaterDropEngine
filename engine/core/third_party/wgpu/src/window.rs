@@ -43,6 +43,7 @@ pub enum LoopEvent {
 ///     }
 /// });
 /// ```
+#[derive(Debug)]
 pub struct Window {
     pub title: String,
     pub size: Pair2u,
@@ -57,8 +58,9 @@ impl Window {
     /// * `width` - Width of the window.
     /// * `height` - Height of the window.
     /// * `title` - Title of the window.
+    #[tracing::instrument]
     pub fn new(width: u32, height: u32, title: &str) -> Self {
-        info!("Creating window of size {}x{}.", width, height);
+        info!(width, height, "Creating new window.");
 
         Self {
             title: title.to_string(),
@@ -73,6 +75,7 @@ impl Window {
     /// # Returns
     /// 
     /// * `event_loop` - The event loop of the window.
+    #[tracing::instrument]
     pub fn create(&mut self) -> EventLoop {
         info!("Creating window.");
 
@@ -103,6 +106,7 @@ impl Window {
     /// # Returns
     /// 
     /// * `window_index` - The index of the window.
+    #[tracing::instrument]
     pub fn run(&mut self, event_loop: &EventLoop) -> WindowIndex {
         info!("Starting window main loop.");
 
@@ -131,6 +135,7 @@ impl Window {
 }
 
 impl Drop for Window {
+    #[tracing::instrument]
     fn drop(&mut self) {
         info!("Dropping window.");
     }

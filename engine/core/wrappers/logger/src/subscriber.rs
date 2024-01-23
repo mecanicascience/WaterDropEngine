@@ -1,34 +1,45 @@
-use tracing::{Level, subscriber::set_global_default};
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Log levels.
-pub enum LEVEL {
-    TRACE,
-    DEBUG,
-    INFO,
-    WARN,
-    ERROR,
+use crate::{LoggerLayer, TracingLayer};
+
+pub struct Logger {
+    tracing_file_name: String,
 }
 
-/// Create a new logger instance.
-/// This must be called once before any other logging function.
-/// 
-/// # Arguments
-/// 
-/// * `level` - Maximum level of the logging system.
-pub fn create_logger(level: LEVEL) {
-    // Build a tracing subscriber that writes to stdout
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(match level {
-            LEVEL::TRACE => Level::TRACE,
-            LEVEL::DEBUG => Level::DEBUG,
-            LEVEL::INFO => Level::INFO,
-            LEVEL::WARN => Level::WARN,
-            LEVEL::ERROR => Level::ERROR,
-        })
-        .finish();
+impl Logger {
+    /// Create a new logger instance.
+    /// This must be called once before any other logging function.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `tracing_file_name` - The name of the file to write the tracing data to.
+    pub fn new(tracing_file_name: &str) -> Self {
+        // Custom logger layer
+        let logger_layer = LoggerLayer {};
 
-    // Set the global subscriber as the default for this thread
-    set_global_default(subscriber)
-        .expect("Setting default logger subscriber failed.");
+        // Custom tracing layer
+        let tracing_layer = TracingLayer::new(tracing_file_name);
+
+        // Original tracing layer
+        // let logger_layer = tracing_subscriber::fmt::layer()
+        //     .with_thread_ids(true)
+        //     .pretty();
+
+        // Register Layers
+        tracing_subscriber::registry()
+            .with(logger_layer)
+            .with(tracing_layer)
+            .init();
+
+        Self {
+            tracing_file_name: tracing_file_name.to_string(),
+        }
+    }
+
+    /// Close the logger instance.
+    /// This must be called once after all other logging functions.
+    pub fn close(&self) {
+        // Write the footer
+        TracingLayer::close(&self.tracing_file_name);
+    }
 }

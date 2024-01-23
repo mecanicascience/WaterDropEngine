@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Formatter};
 
 use wde_logger::{info, error};
 
@@ -37,7 +37,18 @@ pub struct EntityManager {
     pub dead_entities: VecDeque<EntityIndex>,
 }
 
+impl std::fmt::Debug for EntityManager {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EntityManager")
+            .field("components_list", &self.components_list)
+            .field("living_entities", &self.living_entities)
+            .field("living_entity_count", &self.living_entity_count)
+            .finish()
+    }
+}
+
 impl EntityManager {
+    #[tracing::instrument]
     pub fn new() -> Self {
         info!("Creating a new entity manager.");
 
@@ -57,7 +68,7 @@ impl EntityManager {
         let entity = match self.dead_entities.pop_front() {
             Some(entity) => entity,
             None => {
-                error!("No more entities available");
+                error!("No more entities available.");
                 return None;
             }
         };

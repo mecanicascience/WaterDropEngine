@@ -14,6 +14,7 @@ pub trait IComponentArray {
 }
 
 /// A list of components of a specific type `T`.
+#[derive(Debug)]
 pub struct ComponentArray<T: 'static> {
     /// List of components in this array
     pub components: Vec<T>,
@@ -39,8 +40,9 @@ impl<T: 'static> IComponentArray for ComponentArray<T> {
 
 impl<T: 'static> ComponentArray<T> {
     /// Creates a new component array.
+    #[tracing::instrument]
     pub fn new() -> Self {
-        debug!("Creating new component array for type {}.", std::any::type_name::<T>());
+        debug!(component_type=std::any::type_name::<T>(), "Creating new component array.");
 
         Self {
             components: Vec::new(),
@@ -58,7 +60,7 @@ impl<T: 'static> ComponentArray<T> {
     /// * `component` - The component to add.
     pub fn insert_data(&mut self, entity: EntityIndex, component: T) {
         if self.entity_to_index_map.contains_key(&entity) {
-            error!("Component of type {:?} already exists for entity {}.", std::any::type_name::<T>(), entity);
+            error!(component_type=std::any::type_name::<T>(), entity, "Component already exists for entity.");
             return;
         }
 
@@ -80,7 +82,7 @@ impl<T: 'static> ComponentArray<T> {
         let to_remove_index = match self.entity_to_index_map.get(&entity) {
             Some(index) => *index,
             None => {
-                error!("Component of type {:?} does not exist for entity {}", std::any::type_name::<T>(), entity);
+                error!(component_type=std::any::type_name::<T>(), entity, "Component does not exist for entity.");
                 return;
             }
         };
@@ -131,7 +133,7 @@ impl<T: 'static> ComponentArray<T> {
                 self.components[*index] = component;
             },
             None => {
-                error!("Component of type {:?} does not exist for entity {}", std::any::type_name::<T>(), entity);
+                error!(component_type=std::any::type_name::<T>(), entity, "Component does not exist for entity.");
             }
         }
     }
@@ -188,8 +190,23 @@ pub struct ComponentManager {
     pub components: HashMap<TypeId, Box<dyn IComponentArray>>,
 }
 
+impl std::fmt::Debug for ComponentManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let components = self.components.iter()
+            .map(|(k, v)| (k, v.as_any())).collect::<Vec<_>>();
+
+        f.debug_struct("ComponentManager")
+            .field("component_types_list", &self.component_types_list)
+            .field("component_type_count", &self.component_type_count)
+            .field("component_types", &self.component_types)
+            .field("components", &components)
+            .finish()
+    }
+}
+
 impl ComponentManager {
     /// Creates a new component manager.
+    #[tracing::instrument]
     pub fn new() -> Self {
         info!("Creating a new component manager.");
 
@@ -203,7 +220,7 @@ impl ComponentManager {
 
     /// Registers a new component type with the component manager.
     pub fn register_component<T: 'static>(&mut self) {
-        info!("Registering component of type '{}'.", std::any::type_name::<T>());
+        info!(component_type=std::any::type_name::<T>(), "Registering new component.");
 
         self.component_types_list.push(TypeId::of::<T>());
         self.component_types.insert(TypeId::of::<T>(), self.component_type_count);
@@ -232,7 +249,7 @@ impl ComponentManager {
                 Ok(())
             },
             None => {
-                error!("Component of type {:?} does not exist.", std::any::type_name::<T>());
+                error!(component_type=std::any::type_name::<T>(), "Component type does not exist.");
                 Err(())
             }
         }
@@ -258,7 +275,7 @@ impl ComponentManager {
                 Ok(())
             },
             None => {
-                error!("Component of type {:?} does not exist.", std::any::type_name::<T>());
+                error!(component_type=std::any::type_name::<T>(), "Component type does not exist.");
                 Err(())
             }
         }
@@ -306,7 +323,7 @@ impl ComponentManager {
                 Ok(())
             },
             None => {
-                error!("Component of type {:?} does not exist.", std::any::type_name::<T>());
+                error!(component_type=std::any::type_name::<T>(), "Component type does not exist.");
                 Err(())
             }
         }
@@ -322,7 +339,7 @@ impl ComponentManager {
                     .get_entities()
             },
             None => {
-                error!("Component of type {:?} does not exist.", std::any::type_name::<T>());
+                error!(component_type=std::any::type_name::<T>(), "Component type does not exist.");
                 Vec::new()
             }
         }
@@ -337,7 +354,7 @@ impl ComponentManager {
         match self.component_types.get(&std::any::TypeId::of::<T>()) {
             Some(component_type) => Some(*component_type),
             None => {
-                error!("Component of type {:?} does not exist.", std::any::type_name::<T>());
+                error!(component_type=std::any::type_name::<T>(), "Component type does not exist.");
                 None
             }
         }

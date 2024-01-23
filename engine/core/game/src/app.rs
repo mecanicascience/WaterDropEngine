@@ -1,4 +1,5 @@
 use tokio::sync::mpsc;
+use tracing::{span, Level};
 use wde_ecs::{World, TransformComponent, LabelComponent, RenderComponentDynamic, TransformUniform, CameraUniform, CameraComponent};
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
@@ -18,6 +19,8 @@ impl App {
         debug!("======== Starting engine ========");
 
 
+        // ======== WINDOW CREATION ========
+        let _window_creation_span = span!(Level::INFO, "window_creation").entered();
         // Create window
         let mut window = Window::new(800, 600, "WaterDropEngine");
 
@@ -27,6 +30,7 @@ impl App {
         // Run window
         trace!("Starting window.");
         let (event_t, mut event_r) = mpsc::unbounded_channel();
+        let (event_relay_t, mut event_relay_r) = mpsc::unbounded_channel();
         let window_join = std::thread::spawn(move || {
             // Create event loop
             let event_loop = window.create();
@@ -37,6 +41,7 @@ impl App {
 
             // Run event loop
             event_loop.run(move |event, elwt| {
+                // Handle event
                 match event {
                     // Close window when the close button is pressed
                     Event::WindowEvent {
@@ -45,7 +50,7 @@ impl App {
                     } if window_id == window_index => {
                         info!("Closing window.");
                         event_t.send(LoopEvent::Close).unwrap_or_else(|e| {
-                            throw!("Failed to send close event : {}", e);
+                            throw!("Failed to send close event : {}.", e);
                         });
                         elwt.exit();
                     },
@@ -55,16 +60,22 @@ impl App {
                         event: WindowEvent::Resized(size),
                         window_id,
                     } if window_id == window_index => {
-                        event_t.send(LoopEvent::Resize(size.width, size.height)).unwrap_or_else(|e| {
-                            throw!("Failed to send resize event : {}", e);
-                        });
+                        if event_relay_r.try_recv().is_ok() {
+                            let _event_loop_wait_span = span!(Level::INFO, "event_loop_wait").entered();
+                            event_t.send(LoopEvent::Resize(size.width, size.height)).unwrap_or_else(|e| {
+                                throw!("Failed to send resize event : {}.", e);
+                            });
+                        }
                     },
 
                     // Ask for redraw when all events are processed
                     Event::AboutToWait => {
-                        event_t.send(LoopEvent::Redraw).unwrap_or_else(|e| {
-                            throw!("Failed to send redraw event : {}", e);
-                        });
+                        if event_relay_r.try_recv().is_ok() {
+                            let _event_loop_wait_span = span!(Level::INFO, "event_loop_wait").entered();
+                            event_t.send(LoopEvent::Redraw).unwrap_or_else(|e| {
+                                throw!("Failed to send redraw event : {}.", e);
+                            });
+                        }
                     },
 
                     // Redraw window when requested
@@ -72,18 +83,26 @@ impl App {
                         event: WindowEvent::RedrawRequested,
                         ..
                     } => {
-                        event_t.send(LoopEvent::Redraw).unwrap_or_else(|e| {
-                            throw!("Failed to send redraw event : {}", e);
-                        });
+                        if event_relay_r.try_recv().is_ok() {
+                            let _event_loop_wait_span = span!(Level::INFO, "event_loop_wait").entered();
+                            event_t.send(LoopEvent::Redraw).unwrap_or_else(|e| {
+                                throw!("Failed to send redraw event : {}.", e);
+                            });
+                        }
                     },
 
                     // Ignore other events
                     _ => ()
                 }
             }).unwrap_or_else(|e| {
-                throw!("Failed to run event loop : {:?}", e);
+                throw!("Failed to run event loop : {:?}.", e);
             });
         });
+        drop(_window_creation_span);
+
+
+        // ======== ENGINE INITIALIZATION ========
+        let _engine_initialization_span = span!(Level::INFO, "engine_initialization").entered();
 
         // Create editor handler
         let mut editor_handler: Option<EditorHandler> = if cfg!(debug_assertions) != true { None } else {
@@ -109,11 +128,16 @@ impl App {
                 Ok(_) => {
                     // Set last frame
                     let r = rand::random::<u32>();
-                    let _ = editor.set_current_frame(format!("Hello {} world", r).as_bytes());
+                    let _ = editor.set_current_frame(format!("Hello {} world.", r).as_bytes());
                 },
                 Err(_) => {}
             }
         }
+        drop(_engine_initialization_span);
+
+
+        // ======== WORLD CONTENT ========
+        let _world_content_span = span!(Level::INFO, "world_content").entered();
 
         // Create world
         let mut world = World::new();
@@ -121,8 +145,6 @@ impl App {
             .register_component::<LabelComponent>()
             .register_component::<TransformComponent>()
             .register_component::<RenderComponentDynamic>();
-
-
 
         // Create camera
         let camera = match world.create_entity() {
@@ -214,100 +236,124 @@ impl App {
             .add_bind_group(camera_buffer_bind_group_layout)
             .add_bind_group(model_buffer_bind_group_layout)
             .init(&render_instance).await;
+
+        // End of world content
+        drop(_world_content_span);
             
 
-        // Main loop
+        // ======== MAIN LOOP ========
         loop {
+            let _next_frame_span = span!(Level::INFO, "next_frame").entered();
             debug!("\n\n\n======== Next frame ========");
 
-            // Wait for next render event
-            let ev = event_r.recv().await;
-            if ev.is_none() { break; }
-            match ev.unwrap() {
-                LoopEvent::Close => { break; },
-                LoopEvent::Redraw => { },
-                LoopEvent::Resize(_, _) => { continue; },
-            }
-            trace!("Handling next frame.");
+            // ====== Wait for next render event ======
+            {
+                let _next_frame_wait_span = span!(Level::INFO, "next_frame_wait").entered();
+                trace!("Waiting for next frame.");
+                let _ = event_relay_t.send(());
 
-
-            // Update resources manager
-            res_manager.update(&render_instance);
-
-
-            // Handle render event
-            let mut should_close = false;
-            let render_texture: Option<wde_wgpu::RenderTexture> = match RenderInstance::get_current_texture(&render_instance) {
-                // Redraw to render texture
-                RenderEvent::Redraw(render_texture) => Some(render_texture),
-                // Exit engine
-                RenderEvent::Close => {
-                    info!("Closing engine.");
-                    should_close = true;
-                    None
-                },
-                // Resize window
-                RenderEvent::Resize(width, height) => {
-                    debug!("Resizing window to {}x{}.", width, height);
-                    None
-                },
-                // No event
-                RenderEvent::None => None,
-            };
-            if should_close { break; }
-
-
-            // Render to texture
-            if render_texture.is_some() {
-                debug!("Rendering to texture.");
-
-                // Create command buffer
-                let mut command_buffer = CommandBuffer::new(
-                        &render_instance, "Main render").await;
-                
-                {
-                    // Create render pass
-                    let mut render_pass = command_buffer.create_render_pass(
-                        "Main render",
-                        &render_texture.as_ref().unwrap().view,
-                        Some(Operations {
-                            load: LoadOp::Clear(Color { r : 0.1, g: 0.105, b: 0.11, a: 1.0 }),
-                            store: StoreOp::Store,
-                        }),
-                        None);
-
-                    // Set vertex buffer
-                    match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(cube).unwrap().model) {
-                        Some(m) => {
-                            // Set uniform and storage buffers
-                            render_pass.set_bind_group(0, &camera_buffer_bind_group);
-                            render_pass.set_bind_group(1, &model_buffer_bind_group);
-
-                            // Set model buffers
-                            render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
-                            render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
-
-                            // Set render pipeline
-                            match render_pass.set_pipeline(&render_pipeline) {
-                                Ok(_) => {
-                                    let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
-                                },
-                                Err(_) => {}
-                            }
-                        }
-                        None => continue,
-                    };
+                // Wait for next event
+                let ev = event_r.recv().await;
+                if ev.is_none() { break; }
+                match ev.unwrap() {
+                    LoopEvent::Close => { break; },
+                    LoopEvent::Redraw => { },
+                    LoopEvent::Resize(_, _) => { continue; },
                 }
+                trace!("Handling next frame.");
+            }
 
-                // Submit command buffer
-                command_buffer.submit(&render_instance);
 
-                // Present frame
-                let _ = render_instance.present(render_texture.unwrap());
+            // ====== Update world ======
+            {
+                let _world_update_span = span!(Level::INFO, "world_update").entered();
+
+                // Update world
+                res_manager.update(&render_instance);
+            }
+
+
+            // ====== Render ======
+            {
+                let _render_span = span!(Level::INFO, "render").entered();
+
+                // Handle render event
+                let mut should_close = false;
+                let render_texture: Option<wde_wgpu::RenderTexture> = match RenderInstance::get_current_texture(&render_instance) {
+                    // Redraw to render texture
+                    RenderEvent::Redraw(render_texture) => Some(render_texture),
+                    // Exit engine
+                    RenderEvent::Close => {
+                        info!("Closing engine.");
+                        should_close = true;
+                        None
+                    },
+                    // Resize window
+                    RenderEvent::Resize(width, height) => {
+                        debug!("Resizing window to {}x{}.", width, height);
+                        None
+                    },
+                    // No event
+                    RenderEvent::None => None,
+                };
+                if should_close { break; }
+
+
+                // Render to texture
+                if render_texture.is_some() {
+                    debug!("Rendering to texture.");
+
+                    // Create command buffer
+                    let mut command_buffer = CommandBuffer::new(
+                            &render_instance, "Main render").await;
+                    
+                    {
+                        // Create render pass
+                        let mut render_pass = command_buffer.create_render_pass(
+                            "Main render",
+                            &render_texture.as_ref().unwrap().view,
+                            Some(Operations {
+                                load: LoadOp::Clear(Color { r : 0.1, g: 0.105, b: 0.11, a: 1.0 }),
+                                store: StoreOp::Store,
+                            }),
+                            None);
+
+                        // Set vertex buffer
+                        match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(cube).unwrap().model) {
+                            Some(m) => {
+                                // Set uniform and storage buffers
+                                render_pass.set_bind_group(0, &camera_buffer_bind_group);
+                                render_pass.set_bind_group(1, &model_buffer_bind_group);
+
+                                // Set model buffers
+                                render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
+                                render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
+
+                                // Set render pipeline
+                                match render_pass.set_pipeline(&render_pipeline) {
+                                    Ok(_) => {
+                                        let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
+                                    },
+                                    Err(_) => {}
+                                }
+                            }
+                            None => continue,
+                        };
+                    }
+
+                    // Submit command buffer
+                    command_buffer.submit(&render_instance);
+
+                    // Present frame
+                    let _ = render_instance.present(render_texture.unwrap());
+                }
             }
 
             // Clear the receiver channel
-            while let Ok(_) = event_r.try_recv() {}
+            {
+                let _clear_receiver_span = span!(Level::INFO, "clear_receiver").entered();
+                while let Ok(_) = event_r.try_recv() {}
+            }
         }
 
         // End
@@ -315,7 +361,10 @@ impl App {
 
         // Join window thread
         info!("Joining window thread.");
-        window_join.join().unwrap();
+        {
+            let _window_join_span = span!(Level::INFO, "window_join").entered();
+            window_join.join().unwrap();
+        }
         
         App {}
     }

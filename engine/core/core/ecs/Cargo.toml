@@ -10,5 +10,6 @@ wde_resources = { path = "../../resources" }
 wde_logger = { path = "../../wrappers/logger" }
 wde_math = { path = "../../wrappers/math" }
 bytemuck = { version = "1.12", features = [ "derive" ] }
+tracing = "0.1"
 bit-vec = "0.6"
 bit-set = "0.5"

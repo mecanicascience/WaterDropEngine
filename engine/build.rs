@@ -15,8 +15,15 @@ fn main() -> Result<()> {
     copyOptions.overwrite = true;
     let mut pathsToCopy = Vec::new();
     pathsToCopy.push("res/");
-    copy_items(&pathsToCopy, "./target/debug/", &copyOptions)?;
-    copy_items(&pathsToCopy, "./target/release/", &copyOptions)?;
+    
+    // Check if we're in debug or release mode.
+    if cfg!(debug_assertions) {
+        // Copy the /res/ folder to the output directory.
+        copy_items(&pathsToCopy, "./target/debug/", &copyOptions)?;
+    } else {
+        // Copy the /res/ folder to the output directory.
+        copy_items(&pathsToCopy, "./target/release/", &copyOptions)?;
+    }
 
     Ok(())
 }
