@@ -336,6 +336,7 @@ impl App {
                             None);
 
                         // Render cube
+                        info!("Rendering cube.");
                         match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(cube).unwrap().model) {
                             Some(m) => {
                                 // Set uniform and storage buffers
@@ -354,10 +355,11 @@ impl App {
                                     Err(_) => {}
                                 }
                             }
-                            None => continue,
+                            None => {},
                         };
 
                         // Render big model
+                        info!("Rendering big model.");
                         match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(big_model).unwrap().model) {
                             Some(m) => {
                                 // Set uniform and storage buffers
@@ -376,7 +378,7 @@ impl App {
                                     Err(_) => {}
                                 }
                             }
-                            None => continue,
+                            None => {},
                         };
                     }
 
