@@ -1,11 +1,13 @@
+use std::collections::HashMap;
+
 use tokio::sync::mpsc;
 use tracing::{span, Level};
 use wde_ecs::{World, TransformComponent, LabelComponent, RenderComponentDynamic, TransformUniform, CameraUniform, CameraComponent};
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
-use wde_math::{QUATF_IDENTITY, ONE_VEC3F, Vec3f};
+use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
 use wde_resources::{ResourcesManager, ModelResource, ShaderResource};
-use wde_wgpu::{LoopEvent, Window, RenderInstance, RenderEvent, CommandBuffer, LoadOp, Operations, StoreOp, Color, RenderPipeline, Event, WindowEvent, ShaderType, Buffer, ShaderStages};
+use wde_wgpu::{Buffer, Color, CommandBuffer, ElementState, Event, KeyCode, LoadOp, LoopEvent, Operations, PhysicalKey, RenderEvent, RenderInstance, RenderPipeline, ShaderStages, ShaderType, StoreOp, Window, WindowEvent};
 
 pub struct App {}
 
@@ -31,6 +33,7 @@ impl App {
         trace!("Starting window.");
         let (event_t, mut event_r) = mpsc::unbounded_channel();
         let (event_relay_t, mut event_relay_r) = mpsc::unbounded_channel();
+        let (input_t, mut input_r) = mpsc::unbounded_channel();
         let window_join = std::thread::spawn(move || {
             // Create event loop
             let event_loop = window.create();
@@ -66,6 +69,19 @@ impl App {
                                 throw!("Failed to send resize event : {}.", e);
                             });
                         }
+                    },
+
+                    // Check for input events
+                    Event::WindowEvent {
+                        event: WindowEvent::KeyboardInput {
+                            event,
+                            ..
+                        },
+                        ..
+                    } => {
+                        input_t.send(event).unwrap_or_else(|e| {
+                            throw!("Failed to send input event : {}.", e);
+                        });
                     },
 
                     // Ask for redraw when all events are processed
@@ -111,6 +127,10 @@ impl App {
                 Err(_) => None
             }
         };
+
+        // Create list of input keys
+        let mut keys_states: HashMap<PhysicalKey, bool> = HashMap::new();
+
 
         // Create resource manager
         let mut res_manager = ResourcesManager::new();
@@ -256,9 +276,21 @@ impl App {
 
         // End of world content
         drop(_world_content_span);
+        
             
 
         // ======== MAIN LOOP ========
+        let mut last_time = std::time::Instant::now();
+        let mut fps_frames = vec![0.0; 20];
+        let mut fps_frames_index = 0;
+        let mut fps_avg = 0.0;
+
+        // Create camera rotation
+        let mut camera_rotation = Vec2f { x: 0.0, y: 0.0 };
+        let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
+        let sensitivity = 10.0;
+
+        // Run main loop
         loop {
             let _next_frame_span = span!(Level::INFO, "next_frame").entered();
             debug!("\n\n\n======== Next frame ========");
@@ -285,8 +317,87 @@ impl App {
             {
                 let _world_update_span = span!(Level::INFO, "world_update").entered();
 
+                // Handle inputs
+                while let Ok(input) = input_r.try_recv() {
+                    let key = input.physical_key;
+                    let pressed = input.state == ElementState::Pressed;
+
+                    // Set key state
+                    keys_states.insert(key, pressed);
+                }
+
                 // Update world
                 res_manager.update(&render_instance);
+
+                // Update camera
+                {
+                    // Update the camera controller
+                    {
+                        let mut transform = world.get_component::<TransformComponent>(camera).unwrap().clone();
+
+                        // Update the transform position
+                        let dt = last_time.elapsed().as_secs_f32();
+                        let forward = TransformComponent::forward(transform);
+                        let right = TransformComponent::right(transform);
+                        let up = TransformComponent::up(transform);
+                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyW)).unwrap_or(&false) {
+                            transform.position += forward * dt;
+                        }
+                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyS)).unwrap_or(&false) {
+                            transform.position -= forward * dt;
+                        }
+                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyD)).unwrap_or(&false) {
+                            transform.position += right * dt;
+                        }
+                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyA)).unwrap_or(&false) {
+                            transform.position -= right * dt;
+                        }
+                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyE)).unwrap_or(&false) {
+                            transform.position += up * dt;
+                        }
+                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyQ)).unwrap_or(&false) {
+                            transform.position -= up * dt;
+                        }
+
+                        // Get x and y rotation
+                        camera_rotation.x += if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowLeft)).unwrap_or(&false) {
+                            sensitivity * dt
+                        } else if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowRight)).unwrap_or(&false) {
+                            -sensitivity * dt
+                        } else {
+                            0.0
+                        };
+                        camera_rotation.y += if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowUp)).unwrap_or(&false) {
+                            sensitivity * dt
+                        } else if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowDown)).unwrap_or(&false) {
+                            -sensitivity * dt
+                        } else {
+                            0.0
+                        };
+
+                        // Clamp the y rotation (to avoid gimbal lock)
+                        let bounds_rot_y = Rad(88.0);
+                        camera_rotation.y = camera_rotation.y.clamp(-bounds_rot_y.0, bounds_rot_y.0);
+
+                        // Update the transform rotation
+                        let rot_x = Quatf::from_axis_angle(Vector3 {x:0.0, y:1.0, z:0.0}, Rad(camera_rotation.x));
+                        let rot_y = Quatf::from_axis_angle(Vector3 {x:-1.0, y:0.0, z:0.0}, Rad(-camera_rotation.y));
+                        transform.rotation = camera_initial_rot * rot_x * rot_y;
+
+                        // Update the transform
+                        world.set_component(camera, transform).unwrap();
+                    }
+
+                    // Update the uniform buffer
+                    {
+                        let mut camera_uniform = CameraUniform::new();
+                        camera_uniform.world_to_screen = CameraUniform::get_world_to_screen(
+                            CameraComponent { aspect: 16.0 / 9.0, fovy: 60.0, znear: 0.1, zfar: 1000.0 },
+                            world.get_component::<TransformComponent>(camera).unwrap().clone()
+                        ).into();
+                        camera_buffer.write(&render_instance, bytemuck::cast_slice(&[camera_uniform]), 0);
+                    }
+                }
             }
 
 
@@ -336,7 +447,7 @@ impl App {
                             None);
 
                         // Render cube
-                        info!("Rendering cube.");
+                        trace!("Rendering cube.");
                         match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(cube).unwrap().model) {
                             Some(m) => {
                                 // Set uniform and storage buffers
@@ -359,27 +470,27 @@ impl App {
                         };
 
                         // Render big model
-                        info!("Rendering big model.");
-                        match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(big_model).unwrap().model) {
-                            Some(m) => {
-                                // Set uniform and storage buffers
-                                render_pass.set_bind_group(0, &camera_buffer_bind_group);
-                                render_pass.set_bind_group(1, &model_buffer_bind_group);
+                        trace!("Rendering big model.");
+                        // match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(big_model).unwrap().model) {
+                        //     Some(m) => {
+                        //         // Set uniform and storage buffers
+                        //         render_pass.set_bind_group(0, &camera_buffer_bind_group);
+                        //         render_pass.set_bind_group(1, &model_buffer_bind_group);
 
-                                // Set model buffers
-                                render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
-                                render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
+                        //         // Set model buffers
+                        //         render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
+                        //         render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
 
-                                // Set render pipeline
-                                match render_pass.set_pipeline(&render_pipeline) {
-                                    Ok(_) => {
-                                        let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
-                                    },
-                                    Err(_) => {}
-                                }
-                            }
-                            None => {},
-                        };
+                        //         // Set render pipeline
+                        //         match render_pass.set_pipeline(&render_pipeline) {
+                        //             Ok(_) => {
+                        //                 let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
+                        //             },
+                        //             Err(_) => {}
+                        //         }
+                        //     }
+                        //     None => {},
+                        // };
                     }
 
                     // Submit command buffer
@@ -394,6 +505,23 @@ impl App {
             {
                 let _clear_receiver_span = span!(Level::INFO, "clear_receiver").entered();
                 while let Ok(_) = event_r.try_recv() {}
+            }
+
+            {
+                // Calculate fps
+                let fps = 1.0 / last_time.elapsed().as_secs_f32();
+                fps_frames[fps_frames_index] = fps;
+                fps_frames_index = fps_frames_index + 1;
+                if fps_frames_index >= fps_frames.len() {
+                    fps_frames_index = 0;
+                    fps_avg = fps_frames.iter().sum::<f32>() / fps_frames.len() as f32;
+                }
+
+                // Set the last time
+                last_time = std::time::Instant::now();
+
+                // Print fps
+                info!("FPS: {:.2}", fps_avg);
             }
         }
 

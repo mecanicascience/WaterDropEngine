@@ -13,6 +13,13 @@ pub type WindowIndex = winit::window::WindowId;
 /// Type of a loop
 type EventLoop = winit::event_loop::EventLoop<()>;
 
+/// Input type
+pub type PhysicalKey = winit::keyboard::PhysicalKey;
+pub type KeyCode = winit::keyboard::KeyCode;
+
+/// Element state
+pub type ElementState = winit::event::ElementState;
+
 /// Type of the window event.
 #[derive(Debug, Clone, Copy)]
 pub enum LoopEvent {
