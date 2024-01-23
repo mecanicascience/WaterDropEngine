@@ -54,7 +54,6 @@ impl Buffer {
     /// * `size` - The size of the buffer.
     /// * `usage` - The usage of the buffer (vertex, index, uniform, storage).
     /// * `content` - The content of the buffer.
-    #[tracing::instrument]
     pub fn new(instance: &RenderInstance, label: &str, size: usize, usage: BufferUsage, content: Option<&[u8]>) -> Self {
         info!(label, "Creating new buffer.");
 

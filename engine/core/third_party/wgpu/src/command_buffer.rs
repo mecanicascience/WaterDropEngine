@@ -39,10 +39,17 @@ pub struct Operations<V> {
 /// // Submit the command buffer
 /// command_buffer.submit(&instance);
 /// ```
-#[derive(Debug)]
 pub struct CommandBuffer {
     pub label: String,
     encoder: wgpu::CommandEncoder,
+}
+
+impl std::fmt::Debug for CommandBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CommandBuffer")
+            .field("label", &self.label)
+            .finish()
+    }
 }
 
 impl CommandBuffer {

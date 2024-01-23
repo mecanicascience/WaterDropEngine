@@ -1,3 +1,5 @@
+use std::fmt::Formatter;
+
 use wde_logger::{trace, error, info};
 use wgpu::{ShaderStages, BindGroupLayout};
 
@@ -32,7 +34,6 @@ pub type RenderPipelineRef = wgpu::RenderPipeline;
 pub type PipelineLayout = wgpu::PipelineLayout;
 
 // Render pipeline configuration
-#[derive(Debug)]
 struct RenderPipelineConfig {
     depth_stencil: bool,
     primitive_topology: wgpu::PrimitiveTopology,
@@ -40,6 +41,17 @@ struct RenderPipelineConfig {
     bind_groups: Vec<wgpu::BindGroupLayout>,
     vertex_shader: String,
     fragment_shader: String,
+}
+
+impl std::fmt::Debug for RenderPipelineConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RenderPipelineConfig")
+            .field("depth_stencil", &self.depth_stencil)
+            .field("primitive_topology", &self.primitive_topology)
+            .field("push_constants", &self.push_constants)
+            .field("bind_groups", &self.bind_groups)
+            .finish()
+    }
 }
 
 
@@ -58,12 +70,20 @@ struct RenderPipelineConfig {
 ///     .add_bind_group([...])                       // Add a bind group
 ///     .init(&instance);                            // Initialize the pipeline
 /// ```
-#[derive(Debug)]
 pub struct RenderPipeline {
     pub label: String,
     pipeline: Option<RenderPipelineRef>,
     layout: Option<PipelineLayout>,
     config: RenderPipelineConfig,
+}
+
+impl std::fmt::Debug for RenderPipeline {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RenderPipeline")
+            .field("label", &self.label)
+            .field("config", &self.config)
+            .finish()
+    }
 }
 
 impl RenderPipeline {

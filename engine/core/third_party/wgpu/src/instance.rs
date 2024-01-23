@@ -70,7 +70,6 @@ pub enum RenderEvent {
 /// // Present texture
 /// instance.present(render_texture);
 /// ```
-#[derive(Debug)]
 pub struct RenderInstance {
     /// Label of the instance.
     pub label: String,
@@ -82,6 +81,15 @@ pub struct RenderInstance {
     pub surface: Option<wgpu::Surface>,
     /// Surface configuration of the GPU device.
     pub surface_config: Option<wgpu::SurfaceConfiguration>,
+}
+
+impl std::fmt::Debug for RenderInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RenderInstance")
+            .field("label", &self.label)
+            .field("surface_config", &self.surface_config)
+            .finish()
+    }
 }
 
 impl RenderInstance {

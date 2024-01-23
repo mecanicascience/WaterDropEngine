@@ -27,13 +27,23 @@ use super::render_pipeline::RenderPipeline;
 /// // Render
 /// render_pass.draw_indexed(0..6, 0);
 /// ```
-#[derive(Debug)]
 pub struct RenderPass<'a> {
     pub label: String,
     render_pass: wgpu::RenderPass<'a>,
     pipeline_set: bool,
     vertex_buffer_set: bool,
     index_buffer_set: bool,
+}
+
+impl std::fmt::Debug for RenderPass<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RenderPass")
+            .field("label", &self.label)
+            .field("pipeline_set", &self.pipeline_set)
+            .field("vertex_buffer_set", &self.vertex_buffer_set)
+            .field("index_buffer_set", &self.index_buffer_set)
+            .finish()
+    }
 }
 
 impl<'a> RenderPass<'a> {

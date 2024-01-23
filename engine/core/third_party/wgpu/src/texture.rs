@@ -24,13 +24,22 @@ pub enum TextureFormat {
 }
 
 /// Texture struct.
-#[derive(Debug)]
 pub struct Texture {
     pub label: String,
     pub texture: wgpu::Texture,
     pub view: TextureView,
     pub sampler: wgpu::Sampler,
     pub size: (u32, u32),
+}
+
+impl std::fmt::Debug for Texture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Texture")
+            .field("label", &self.label)
+            .field("sampler", &self.sampler)
+            .field("size", &self.size)
+            .finish()
+    }
 }
 
 impl Texture {
@@ -197,7 +206,6 @@ impl Texture {
     /// 
     /// * `instance` - Game instance.
     /// * `buffer` - Image buffer.
-    #[tracing::instrument]
     pub fn copy_from_buffer(&self, instance: &RenderInstance, buffer: &[u8]) {
         trace!(self.label, "Copying buffer to texture.");
 

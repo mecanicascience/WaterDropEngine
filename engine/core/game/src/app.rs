@@ -195,7 +195,7 @@ impl App {
                 position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
             }).unwrap()
             .add_component(cube, RenderComponentDynamic {
-                model: res_manager.load::<ModelResource>("models/cube.obj")
+                model: res_manager.load::<ModelResource>("models/lost_empire.obj")
             }).unwrap();
 
         // Create uniform buffer

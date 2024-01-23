@@ -112,7 +112,6 @@ impl std::fmt::Debug for ResourcesManagerInstance {
             .field("path_to_index", &self.path_to_index)
             .field("handle_to_res", &self.handle_to_res)
             .field("resources", &resources)
-            .field("resources_indices_pool", &self.resources_indices_pool)
             .field("resources_async_loading", &self.resources_async_loading)
             .finish()
     }
