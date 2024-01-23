@@ -188,13 +188,21 @@ where
             "spans": spans,
         });
 
-        // Format the message
-        let date = chrono::Local::now().format("%H:%M:%S");
-        let message = format!("{}\t[{}]\t{}\t:\t{}", date, output["level"].as_str().unwrap(),
-            output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap());
+        // Format the message for the console
+        let date = chrono::Local::now().format("%H:%M:%S:%3f");
+        let message_formated = match output["level"].as_str().unwrap() {
+            "\"TRACE\"" => format!("\x1b[30m{}\x1b[0m \x1b[30m[{}]\t{} : {}\x1b[0m", date, "TRACE", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
+            "\"DEBUG\"" => format!("\x1b[30m{}\x1b[0m \x1b[34m[{}]\t{} : {}\x1b[0m", date, "DEBUG", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
+            "\"INFO\"" => format!("\x1b[30m{}\x1b[0m \x1b[32m[{}]\t{}  : {}\x1b[0m", date, "INFO", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
+            "\"WARN\"" => format!("\x1b[30m{}\x1b[0m \x1b[33m[{}]\t{}  : {}\x1b[0m", date, "WARN", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
+            "\"ERROR\"" => format!("\x1b[30m{}\x1b[0m \x1b[31m[{}]\t{} : {}\x1b[0m", date, "ERROR", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
+            _ => format!("{} [{}]\t{} : {}", date, "?????", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
+        };
+        println!("{}", message_formated);
 
-        // Log the message
-        println!("{}", message);
+        // Format the message raw
+        let message_raw = format!("{}\t[{}]\t{}\t:\t{}", date, output["level"].as_str().unwrap(),
+            output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap());
 
         // Write to file sync
         let mut file = std::fs::OpenOptions::new()
@@ -202,7 +210,7 @@ where
             .append(true)
             .open(&self.file_name)
             .unwrap();
-        file.write_all(format!("{}\n", message).as_bytes())
+        file.write_all(format!("{}\n", message_raw).as_bytes())
             .unwrap();
     }
 }
