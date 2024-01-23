@@ -142,6 +142,11 @@ where
         event: &tracing::Event<'_>,
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
+        // If message starts with "log", discard it
+        if event.metadata().target().starts_with("log") {
+            return;
+        }
+
         // Read the parent spans of the event
         let scope_wrapped = ctx.event_scope(event);
         let scope = match scope_wrapped {
@@ -187,16 +192,28 @@ where
             "fields": fields,
             "spans": spans,
         });
+        
+        // Format the other fields
+        let mut other_fields = String::new();
+        for (key, value) in output["fields"].as_object().unwrap() {
+            if key != "message" {
+                other_fields.push_str(&format!("{}: {}, ", key, value));
+            }
+        }
+        other_fields.pop();
+        if other_fields.len() > 0 {
+            other_fields = "{ ".to_string() + &other_fields + " }";
+        }
 
         // Format the message for the console
         let date = chrono::Local::now().format("%H:%M:%S:%3f");
         let message_formated = match output["level"].as_str().unwrap() {
-            "\"TRACE\"" => format!("\x1b[30m{}\x1b[0m \x1b[30m[{}]\t{} : {}\x1b[0m", date, "TRACE", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
-            "\"DEBUG\"" => format!("\x1b[30m{}\x1b[0m \x1b[34m[{}]\t{} : {}\x1b[0m", date, "DEBUG", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
-            "\"INFO\"" => format!("\x1b[30m{}\x1b[0m \x1b[32m[{}]\t{}  : {}\x1b[0m", date, "INFO", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
-            "\"WARN\"" => format!("\x1b[30m{}\x1b[0m \x1b[33m[{}]\t{}  : {}\x1b[0m", date, "WARN", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
-            "\"ERROR\"" => format!("\x1b[30m{}\x1b[0m \x1b[31m[{}]\t{} : {}\x1b[0m", date, "ERROR", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
-            _ => format!("{} [{}]\t{} : {}", date, "?????", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap()),
+            "\"TRACE\"" => format!("\x1b[30m{}\x1b[0m \x1b[30m[{}]\t{} : {} {}\x1b[0m", date, "TRACE", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap(), other_fields),
+            "\"DEBUG\"" => format!("\x1b[30m{}\x1b[0m \x1b[34m[{}]\t{} : {} {}\x1b[0m", date, "DEBUG", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap(), other_fields),
+            "\"INFO\"" => format!("\x1b[30m{}\x1b[0m \x1b[32m[{}]\t{}  : {} {}\x1b[0m", date, "INFO", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap(), other_fields),
+            "\"WARN\"" => format!("\x1b[30m{}\x1b[0m \x1b[33m[{}]\t{}  : {} {}\x1b[0m", date, "WARN", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap(), other_fields),
+            "\"ERROR\"" => format!("\x1b[30m{}\x1b[0m \x1b[31m[{}]\t{} : {} {}\x1b[0m", date, "ERROR", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap(), other_fields),
+            _ => format!("{} [{}]\t{} : {} {}", date, "?????", output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap(), other_fields),
         };
         println!("{}", message_formated);
 
