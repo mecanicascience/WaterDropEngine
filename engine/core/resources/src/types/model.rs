@@ -1,6 +1,5 @@
 use std::{any::Any, sync::{Arc, Mutex}};
 
-use tracing::Instrument;
 use wde_logger::{debug, error, trace, info};
 use wde_math::Vec3f;
 use wde_wgpu::{Vertex, Buffer, RenderInstance, BufferUsage};
@@ -169,7 +168,7 @@ impl Resource for ModelResource {
                 error!("Failed to send model data : {}.", e);
             });
         };
-        tokio::task::spawn(task.instrument(tracing::info_span!("Model Async Loading")));
+        tokio::task::spawn(task);
 
         Self {
             label: label.to_string(),

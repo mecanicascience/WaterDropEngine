@@ -1,7 +1,6 @@
 use std::{any::Any, fmt::Formatter, sync::{Arc, Mutex}};
 
 use tokio::io::AsyncReadExt;
-use tracing::Instrument;
 use wde_logger::{debug, error, info};
 use wde_wgpu::RenderInstance;
 
@@ -97,7 +96,7 @@ impl Resource for ShaderResource {
                 error!("Failed to send shader data : {}.", e);
             });
         };
-        tokio::task::spawn(task.instrument(tracing::info_span!("Shader Async Loading")));
+        tokio::task::spawn(task);
 
         Self {
             label: label.to_string(),
