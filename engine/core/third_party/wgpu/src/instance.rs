@@ -103,11 +103,18 @@ impl RenderInstance {
     pub async fn new(label: &str, window: Option<&Window>) -> Self {
         info!(label, "Creating render instance.");
 
+        // Set flags
+        let flags = if cfg!(debug_assertions) {
+            wgpu::InstanceFlags::DEBUG
+        } else {
+            wgpu::InstanceFlags::DISCARD_HAL_LABELS
+        };
+
         // Create wgpu instance
         trace!(label, "Creating wgpu instance.");
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN, // Ask for Vulkan backend
-            flags: wgpu::InstanceFlags::DEBUG,
+            flags,
             dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
             gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
         });
