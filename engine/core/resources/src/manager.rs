@@ -354,7 +354,7 @@ impl ResourcesManager {
     /// # Returns
     /// 
     /// * `Option<&T>` - The resource if it exists, None otherwise.
-    pub fn get<T: Resource>(&mut self, handle: &ResourceHandle) -> Option<&mut T> {
+    pub fn get<T: Resource>(&self, handle: &ResourceHandle) -> Option<&mut T> {
         let mut instance = self.instance.lock().unwrap();
 
         // Check if handle is valid

@@ -182,6 +182,23 @@ impl App {
             ShaderStages::VERTEX).await;
 
 
+        // Create big model
+        let big_model = match world.create_entity() {
+            Some(e) => e,
+            None => throw!("Failed to create entity. No more entity slots available."),
+        };
+
+        // Set model to big model
+        world
+            .add_component(big_model, LabelComponent { label : "Big model".to_string() }).unwrap()
+            .add_component(big_model, TransformComponent {
+                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+            }).unwrap()
+            .add_component(big_model, RenderComponentDynamic {
+                model: res_manager.load::<ModelResource>("models/lost_empire.obj")
+            }).unwrap();
+
+
         // Create cube
         let cube = match world.create_entity() {
             Some(e) => e,
@@ -195,10 +212,10 @@ impl App {
                 position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
             }).unwrap()
             .add_component(cube, RenderComponentDynamic {
-                model: res_manager.load::<ModelResource>("models/lost_empire.obj")
+                model: res_manager.load::<ModelResource>("models/cube.obj")
             }).unwrap();
 
-        // Create uniform buffer
+        // Create default uniform buffer
         let mut model_buffer = Buffer::new(
             &render_instance,
             "Cube buffer",
@@ -318,8 +335,30 @@ impl App {
                             }),
                             None);
 
-                        // Set vertex buffer
+                        // Render cube
                         match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(cube).unwrap().model) {
+                            Some(m) => {
+                                // Set uniform and storage buffers
+                                render_pass.set_bind_group(0, &camera_buffer_bind_group);
+                                render_pass.set_bind_group(1, &model_buffer_bind_group);
+
+                                // Set model buffers
+                                render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
+                                render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
+
+                                // Set render pipeline
+                                match render_pass.set_pipeline(&render_pipeline) {
+                                    Ok(_) => {
+                                        let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
+                                    },
+                                    Err(_) => {}
+                                }
+                            }
+                            None => continue,
+                        };
+
+                        // Render big model
+                        match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(big_model).unwrap().model) {
                             Some(m) => {
                                 // Set uniform and storage buffers
                                 render_pass.set_bind_group(0, &camera_buffer_bind_group);
