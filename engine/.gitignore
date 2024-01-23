@@ -6,3 +6,5 @@ Cargo.lock
 .cargo/config.toml
 /.idea
 /.vscode
+log.txt
+trace.json

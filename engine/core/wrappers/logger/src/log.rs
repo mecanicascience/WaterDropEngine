@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::Write;
 
 use tracing::field::Field;
 // Alias for tracing macros
@@ -69,7 +70,27 @@ impl<'a> tracing::field::Visit for JsonVisitor<'a> {
 }
 
 
-pub struct LoggerLayer;
+pub struct LoggerLayer {
+    file_name: String,
+}
+
+impl LoggerLayer {
+    pub fn new(file_name: &str) -> Self {
+        // Create the file if it doesn't exist
+        std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(file_name)
+            .unwrap();
+
+        // Clear the file
+        std::fs::write(file_name, "").unwrap();
+
+        Self {
+            file_name: file_name.to_string(),
+        }
+    }
+}
 
 impl<S> Layer<S> for LoggerLayer
 where
@@ -167,9 +188,22 @@ where
             "spans": spans,
         });
 
-        // Log the message
-        println!("[{}] {} : {}", output["level"].as_str().unwrap(),
+        // Format the message
+        let date = chrono::Local::now().format("%H:%M:%S");
+        let message = format!("{}\t[{}]\t{}\t:\t{}", date, output["level"].as_str().unwrap(),
             output["target"].as_str().unwrap(), output["fields"]["message"].as_str().unwrap());
+
+        // Log the message
+        println!("{}", message);
+
+        // Write to file sync
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.file_name)
+            .unwrap();
+        file.write_all(format!("{}\n", message).as_bytes())
+            .unwrap();
     }
 }
 

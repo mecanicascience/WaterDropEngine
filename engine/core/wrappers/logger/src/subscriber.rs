@@ -12,10 +12,11 @@ impl Logger {
     /// 
     /// # Arguments
     /// 
+    /// * `log_file_name` - The name of the file to write the log data to.
     /// * `tracing_file_name` - The name of the file to write the tracing data to.
-    pub fn new(tracing_file_name: &str) -> Self {
+    pub fn new(log_file_name: &str ,tracing_file_name: &str) -> Self {
         // Custom logger layer
-        let logger_layer = LoggerLayer {};
+        let logger_layer = LoggerLayer::new(log_file_name);
 
         // Custom tracing layer
         let tracing_layer = TracingLayer::new(tracing_file_name);
