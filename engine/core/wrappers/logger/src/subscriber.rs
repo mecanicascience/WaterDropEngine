@@ -21,16 +21,17 @@ impl Logger {
         // Custom tracing layer
         let tracing_layer = TracingLayer::new(tracing_file_name);
 
-        // Original tracing layer
-        // let logger_layer = tracing_subscriber::fmt::layer()
-        //     .with_thread_ids(true)
-        //     .pretty();
-
         // Register Layers
-        tracing_subscriber::registry()
-            .with(logger_layer)
-            .with(tracing_layer)
-            .init();
+        if cfg!(debug_assertions) {
+            tracing_subscriber::registry()
+                .with(tracing_layer)
+                .with(logger_layer)
+                .init();
+        } else {
+            tracing_subscriber::registry()
+                .with(logger_layer)
+                .init();
+        }
 
         Self {
             tracing_file_name: tracing_file_name.to_string(),

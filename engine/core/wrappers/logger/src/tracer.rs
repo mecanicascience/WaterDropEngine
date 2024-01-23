@@ -72,6 +72,13 @@ pub struct TracingLayer {
 
 impl TracingLayer {
     pub fn new(file_name: &str) -> Self {
+        // Check if production
+        if !cfg!(debug_assertions) {
+            return Self {
+                file_name: "".to_string(),
+            };
+        }
+
         // Create the file if it doesn't exist
         std::fs::OpenOptions::new()
             .create(true)
@@ -88,6 +95,11 @@ impl TracingLayer {
     }
 
     pub fn close(file_name: &String) {
+        // Check if production
+        if !cfg!(debug_assertions) {
+            return;
+        }
+
         // Wait for all async writes to finish
         std::thread::sleep(std::time::Duration::from_millis(100));
 
