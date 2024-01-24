@@ -288,7 +288,8 @@ impl App {
         // Create camera rotation
         let mut camera_rotation = Vec2f { x: 0.0, y: 0.0 };
         let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
-        let sensitivity = 10.0;
+        let move_speed = 0.1;
+        let sensitivity = 8.0;
 
         // Run main loop
         loop {
@@ -336,27 +337,27 @@ impl App {
                         let mut transform = world.get_component::<TransformComponent>(camera).unwrap().clone();
 
                         // Update the transform position
-                        let dt = last_time.elapsed().as_secs_f32();
+                        let dt = (last_time.elapsed().as_millis()) as f32 / 1000.0;
                         let forward = TransformComponent::forward(transform);
                         let right = TransformComponent::right(transform);
                         let up = TransformComponent::up(transform);
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyW)).unwrap_or(&false) {
-                            transform.position += forward * dt;
+                            transform.position += forward * move_speed;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyS)).unwrap_or(&false) {
-                            transform.position -= forward * dt;
+                            transform.position -= forward * move_speed;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyD)).unwrap_or(&false) {
-                            transform.position += right * dt;
+                            transform.position += right * move_speed;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyA)).unwrap_or(&false) {
-                            transform.position -= right * dt;
+                            transform.position -= right * move_speed;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyE)).unwrap_or(&false) {
-                            transform.position += up * dt;
+                            transform.position += up * move_speed;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyQ)).unwrap_or(&false) {
-                            transform.position -= up * dt;
+                            transform.position -= up * move_speed;
                         }
 
                         // Get x and y rotation
@@ -471,26 +472,26 @@ impl App {
 
                         // Render big model
                         trace!("Rendering big model.");
-                        // match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(big_model).unwrap().model) {
-                        //     Some(m) => {
-                        //         // Set uniform and storage buffers
-                        //         render_pass.set_bind_group(0, &camera_buffer_bind_group);
-                        //         render_pass.set_bind_group(1, &model_buffer_bind_group);
+                        match res_manager.get::<ModelResource>(&world.get_component::<RenderComponentDynamic>(big_model).unwrap().model) {
+                            Some(m) => {
+                                // Set uniform and storage buffers
+                                render_pass.set_bind_group(0, &camera_buffer_bind_group);
+                                render_pass.set_bind_group(1, &model_buffer_bind_group);
 
-                        //         // Set model buffers
-                        //         render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
-                        //         render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
+                                // Set model buffers
+                                render_pass.set_vertex_buffer(0, &m.data.as_ref().unwrap().vertex_buffer);
+                                render_pass.set_index_buffer(&m.data.as_ref().unwrap().index_buffer);
 
-                        //         // Set render pipeline
-                        //         match render_pass.set_pipeline(&render_pipeline) {
-                        //             Ok(_) => {
-                        //                 let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
-                        //             },
-                        //             Err(_) => {}
-                        //         }
-                        //     }
-                        //     None => {},
-                        // };
+                                // Set render pipeline
+                                match render_pass.set_pipeline(&render_pipeline) {
+                                    Ok(_) => {
+                                        let _ = render_pass.draw_indexed(0..m.data.as_ref().unwrap().index_count, 0);
+                                    },
+                                    Err(_) => {}
+                                }
+                            }
+                            None => {},
+                        };
                     }
 
                     // Submit command buffer
