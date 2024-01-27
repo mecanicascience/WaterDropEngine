@@ -1,5 +1,6 @@
 use std::fmt::Formatter;
 
+use tracing::warn;
 use wde_logger::{trace, info};
 use wgpu::{util::DeviceExt, BindGroupLayout};
 
@@ -13,6 +14,9 @@ pub type ShaderStages = wgpu::ShaderStages;
 
 /// Buffer binding types.
 pub type BufferBindingType = wgpu::BufferBindingType;
+
+/// Map the buffer.
+pub type BufferViewMut<'a> = wgpu::BufferViewMut<'a>;
 
 /// Create a buffer.
 /// 
@@ -29,6 +33,11 @@ pub type BufferBindingType = wgpu::BufferBindingType;
 /// 
 /// // Write data to the buffer
 /// buffer.write(&instance, &[...], 0);
+/// 
+/// // Map the buffer
+/// buffer.map_mut(|range| {
+///    [...]
+/// });
 /// ```
 pub struct Buffer {
     pub label: String,
@@ -207,6 +216,36 @@ impl Buffer {
             &self.buffer,
             offset as u64,
             content);
+    }
+
+    /// Map the buffer as mutable.
+    /// This will wait for the buffer to be mapped.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instance` - The render instance.
+    /// * `callback` - A closure that takes a mutable reference to the buffer.
+    /// The callback takes a mutable reference to the buffer.
+    pub fn map_mut(&self, instance: &RenderInstance, callback: impl FnOnce(BufferViewMut)) {
+        trace!(self.label, "Mapping buffer.");
+
+        // Map buffer
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let buffer_slice = self.buffer.slice(..);
+        buffer_slice.map_async(wgpu::MapMode::Write,
+            move |r| sender.send(r).unwrap());
+
+        // Wait for the buffer to be mapped
+        instance.device.poll(wgpu::Maintain::Wait);
+        receiver.recv().unwrap().unwrap();
+        trace!(self.label, "Buffer mapped.");
+
+        // Call callback
+        callback(buffer_slice.get_mapped_range_mut());
+
+        // Unmap buffer
+        self.buffer.unmap();
+        trace!(self.label, "Buffer unmapped.");
     }
 }
 
