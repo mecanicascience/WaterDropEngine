@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, VecDeque}, fmt::Formatter, sync::{Arc, Mutex}};
+use std::{collections::{HashMap, VecDeque}, fmt::Formatter, sync::{Arc, RwLock}};
 
 use tracing::warn;
 use wde_logger::{error, trace, debug, info};
@@ -27,7 +27,7 @@ pub struct ResourceHandle {
     /// Index of the resource handle
     index: ResourceHandleIndex,
     /// Resources manager instance
-    manager: Arc<Mutex<ResourcesManagerInstance>>,
+    manager: Arc<RwLock<ResourcesManagerInstance>>,
 }
 
 impl std::fmt::Debug for ResourceHandle {
@@ -51,11 +51,14 @@ impl ResourceHandle {
     /// * `index` - Index of the resource handle.
     /// * `manager` - Resources manager instance.
     #[tracing::instrument]
-    fn new(label: &str, resource_type: ResourceType, index: ResourceHandleIndex, manager: Arc<Mutex<ResourcesManagerInstance>>) -> Self {
+    fn new(label: &str, resource_type: ResourceType, index: ResourceHandleIndex, manager: Arc<RwLock<ResourcesManagerInstance>>) -> Self {
         trace!(label, "Creating resource handle.");
 
         // Add handle to resource location
-        manager.lock().unwrap().add_handle(index);
+        match manager.as_ref().try_write() {
+            Ok(mut manager) => manager.add_handle(index),
+            Err(_) => warn!(label, "Failed to lock resources manager instance. The resource may not be loaded."),
+        };
 
         Self {
             label: label.to_string(),
@@ -69,7 +72,7 @@ impl Drop for ResourceHandle {
     #[tracing::instrument]
     fn drop(&mut self) {
         trace!(self.label, "Dropping resource handle.");
-        match self.manager.as_ref().try_lock() {
+        match self.manager.as_ref().try_write() {
             Ok(mut manager) => manager.remove_handle(self.index, self.resource_type),
             Err(_) => warn!(self.label, "Failed to lock resources manager instance. The resource may not be unloaded."),
         };
@@ -79,7 +82,10 @@ impl Clone for ResourceHandle {
     #[tracing::instrument]
     fn clone(&self) -> Self {
         trace!(self.label, "Cloning resource handle.");
-        self.manager.as_ref().lock().unwrap().add_handle(self.index);
+        match self.manager.as_ref().try_write() {
+            Ok(mut manager) => manager.add_handle(self.index),
+            Err(_) => warn!(self.label, "Failed to lock resources manager instance. The resource may not be loaded."),
+        };
         Self {
             label: self.label.clone(),
             resource_type: self.resource_type,
@@ -102,7 +108,7 @@ struct ResourcesManagerInstance {
     handle_to_res: HashMap<ResourceHandleIndex, (HandleCount, ResourceArrayIndex)>,
 
     /// Resources list. One array per resource type.
-    resources: HashMap<ResourceType, Vec<Option<Arc<Mutex<dyn Resource>>>>>,
+    resources: HashMap<ResourceType, Vec<Option<Arc<RwLock<dyn Resource>>>>>,
     /// Pool of available resources indices.
     resources_indices_pool: HashMap<ResourceType, VecDeque<usize>>,
     /// Resources indices that are currently async loading
@@ -213,23 +219,17 @@ impl ResourcesManagerInstance {
     /// # Arguments
     /// 
     /// * `index` - Index of the resource handle.
-    /// * `desc` - Description of the resource.
     /// * `res_type` - Type of the resource.
-    fn load(&mut self, index: usize, desc: ResourceDescription, res_type: ResourceType) {
-        debug!(desc.label, "Loading resource.");
-
-        // Load resource
-        let resource_type = desc.resource_type;
-        let resource = create_resource_instance(&res_type, desc);
-        
+    /// * `resource` - The resource.
+    fn load(&mut self, index: usize, res_type: ResourceType, resource: Arc<RwLock<dyn Resource>>) {
         // Add resource to resources list
-        let resources_arr = self.resources.get_mut(&resource_type).unwrap();
-        let resource_index = self.resources_indices_pool.get_mut(&resource_type).unwrap().pop_front().unwrap();
+        let resources_arr = self.resources.get_mut(&res_type).unwrap();
+        let resource_index = self.resources_indices_pool.get_mut(&res_type).unwrap().pop_front().unwrap();
         resources_arr[resource_index] = Some(resource);
         
         // Add resource to handle to resource map and async loading list
         self.handle_to_res.insert(index, (0, resource_index));
-        self.resources_async_loading.push((resource_type, resource_index));
+        self.resources_async_loading.push((res_type, resource_index));
     }
 
     /// Add a handle pointing to a resource location.
@@ -323,7 +323,7 @@ impl ResourcesManagerInstance {
 #[derive(Debug)]
 pub struct ResourcesManager {
     /// Resources manager instance
-    instance: Arc<Mutex<ResourcesManagerInstance>>,
+    instance: Arc<RwLock<ResourcesManagerInstance>>,
 }
 
 impl ResourcesManager {
@@ -333,7 +333,7 @@ impl ResourcesManager {
         info!("Creating resources manager.");
 
         Self {
-            instance: Arc::new(Mutex::new(ResourcesManagerInstance::new())),
+            instance: Arc::new(RwLock::new(ResourcesManagerInstance::new())),
         }
     }
 
@@ -349,14 +349,16 @@ impl ResourcesManager {
     #[tracing::instrument]
     pub fn update(&mut self, render_instance: &RenderInstance) {
         debug!("Updating resources manager.");
-        let mut instance = self.instance.lock().unwrap();
 
         // Check if async loaded resources are loaded
         let mut should_remove = Vec::new();
-        for (resource_type, resource_index) in instance.resources_async_loading.clone() {
+        let res = self.instance.try_read().unwrap().resources_async_loading.clone();
+        for (resource_type, resource_index) in res {
+            let ins = self.instance.try_read().unwrap();
+
             // Get resource
-            let resources_arr = instance.resources
-                .get_mut(&resource_type).unwrap()
+            let resources_arr = ins.resources
+                .get(&resource_type).unwrap()
                 .get(resource_index as usize).unwrap();
 
             // Check if resource is not none
@@ -365,17 +367,17 @@ impl ResourcesManager {
             }
             
             // If resource is loaded, sync load it and remove it from async loading list
-            let mut res_ref = resources_arr.as_ref().unwrap().lock().unwrap();
+            let mut res_ref = resources_arr.as_ref().unwrap().try_write().unwrap();
             if res_ref.async_loaded() && !res_ref.loaded() {
-                res_ref.sync_load(render_instance);
+                res_ref.sync_load(render_instance, &self);
                 should_remove.push((resource_type, resource_index));
             }
         }
 
         // Remove async loaded resources from async loading list
         for (resource_type, resource_index) in should_remove {
-            let index = instance.resources_async_loading.iter().position(|&r| r == (resource_type, resource_index)).unwrap();
-            instance.resources_async_loading.remove(index);
+            let index = self.instance.try_read().unwrap().resources_async_loading.iter().position(|&r| r == (resource_type, resource_index)).unwrap();
+            self.instance.try_write().unwrap().resources_async_loading.remove(index);
         }
     }
 
@@ -396,7 +398,7 @@ impl ResourcesManager {
         let res_type = T::resource_type();
 
         // Acquire resource
-        let (index, desc) = self.instance.lock().unwrap().acquire(path);
+        let (index, desc) = self.instance.try_write().unwrap().acquire(path);
 
         // Load resource
         if desc.as_ref().is_some() {
@@ -412,7 +414,7 @@ impl ResourcesManager {
             // Setup dependencies
             for dep in d.dependencies.iter() {
                 // Acquire dependency
-                let (dep_index, dep_desc_un) = self.instance.lock().unwrap()
+                let (dep_index, dep_desc_un) = self.instance.try_write().unwrap()
                     .acquire(dep.as_ref().unwrap());
                 
                 // Create dependency description
@@ -424,8 +426,11 @@ impl ResourcesManager {
                     dependencies: vec![],
                 };
 
+                // Create resource
+                let d_resource = create_resource_instance(&d2.resource_type, dep_desc);
+
                 // Load dependency
-                self.instance.lock().unwrap().load(dep_index, dep_desc, d2.resource_type);
+                self.instance.try_write().unwrap().load(dep_index, d2.resource_type, d_resource);
 
                 // Create dependency handle
                 let dep_handle = ResourceHandle::new(
@@ -434,13 +439,50 @@ impl ResourcesManager {
                 // Add dependency to resource description
                 res_desc.dependencies.push(dep_handle);
             }
+
+            // Create resource
+            let resource = create_resource_instance(&res_type, res_desc);
             
             // Load resource
-            self.instance.lock().unwrap().load(index, res_desc, res_type);
+            self.instance.try_write().unwrap().load(index, res_type, resource);
         }
 
         // Create resource handle
         ResourceHandle::new(path, res_type, index, self.instance.clone())
+    }
+
+    /// Get a resource from a resource handle as mutable.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `handle` - Handle pointing to the resource location.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Option<&T>` - The resource if it exists, None otherwise.
+    pub fn get_mut<T: Resource>(&self, handle: &ResourceHandle) -> Option<&mut T> {
+        // Check if handle is valid
+        if !self.instance.try_read().unwrap().handle_to_res.contains_key(&handle.index) {
+            error!(handle.index, "Invalid resource handle.");
+            return None;
+        }
+
+        // Get resource index
+        let (_, resource_index) = self.instance.try_read().unwrap().handle_to_res.get(&handle.index).unwrap().clone();
+
+        // Get resource
+        let mut ins = self.instance.try_write().unwrap();
+        let resources_arr = ins.resources.get_mut(&T::resource_type()).unwrap();
+        let resource_unlocked = resources_arr.get_mut(resource_index as usize).unwrap();
+        if resource_unlocked.is_none() {
+            return None;
+        }
+        let mut resource_as_dyn = resource_unlocked.as_mut().unwrap().try_write().unwrap();
+        let resource_as_t = resource_as_dyn.as_any_mut().downcast_mut::<T>().unwrap();
+        if !resource_as_t.loaded() {
+            return None;
+        }
+        Some(unsafe { std::mem::transmute::<&mut T, &mut T>(resource_as_t) })
     }
 
     /// Get a resource from a resource handle.
@@ -452,30 +494,29 @@ impl ResourcesManager {
     /// # Returns
     /// 
     /// * `Option<&T>` - The resource if it exists, None otherwise.
-    pub fn get<T: Resource>(&self, handle: &ResourceHandle) -> Option<&mut T> {
-        let mut instance = self.instance.lock().unwrap();
-
+    pub fn get<T: Resource>(&self, handle: &ResourceHandle) -> Option<&T> {
         // Check if handle is valid
-        if !instance.handle_to_res.contains_key(&handle.index) {
+        if !self.instance.try_read().unwrap().handle_to_res.contains_key(&handle.index) {
             error!(handle.index, "Invalid resource handle.");
             return None;
         }
 
         // Get resource index
-        let (_, resource_index) = instance.handle_to_res.get(&handle.index).unwrap().clone();
+        let (_, resource_index) = self.instance.try_read().unwrap().handle_to_res.get(&handle.index).unwrap().clone();
 
         // Get resource
-        let resources_arr = instance.resources.get_mut(&T::resource_type()).unwrap();
-        let resource_unlocked = resources_arr.get_mut(resource_index as usize).unwrap();
+        let ins = self.instance.try_read().unwrap();
+        let resources_arr = ins.resources.get(&T::resource_type()).unwrap();
+        let resource_unlocked = resources_arr.get(resource_index as usize).unwrap();
         if resource_unlocked.is_none() {
             return None;
         }
-        let mut resource_as_dyn = resource_unlocked.as_mut().unwrap().lock().unwrap();
-        let resource_as_t = resource_as_dyn.as_any_mut().downcast_mut::<T>().unwrap();
+        let resource_as_dyn = resource_unlocked.as_ref().unwrap().try_read().unwrap();
+        let resource_as_t = resource_as_dyn.as_any().downcast_ref::<T>().unwrap();
         if !resource_as_t.loaded() {
             return None;
         }
-        Some(unsafe { std::mem::transmute::<&mut T, &mut T>(resource_as_t) })
+        Some(unsafe { std::mem::transmute::<&T, &T>(resource_as_t) })
     }
 
     /// Wait synchronously for a resource to be loaded.
@@ -487,25 +528,25 @@ impl ResourcesManager {
     #[tracing::instrument]
     pub async fn wait_for(&mut self, handle: &ResourceHandle, render_instance: &RenderInstance) {
         debug!(handle.index, "Waiting synchronously for resource to be loaded.");
-        let mut instance = self.instance.lock().unwrap();
 
         // Check if handle is valid
-        if !instance.handle_to_res.contains_key(&handle.index) {
+        if !self.instance.try_read().unwrap().handle_to_res.contains_key(&handle.index) {
             error!(handle.index, "Invalid resource handle.");
             return;
         }
 
         // Get resource index
-        let (_, resource_index) = instance.handle_to_res.get(&handle.index).unwrap().clone();
+        let (_, resource_index) = self.instance.try_read().unwrap().handle_to_res.get(&handle.index).unwrap().clone();
 
         // Get resource
-        let resources_arr = instance.resources.get_mut(&handle.resource_type).unwrap();
+        let mut ins = self.instance.try_write().unwrap();
+        let resources_arr = ins.resources.get_mut(&handle.resource_type).unwrap();
         let resource_unlocked = resources_arr.get_mut(resource_index as usize).unwrap();
         if resource_unlocked.is_none() {
             error!(handle.index, "Resource is not loaded.");
             return;
         }
-        let mut resource_as_dyn = resource_unlocked.as_mut().unwrap().lock().unwrap();
+        let mut resource_as_dyn = resource_unlocked.as_mut().unwrap().try_write().unwrap();
 
         // Wait for resource to be async loaded
         while !resource_as_dyn.async_loaded() {
@@ -514,7 +555,7 @@ impl ResourcesManager {
 
         // Sync load resource
         if !resource_as_dyn.loaded() {
-            resource_as_dyn.sync_load(render_instance);
+            resource_as_dyn.sync_load(render_instance, &self);
         }
     }
 }

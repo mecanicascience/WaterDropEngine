@@ -4,7 +4,7 @@ use tokio::io::AsyncReadExt;
 use wde_logger::{debug, error, info};
 use wde_wgpu::RenderInstance;
 
-use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType};
+use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType, ResourcesManager};
 
 /// Temporary data to be transferred.
 #[derive(Clone, Debug)]
@@ -118,7 +118,7 @@ impl Resource for ShaderResource {
     }
 
     #[tracing::instrument]
-    fn sync_load(&mut self, _: &RenderInstance) {
+    fn sync_load(&mut self, _render_instance: &RenderInstance, _res_manager: &ResourcesManager) {
         // Check if the model is async loaded
         if !self.async_loaded() {
             error!("Trying to sync load a shader that is not async loaded.");
@@ -144,6 +144,7 @@ impl Resource for ShaderResource {
     fn loaded(&self) -> bool { self.loaded }
     fn resource_type() -> ResourceType { ResourceType::Shader }
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
+    fn as_any(&self) -> &dyn Any { self }
 }
 
 impl Drop for ShaderResource {

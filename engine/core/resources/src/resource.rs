@@ -1,10 +1,10 @@
-use std::{any::Any, sync::{Arc, Mutex}};
+use std::{any::Any, sync::{Arc, Mutex, RwLock}};
 
 use tracing::error;
 use wde_logger::throw;
 use wde_wgpu::RenderInstance;
 
-use crate::{MaterialResource, ModelResource, ResourceHandle, ShaderResource};
+use crate::{MaterialResource, ModelResource, ResourceHandle, ResourcesManager, ShaderResource};
 
 // Struct to hold the resource loading flag
 #[derive(Debug)]
@@ -41,11 +41,11 @@ impl From<&str> for ResourceType {
 /// 
 /// * `res_type` - The type of the resource.
 /// * `desc` - The description of the resource.
-pub fn create_resource_instance(res_type: &ResourceType, desc: ResourceDescription) -> Arc<Mutex<dyn Resource>> {
+pub fn create_resource_instance(res_type: &ResourceType, desc: ResourceDescription) -> Arc<RwLock<dyn Resource>> {
     match res_type {
-        ResourceType::Model => Arc::new(Mutex::new(ModelResource::new(desc))),
-        ResourceType::Shader => Arc::new(Mutex::new(ShaderResource::new(desc))),
-        ResourceType::Material => Arc::new(Mutex::new(MaterialResource::new(desc)))
+        ResourceType::Model => Arc::new(RwLock::new(ModelResource::new(desc))),
+        ResourceType::Shader => Arc::new(RwLock::new(ShaderResource::new(desc))),
+        ResourceType::Material => Arc::new(RwLock::new(MaterialResource::new(desc)))
     }
 }
 
@@ -93,7 +93,7 @@ pub trait Resource: Any {
     /// # Arguments
     /// 
     /// * `instance` - The render instance.
-    fn sync_load(&mut self, instance: &RenderInstance);
+    fn sync_load(&mut self, instance: &RenderInstance, res_manager: &ResourcesManager);
 
 
     /// Check if the resource is async loaded.
@@ -118,8 +118,11 @@ pub trait Resource: Any {
     /// * `ResourceType` - The type of the resource.
     fn resource_type() -> ResourceType where Self: Sized;
 
-    /// As any.
+    /// As any mut.
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// As any.
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// Get the description of a resource from its JSON.

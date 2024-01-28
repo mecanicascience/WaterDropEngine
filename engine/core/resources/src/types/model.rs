@@ -4,7 +4,7 @@ use wde_logger::{debug, error, trace, info};
 use wde_math::Vec3f;
 use wde_wgpu::{Vertex, Buffer, RenderInstance, BufferUsage};
 
-use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType};
+use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType, ResourcesManager};
 
 /// Bounding box of a model, centered at the origin.
 #[derive(Clone, Copy, Debug)]
@@ -190,7 +190,7 @@ impl Resource for ModelResource {
     }
 
     #[tracing::instrument]
-    fn sync_load(&mut self, instance: &RenderInstance) {
+    fn sync_load(&mut self, instance: &RenderInstance, _res_manager: &ResourcesManager) {
         // Check if the model is async loaded
         if !self.async_loaded() {
             error!("Trying to sync load a model that is not async loaded.");
@@ -246,6 +246,7 @@ impl Resource for ModelResource {
     fn loaded(&self) -> bool { self.loaded }
     fn resource_type() -> ResourceType { ResourceType::Model }
     fn as_any_mut(&mut self) -> &mut dyn Any { self }
+    fn as_any(&self) -> &dyn Any { self }
 }
 
 impl Drop for ModelResource {
