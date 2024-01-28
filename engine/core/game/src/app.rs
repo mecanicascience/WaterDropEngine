@@ -435,13 +435,20 @@ impl App {
                 if fps_frames_index >= fps_frames.len() {
                     fps_frames_index = 0;
                     fps_avg = fps_frames.iter().sum::<f32>() / fps_frames.len() as f32;
+
+                    // In release mode, print fps only now
+                    if !cfg!(debug_assertions) {
+                        info!("FPS: {:.2}", fps_avg);
+                    }
                 }
 
                 // Set the last time
                 last_time = std::time::Instant::now();
 
-                // Print fps
-                info!("FPS: {:.2}", fps_avg);
+                // Print fps every time in debug mode
+                if cfg!(debug_assertions) {
+                    info!("FPS: {:.2}", fps_avg);
+                }
             }
         }
 
