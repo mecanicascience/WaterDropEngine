@@ -4,8 +4,8 @@
         "type": "MATERIAL",
         "source": "materials/[...].mat",
         "dependencies": [
-            "shaders/[...]/frag",
-            "shaders/[...]/vert"
+            { "type": "SHADER", "path": "shaders/[...]/frag" },
+            { "type": "SHADER", "path": "shaders/[...]/frag" }
         ]
     }
 }

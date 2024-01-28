@@ -4,7 +4,7 @@ use tracing::error;
 use wde_logger::info;
 use wde_wgpu::{RenderInstance, RenderPipeline};
 
-use crate::{Resource, ResourceType, LoadedFlag};
+use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType};
 
 /// Temporary data to be transferred.
 #[derive(Clone, Debug)]
@@ -27,6 +27,8 @@ pub struct MaterialResource {
     pub data: Option<MaterialData>,
     /// Loaded flag
     loaded: bool,
+    /// Description of the material.
+    // desc: ResourceDescription,
 
     // Async loading
     async_loaded: LoadedFlag,
@@ -34,7 +36,7 @@ pub struct MaterialResource {
 
 impl Resource for MaterialResource {
     #[tracing::instrument]
-    fn new(desc: crate::ResourceDescription) -> Self where Self: Sized {
+    fn new(desc: ResourceDescription) -> Self where Self: Sized {
         info!(desc.label, "Creating material resource.");
         
         // Check if resource type is correct
@@ -45,6 +47,7 @@ impl Resource for MaterialResource {
                 data: None,
                 loaded: false,
                 async_loaded: LoadedFlag { flag: Arc::new(Mutex::new(false)), },
+                // desc,
             };
         }
 
@@ -56,6 +59,7 @@ impl Resource for MaterialResource {
             data: None,
             async_loaded,
             loaded: false,
+            // desc,
         }
     }
 

@@ -1,9 +1,10 @@
 use std::{collections::{HashMap, VecDeque}, fmt::Formatter, sync::{Arc, Mutex}};
 
+use tracing::warn;
 use wde_logger::{error, trace, debug, info};
 use wde_wgpu::RenderInstance;
 
-use crate::{Resource, ResourceDescription, ResourceType};
+use crate::{create_resource_instance, get_resource_description, Resource, ResourceDescription, ResourceDescriptionUnresolved, ResourceType};
 
 /// Maximum number of resources per type
 const MAX_RESOURCES_PER_TYPE: usize = 100;
@@ -41,6 +42,7 @@ impl std::fmt::Debug for ResourceHandle {
 
 impl ResourceHandle {
     /// Create a new resource handle.
+    /// The method `init` must be called after this method.
     /// 
     /// # Arguments
     /// 
@@ -50,30 +52,34 @@ impl ResourceHandle {
     /// * `manager` - Resources manager instance.
     #[tracing::instrument]
     fn new(label: &str, resource_type: ResourceType, index: ResourceHandleIndex, manager: Arc<Mutex<ResourcesManagerInstance>>) -> Self {
-        let m = manager.clone();
-        
-        // Add handle to resource location
-        m.lock().unwrap().add_handle(index);
+        trace!(label, "Creating resource handle.");
 
-        // Return resource handle
+        // Add handle to resource location
+        manager.lock().unwrap().add_handle(index);
+
         Self {
             label: label.to_string(),
             resource_type,
             index,
-            manager: m,
+            manager,
         }
     }
 }
 impl Drop for ResourceHandle {
     #[tracing::instrument]
     fn drop(&mut self) {
-        self.manager.lock().unwrap().remove_handle(self.index, self.resource_type);
+        trace!(self.label, "Dropping resource handle.");
+        match self.manager.as_ref().try_lock() {
+            Ok(mut manager) => manager.remove_handle(self.index, self.resource_type),
+            Err(_) => warn!(self.label, "Failed to lock resources manager instance. The resource may not be unloaded."),
+        };
     }
 }
 impl Clone for ResourceHandle {
     #[tracing::instrument]
     fn clone(&self) -> Self {
-        self.manager.lock().unwrap().add_handle(self.index);
+        trace!(self.label, "Cloning resource handle.");
+        self.manager.as_ref().lock().unwrap().add_handle(self.index);
         Self {
             label: self.label.clone(),
             resource_type: self.resource_type,
@@ -134,34 +140,28 @@ impl ResourcesManagerInstance {
         }
     }
 
-    /// Load a resource from a path.
-    /// If the resource is already loaded, returns the resource index.
-    /// If the resource is not loaded, start the loading of the texture and returns the resource index.
-    /// Note: This will not add a handle to the resource.
+    /// Acquire a resource handle index and the description of the resource from its path.
     /// 
     /// # Arguments
     /// 
     /// * `path` - Path to the resource.
-    fn load<T: Resource>(&mut self, path: &str) -> ResourceHandleIndex {
+    /// 
+    /// # Returns
+    /// 
+    /// * `ResourceHandleIndex` - Handle pointing to the resource location.
+    /// * `Option<ResourceDescriptionUnresolved>` - The description of the resource if it is not already loaded, None otherwise.
+    #[tracing::instrument]
+    fn acquire(&mut self, path: &str) -> (ResourceHandleIndex, Option<ResourceDescriptionUnresolved>) {
         // Check if resource is already loaded
         if let Some(index) = self.path_to_index.get(path) {
             if self.handle_to_res.contains_key(&index) && self.handle_to_res.get(&index).unwrap().0 > 0 {
                 // Return resource index
-                return *index;
+                return (*index, None);
             }
         }
-        
-        // Check if resource type exists
-        let resource_type = T::resource_type();
-        if !self.resources.contains_key(&resource_type) {
-            // Create resource type array
-            self.resources.insert(resource_type, Vec::from_iter((0..MAX_RESOURCES_PER_TYPE).map(|_| None)));
-            // Create resource type indices pool
-            self.resources_indices_pool.insert(
-                resource_type,
-                VecDeque::from_iter((0..MAX_RESOURCES_PER_TYPE).map(|i| i))
-            );
-        }
+
+        // Load resource
+        debug!(path, "Acquiring a new resource.");
         
         // Generate new resource handle index
         let index = self.handle_index_iterator;
@@ -174,159 +174,62 @@ impl ResourcesManagerInstance {
         let resource_str = std::fs::read_to_string(format!("res/{}.json", path));
         if resource_str.is_err() {
             error!(path, "Failed to read resource description.");
-            return index;
+            return (index, None);
         }
         let resource_json = serde_json::from_str::<serde_json::Value>(&resource_str.unwrap());
         let desc = match resource_json {
             Ok(resource_json) => {
-                match self.get_resource_description(&path, &resource_json) {
+                match get_resource_description(&path, &resource_json) {
                     Some(desc) => desc,
                     None => {
                         error!(path, "Failed to parse resource description.");
-                        return index;
+                        return (index, None);
                     }
                 }
             },
             Err(_) => {
                 error!(path, "Failed to parse resource description to JSON.");
-                return index;
+                return (index, None);
             }
         };
+
+        // Check if resource type exists
+        if !self.resources.contains_key(&desc.resource_type) {
+            // Create resource type array
+            self.resources.insert(desc.resource_type, Vec::from_iter((0..MAX_RESOURCES_PER_TYPE).map(|_| None)));
+            // Create resource type indices pool
+            self.resources_indices_pool.insert(
+                desc.resource_type,
+                VecDeque::from_iter((0..MAX_RESOURCES_PER_TYPE).map(|i| i))
+            );
+        }
         
-        // Start loading resource
-        debug!(path, "Loading resource.");
-        let resource = T::new(desc);
+        // Return resource index and desc
+        (index, Some(desc))
+    }
+    
+    /// Load a resource at a given handle index given its description.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `index` - Index of the resource handle.
+    /// * `desc` - Description of the resource.
+    /// * `res_type` - Type of the resource.
+    fn load(&mut self, index: usize, desc: ResourceDescription, res_type: ResourceType) {
+        debug!(desc.label, "Loading resource.");
+
+        // Load resource
+        let resource_type = desc.resource_type;
+        let resource = create_resource_instance(&res_type, desc);
         
         // Add resource to resources list
         let resources_arr = self.resources.get_mut(&resource_type).unwrap();
         let resource_index = self.resources_indices_pool.get_mut(&resource_type).unwrap().pop_front().unwrap();
-        resources_arr[resource_index] = Some(Arc::new(Mutex::new(resource)));
+        resources_arr[resource_index] = Some(resource);
         
         // Add resource to handle to resource map and async loading list
         self.handle_to_res.insert(index, (0, resource_index));
         self.resources_async_loading.push((resource_type, resource_index));
-
-        // Return resource index
-        index
-    }
-
-    /// Get the description of a resource from its JSON.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `path` - Path to the resource.
-    /// * `resource_json` - JSON value of the resource description.
-    #[tracing::instrument]
-    pub fn get_resource_description(&self, path: &str, resource_json: &serde_json::Value) -> Option<ResourceDescription> {
-        // Get label
-        let label = match resource_json.get("label") {
-            Some(label_json) => {
-                match label_json.as_str() {
-                    Some(label_json) => {
-                        label_json.to_string()
-                    },
-                    None => {
-                        error!(path, "Failed to get resource label while parsing.");
-                        path.to_string()
-                    }
-                }
-            },
-            None => {
-                error!(path, "Resource has no label.");
-                path.to_string()
-            },
-        };
-
-        // Get metadata
-        let (resource_type, source, dependencies) = match resource_json.get("metadata") {
-            Some(metadata) => {
-                // Get resource type
-                let resource_type = match metadata.get("type") {
-                    Some(resource_type) => {
-                        match resource_type.as_str() {
-                            Some(resource_type) => {
-                                ResourceType::from(resource_type)
-                            },
-                            None => {
-                                error!(label, path, "Failed to get resource type while parsing.");
-                                return None;
-                            }
-                        }
-                    },
-                    None => {
-                        error!(label, path, "Resource has no type.");
-                        return None;
-                    }
-                };
-
-                // Get source
-                let source = match metadata.get("source") {
-                    Some(source) => {
-                        match source.as_str() {
-                            Some(source) => {
-                                ("res/".to_string() + source).to_string()
-                            },
-                            None => {
-                                error!(label, path, "Failed to get resource source while parsing.");
-                                return None;
-                            }
-                        }
-                    },
-                    None => {
-                        error!(label, path, "Resource has no source.");
-                        return None;
-                    }
-                };
-
-                // Get dependencies
-                let dependencies: Vec<Option<ResourceHandle>> = match metadata.get("dependencies") {
-                    Some(dependencies) => {
-                        match dependencies.as_array() {
-                            Some(dependencies) => {
-                                dependencies.iter().map(|d| {
-                                    match d.as_str() {
-                                        Some(_d) => {
-                                            // let resource_index = self.load::<T>(d);
-                                            // let handle = ResourceHandle::new(&label, resource_type, index, 
-                                            //     Arc::new(Mutex::new(self))
-                                            // );
-                                            None
-                                        },
-                                        None => {
-                                            error!(path, "Failed to get resource dependencies while parsing.");
-                                            None
-                                        }
-                                    }
-                                }).collect::<Vec<_>>()
-                            },
-                            None => {
-                                error!(path, "Failed to get resource dependencies while parsing.");
-                                Vec::new()
-                            }
-                        }
-                    },
-                    None => {
-                        error!(path, "Resource has no dependencies.");
-                        Vec::new()
-                    }
-                };
-
-                // Return metadata
-                (resource_type, source, dependencies)
-            },
-            None => {
-                error!(path, "Failed to get resource metadata while parsing.");
-                return None;
-            }
-        };
-
-        // Create resource description
-        Some(ResourceDescription {
-            label,
-            resource_type,
-            source,
-            dependencies,
-        })
     }
 
     /// Add a handle pointing to a resource location.
@@ -490,13 +393,54 @@ impl ResourcesManager {
     /// When all of the handles pointing to a resource location are dropped, the resource is unloaded.
     pub fn load<T: Resource>(&mut self, path: &str) -> ResourceHandle {
         // Get resource type
-        let resource_type = T::resource_type();
+        let res_type = T::resource_type();
 
-        // Start loading resource
-        let index: ResourceHandleIndex = self.instance.lock().unwrap().load::<T>(path);
+        // Acquire resource
+        let (index, desc) = self.instance.lock().unwrap().acquire(path);
 
-        // Create resource handle and return it
-        ResourceHandle::new(path, resource_type, index, self.instance.clone())
+        // Load resource
+        if desc.as_ref().is_some() {
+            // Create resource description
+            let d = desc.as_ref().unwrap();
+            let mut res_desc = ResourceDescription {
+                label: d.label.clone(),
+                resource_type: d.resource_type,
+                source: d.source.clone(),
+                dependencies: vec![],
+            };
+
+            // Setup dependencies
+            for dep in d.dependencies.iter() {
+                // Acquire dependency
+                let (dep_index, dep_desc_un) = self.instance.lock().unwrap()
+                    .acquire(dep.as_ref().unwrap());
+                
+                // Create dependency description
+                let d2 = dep_desc_un.as_ref().unwrap();
+                let dep_desc = ResourceDescription {
+                    label: d2.label.clone(),
+                    resource_type: d2.resource_type,
+                    source: d2.source.clone(),
+                    dependencies: vec![],
+                };
+
+                // Load dependency
+                self.instance.lock().unwrap().load(dep_index, dep_desc, d2.resource_type);
+
+                // Create dependency handle
+                let dep_handle = ResourceHandle::new(
+                    dep.as_ref().unwrap(), d2.resource_type, dep_index, self.instance.clone());
+
+                // Add dependency to resource description
+                res_desc.dependencies.push(dep_handle);
+            }
+            
+            // Load resource
+            self.instance.lock().unwrap().load(index, res_desc, res_type);
+        }
+
+        // Create resource handle
+        ResourceHandle::new(path, res_type, index, self.instance.clone())
     }
 
     /// Get a resource from a resource handle.

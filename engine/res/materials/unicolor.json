@@ -4,8 +4,8 @@
         "type": "MATERIAL",
         "source": "",
         "dependencies": [
-            "shaders/unicolor/frag",
-            "shaders/unicolor/vert"
+            { "type": "SHADER", "path": "shaders/unicolor/frag" },
+            { "type": "SHADER", "path": "shaders/unicolor/vert" }
         ]
     }
 }
