@@ -113,10 +113,7 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroupLayout` - The bind group layout of the buffer.
-    #[tracing::instrument]
     pub async fn create_bind_group_layout(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroupLayout {
-        trace!(self.label, "Creating bind group layout.");
-        
         // Create bind group layout
         let layout_entries = vec![
             wgpu::BindGroupLayoutEntry {
@@ -150,10 +147,7 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroup` - The bind group of the buffer.
-    #[tracing::instrument]
     pub async fn create_bind_group(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroup {
-        trace!(self.label, "Creating bind group.");
-
         // Create bind group layout
         let layout = self.create_bind_group_layout(instance, binding_type, visibility).await;
 

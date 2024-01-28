@@ -207,7 +207,7 @@ impl App {
 
         
         // Create nxn monkey
-        let n = 50;
+        let n = 30;
         for i in 0..n {
             for j in 0..n {
                 let monkey = match world.create_entity() {

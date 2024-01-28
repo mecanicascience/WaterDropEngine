@@ -81,7 +81,6 @@ impl World {
     /// 
     /// * `Some(EntityIndex)` - The entity index of the created entity.
     /// * `None` - If no more entities are available.
-    #[tracing::instrument]
     pub fn create_entity(&mut self) -> Option<EntityIndex> {
         self.entity_manager.create_entity()
     }
@@ -95,7 +94,6 @@ impl World {
     /// # Returns
     /// 
     /// * `&mut Self` - The world.
-    #[tracing::instrument]
     pub fn destroy_entity(&mut self, entity: EntityIndex) -> &mut Self {
         // Destroy the entity
         self.entity_manager.destroy_entity(entity);
@@ -132,7 +130,6 @@ impl World {
     /// 
     /// * `&mut Self` - The world.
     /// * `None` - If the component type is not registered.
-    #[tracing::instrument]
     pub fn add_component<T: 'static + std::fmt::Debug>(&mut self, entity: EntityIndex, component: T) -> Option<&mut Self> {
         // Add the component for the entity
         let ans = self.component_manager.add_component::<T>(entity, component);
@@ -165,7 +162,6 @@ impl World {
     /// 
     /// * `&mut Self` - The world.
     /// * `None` - If the component type is not registered.
-    #[tracing::instrument]
     pub fn remove_component<T: 'static>(&mut self, entity: EntityIndex) -> Option<&mut Self> {
         // Remove the component for the entity
         let ans = self.component_manager.remove_component::<T>(entity);
@@ -206,7 +202,6 @@ impl World {
     /// 
     /// * `&mut Self` - The world.
     /// * `None` - If the component type is not registered.
-    #[tracing::instrument]
     pub fn set_component<T: 'static + std::fmt::Debug>(&mut self, entity: EntityIndex, component: T) -> Option<&mut Self> {
         let ans = self.component_manager.set_component::<T>(entity, component);
         if ans.is_err() {

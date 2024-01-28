@@ -50,10 +50,7 @@ impl ResourceHandle {
     /// * `resource_type` - Type of the resource.
     /// * `index` - Index of the resource handle.
     /// * `manager` - Resources manager instance.
-    #[tracing::instrument]
     fn new(label: &str, resource_type: ResourceType, index: ResourceHandleIndex, manager: Arc<RwLock<ResourcesManagerInstance>>) -> Self {
-        trace!(label, "Creating resource handle.");
-
         // Add handle to resource location
         match manager.as_ref().try_write() {
             Ok(mut manager) => manager.add_handle(index),
@@ -69,9 +66,7 @@ impl ResourceHandle {
     }
 }
 impl Drop for ResourceHandle {
-    #[tracing::instrument]
     fn drop(&mut self) {
-        trace!(self.label, "Dropping resource handle.");
         match self.manager.as_ref().try_write() {
             Ok(mut manager) => manager.remove_handle(self.index, self.resource_type),
             Err(_) => warn!(self.label, "Failed to lock resources manager instance. The resource may not be unloaded."),
@@ -79,9 +74,7 @@ impl Drop for ResourceHandle {
     }
 }
 impl Clone for ResourceHandle {
-    #[tracing::instrument]
     fn clone(&self) -> Self {
-        trace!(self.label, "Cloning resource handle.");
         match self.manager.as_ref().try_write() {
             Ok(mut manager) => manager.add_handle(self.index),
             Err(_) => warn!(self.label, "Failed to lock resources manager instance. The resource may not be loaded."),
@@ -156,7 +149,6 @@ impl ResourcesManagerInstance {
     /// 
     /// * `ResourceHandleIndex` - Handle pointing to the resource location.
     /// * `Option<ResourceDescriptionUnresolved>` - The description of the resource if it is not already loaded, None otherwise.
-    #[tracing::instrument]
     fn acquire(&mut self, path: &str) -> (ResourceHandleIndex, Option<ResourceDescriptionUnresolved>) {
         // Check if resource is already loaded
         if let Some(index) = self.path_to_index.get(path) {
