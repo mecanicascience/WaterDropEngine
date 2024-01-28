@@ -104,8 +104,20 @@ impl Resource for MaterialResource {
         }
 
         // Check if shaders are loaded
-        let vert_shader = res_manager.get::<ShaderResource>(&self.temp_data.as_ref().unwrap().vert_shader).unwrap();
-        let frag_shader = res_manager.get::<ShaderResource>(&self.temp_data.as_ref().unwrap().frag_shader).unwrap();
+        let vert_shader = match res_manager.get::<ShaderResource>(&self.temp_data.as_ref().unwrap().vert_shader) {
+            Some(vert_shader) => vert_shader,
+            None => {
+                // Try again later
+                return;
+            }
+        };
+        let frag_shader = match res_manager.get::<ShaderResource>(&self.temp_data.as_ref().unwrap().frag_shader) {
+            Some(frag_shader) => frag_shader,
+            None => {
+                // Try again later
+                return;
+            }
+        };
 
         // Create material pipeline and set shaders
         let mut render_pipeline = RenderPipeline::new(format!("Material {}", self.label).as_str());
