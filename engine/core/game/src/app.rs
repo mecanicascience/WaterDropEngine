@@ -36,6 +36,7 @@ impl App {
         let (event_t, mut event_r) = mpsc::unbounded_channel();
         let (event_relay_t, mut event_relay_r) = mpsc::unbounded_channel();
         let (input_t, mut input_r) = mpsc::unbounded_channel();
+        let (resize_t, mut resize_r) = mpsc::unbounded_channel();
         let window_join = std::thread::spawn(move || {
             // Create event loop
             let event_loop = window.create();
@@ -65,12 +66,9 @@ impl App {
                         event: WindowEvent::Resized(size),
                         window_id,
                     } if window_id == window_index => {
-                        if event_relay_r.try_recv().is_ok() {
-                            let _event_loop_wait_span = span!(Level::INFO, "event_loop_wait").entered();
-                            event_t.send(LoopEvent::Resize(size.width, size.height)).unwrap_or_else(|e| {
-                                throw!("Failed to send resize event : {}.", e);
-                            });
-                        }
+                        resize_t.send((size.width, size.height)).unwrap_or_else(|e| {
+                            throw!("Failed to send resize event : {}.", e);
+                        });
                     },
 
                     // Check for input events
@@ -221,7 +219,7 @@ impl App {
                 world
                     .add_component(monkey, LabelComponent { label : "Monkey".to_string() }).unwrap()
                     .add_component(monkey, TransformComponent {
-                        position: Vec3f { x: i as f32 * 2.0, y: 0.0, z: j as f32 * 2.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+                        position: Vec3f { x: i as f32 * 1.0, y: 0.0, z: j as f32 * 1.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
                     }).unwrap()
                     .add_component(monkey, RenderComponentDynamic {
                         id: i * n + j + 1,
@@ -284,45 +282,57 @@ impl App {
         let mut fps_frames = vec![0.0; 20];
         let mut fps_frames_index = 0;
         let mut fps_avg = 0.0;
-
+        
         // Create camera rotation
         let mut camera_rotation = Vec2f { x: 0.0, y: 0.0 };
         let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
         let move_speed = 0.1;
         let sensitivity = 8.0;
-
+        
         // Run main loop
         loop {
             let _next_frame_span = span!(Level::INFO, "next_frame").entered();
             debug!("\n\n\n======== Next frame ========");
-
+            
             // ====== Wait for next render event ======
             {
                 let _next_frame_wait_span = span!(Level::INFO, "next_frame_wait").entered();
                 trace!("Waiting for next frame.");
                 let _ = event_relay_t.send(());
 
+                // Check if should resize
+                if let Ok(ev) = resize_r.try_recv() {
+                    trace!("Handling resize event due to window event.");
+                    
+                    // Make sure to get the last resize event
+                    let mut ev = ev;
+                    while let Ok(ev_) = resize_r.try_recv() {
+                        ev = ev_;
+                    }
+
+                    // Resize window
+                    let (width, height) = ev;
+                    window.resize(width, height);
+
+                    // Resize render instance
+                    render_instance.resize(width, height).unwrap_or_else(|e| {
+                        throw!("Failed to resize render instance : {:?}.", e);
+                    });
+
+                    // Resize render
+                    renderer.write().unwrap().resize(&render_instance, width, height).await;
+                }
+                
                 // Wait for next event
                 let ev = event_r.recv().await;
                 if ev.is_none() { break; }
                 match ev.unwrap() {
                     LoopEvent::Close => { break; },
                     LoopEvent::Redraw => { },
-                    LoopEvent::Resize(width, height) => {
-                        trace!("Handling resize event.");
-
-                        // Resize window
-                        window.resize(width, height);
-
-                        // Resize render instance
-                        render_instance.resize(width, height).unwrap_or_else(|e| {
-                            throw!("Failed to resize render instance : {:?}.", e);
-                        });
-
-                        // Resize render
-                        renderer.write().unwrap().resize(&render_instance, width, height).await;
-                    },
+                    _ => { }
                 }
+
+
                 trace!("Handling next frame.");
             }
 
@@ -421,16 +431,28 @@ impl App {
 
             // ====== Render ======
             {
-                match renderer.read().unwrap().render( &render_instance, &world, &res_manager).await {
+                let mut should_resize = true;
+                match renderer.read().unwrap().render(&render_instance, &world, &res_manager).await {
                     RenderEvent::Redraw(_) => {},
                     RenderEvent::Close => {
                         info!("Closing engine.");
                         break;
                     },
-                    RenderEvent::Resize(width, height) => {
-                        debug!("Resizing window to {}x{}.", width, height);
+                    RenderEvent::Resize(_, _) => {
+                        trace!("Handling resize event after querying texture.");
+                        should_resize = true;
                     },
                     RenderEvent::None => {},
+                }
+
+                if should_resize {
+                    // Resize render instance
+                    render_instance.resize(window.size.0, window.size.1).unwrap_or_else(|e| {
+                        throw!("Failed to resize render instance : {:?}.", e);
+                    });
+
+                    // Resize render
+                    renderer.write().unwrap().resize(&render_instance, window.size.0, window.size.1).await;
                 }
             }
 

@@ -312,16 +312,24 @@ impl RenderInstance {
     #[tracing::instrument]
     pub fn resize(&mut self, width: u32, height: u32) -> Result<(), RenderError> {
         trace!(self.label, width, height, "Resizing render instance.");
+
         // If no surface, return
         if self.surface.is_none() {
             error!(self.label, "Cannot resize render instance without a surface.");
             return Err(RenderError::CannotResize);
         }
 
+        // If same size, return
+        if self.surface_config.as_ref().unwrap().width == width && self.surface_config.as_ref().unwrap().height == height {
+            return Ok(());
+        }
+
         // Resize surface
-        self.surface_config.as_mut().unwrap().width = width;
-        self.surface_config.as_mut().unwrap().height = height;
-        self.surface.as_ref().unwrap().configure(&self.device, &self.surface_config.as_ref().unwrap());
+        if self.surface_config.as_ref().unwrap().width > 0 && self.surface_config.as_ref().unwrap().height > 0 {
+            self.surface_config.as_mut().unwrap().width = width;
+            self.surface_config.as_mut().unwrap().height = height;
+            self.surface.as_ref().unwrap().configure(&self.device, &self.surface_config.as_ref().unwrap());
+        }
         Ok(())
     }
 }
