@@ -207,7 +207,7 @@ impl App {
 
         
         // Create nxn monkey
-        let n = 10;
+        let n = 50;
         for i in 0..n {
             for j in 0..n {
                 let monkey = match world.create_entity() {
@@ -219,7 +219,7 @@ impl App {
                 world
                     .add_component(monkey, LabelComponent { label : "Monkey".to_string() }).unwrap()
                     .add_component(monkey, TransformComponent {
-                        position: Vec3f { x: i as f32 * 1.0, y: 0.0, z: j as f32 * 1.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+                        position: Vec3f { x: i as f32 * 1.0 - 15.0, y: 0.0, z: j as f32 * 1.0 - 15.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
                     }).unwrap()
                     .add_component(monkey, RenderComponentDynamic {
                         id: i * n + j + 1,
@@ -431,7 +431,7 @@ impl App {
 
             // ====== Render ======
             {
-                let mut should_resize = true;
+                let mut should_resize = false;
                 match renderer.read().unwrap().render(&render_instance, &world, &res_manager).await {
                     RenderEvent::Redraw(_) => {},
                     RenderEvent::Close => {
