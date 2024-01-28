@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use tokio::sync::mpsc;
 use tracing::{span, Level};
-use wde_ecs::{World, TransformComponent, LabelComponent, RenderComponentDynamic, CameraUniform, CameraComponent};
+use wde_ecs::{CameraComponent, CameraUniform, LabelComponent, RenderComponentDynamic, RenderComponentStatic, TransformComponent, World};
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
 use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
@@ -166,26 +166,27 @@ impl App {
         world
             .register_component::<LabelComponent>()
             .register_component::<TransformComponent>()
-            .register_component::<RenderComponentDynamic>();
+            .register_component::<RenderComponentDynamic>()
+            .register_component::<RenderComponentStatic>();
 
 
-        // Create big model
-        let big_model = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
+        // // Create big model
+        // let big_model = match world.create_entity() {
+        //     Some(e) => e,
+        //     None => throw!("Failed to create entity. No more entity slots available."),
+        // };
 
-        // Set model to big model
-        world
-            .add_component(big_model, LabelComponent { label : "Big model".to_string() }).unwrap()
-            .add_component(big_model, TransformComponent {
-                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
-            }).unwrap()
-            .add_component(big_model, RenderComponentDynamic {
-                id: 0,
-                model: res_manager.load::<ModelResource>("models/lost_empire"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor")
-            }).unwrap();
+        // // Set model to big model
+        // world
+        //     .add_component(big_model, LabelComponent { label : "Big model".to_string() }).unwrap()
+        //     .add_component(big_model, TransformComponent {
+        //         position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+        //     }).unwrap()
+        //     .add_component(big_model, RenderComponentDynamic {
+        //         id: 0,
+        //         model: res_manager.load::<ModelResource>("models/lost_empire"),
+        //         material: res_manager.load::<MaterialResource>("materials/unicolor")
+        //     }).unwrap();
 
 
         // Create cube
@@ -201,10 +202,34 @@ impl App {
                 position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
             }).unwrap()
             .add_component(cube, RenderComponentDynamic {
-                id: 1,
+                id: 0,
                 model: res_manager.load::<ModelResource>("models/cube"),
                 material: res_manager.load::<MaterialResource>("materials/unicolor")
             }).unwrap();
+
+        
+        // Create nxn monkey
+        let n = 10;
+        for i in 0..n {
+            for j in 0..n {
+                let monkey = match world.create_entity() {
+                    Some(e) => e,
+                    None => throw!("Failed to create entity. No more entity slots available."),
+                };
+
+                // Set model to monkey
+                world
+                    .add_component(monkey, LabelComponent { label : "Monkey".to_string() }).unwrap()
+                    .add_component(monkey, TransformComponent {
+                        position: Vec3f { x: i as f32 * 2.0, y: 0.0, z: j as f32 * 2.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+                    }).unwrap()
+                    .add_component(monkey, RenderComponentDynamic {
+                        id: i * n + j + 1,
+                        model: res_manager.load::<ModelResource>("models/monkey"),
+                        material: res_manager.load::<MaterialResource>("materials/unicolor")
+                    }).unwrap();
+            }
+        }
 
 
 

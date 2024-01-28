@@ -1,7 +1,7 @@
 use tracing::{debug, error};
 use wde_ecs::{RenderComponentDynamic, RenderComponentStatic, TransformComponent, TransformUniform, World};
 use wde_resources::{MaterialResource, ModelResource, ResourcesManager};
-use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp};
+use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
 
 #[derive(Debug)]
 pub struct Renderer {
@@ -11,6 +11,9 @@ pub struct Renderer {
 
     // Camera buffer bind group
     camera_buffer_bind_group: BindGroup,
+
+    // Depth texture
+    depth_texture: Texture,
 }
 
 impl Renderer {
@@ -39,11 +42,20 @@ impl Renderer {
             BufferBindingType::Uniform,
             ShaderStages::VERTEX).await;
 
+        // Create depth texture
+        let depth_texture = Texture::new(
+            render_instance,
+            "Depth texture",
+            (render_instance.surface_config.as_ref().unwrap().width, render_instance.surface_config.as_ref().unwrap().height),
+            Texture::DEPTH_FORMAT,
+            TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING).await;
+
         // Create instance
         Self {
             objects,
             objects_bind_group,
-            camera_buffer_bind_group
+            camera_buffer_bind_group,
+            depth_texture,
         }
     }
 
@@ -52,6 +64,34 @@ impl Renderer {
         for entity in world.entity_manager.living_entities.iter() {
             // Get render component dynamic
             if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+                // Create camera buffer bind group
+                let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
+                    &render_instance,
+                    BufferBindingType::Uniform,
+                    ShaderStages::VERTEX).await;
+
+                // Create object bind group layout
+                let objects_bind_group_layout = self.objects.create_bind_group_layout(&render_instance,
+                    BufferBindingType::Storage { read_only: true },
+                    ShaderStages::VERTEX).await;
+
+                // Get material
+                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                    // Check if pipeline is initialized
+                    if !material.data.as_ref().unwrap().pipeline.is_initialized() {
+                        material.data.as_mut().unwrap().pipeline
+                            .add_bind_group(camera_buffer_bind_group_layout)
+                            .add_bind_group(objects_bind_group_layout)
+                            .init(&render_instance).await
+                            .unwrap_or_else(|_| {
+                                error!("Failed to initialize pipeline for material {}.", material.label);
+                            });
+                    }
+                }
+            }
+
+            // Get render component static
+            if let Some(render_component) = world.get_component::<RenderComponentStatic>(*entity) {
                 // Create camera buffer bind group
                 let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
                     &render_instance,
@@ -144,7 +184,7 @@ impl Renderer {
                     load: LoadOp::Clear(Color { r : 0.1, g: 0.105, b: 0.11, a: 1.0 }),
                     store: StoreOp::Store,
                 }),
-                None);
+                Some(&self.depth_texture.view));
 
             // Set bind groups
             render_pass.set_bind_group(0, &self.camera_buffer_bind_group);

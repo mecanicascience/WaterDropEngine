@@ -1,0 +1,9 @@
+{
+    "label": "Monkey",
+    "metadata": {
+        "type": "MODEL",
+        "source": "models/monkey.obj",
+        "dependencies": []
+    },
+    "data": {}
+}

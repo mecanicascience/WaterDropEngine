@@ -123,7 +123,8 @@ impl Resource for MaterialResource {
         let mut render_pipeline = RenderPipeline::new(format!("Material {}", self.label).as_str());
         let _ = render_pipeline
             .set_shader(&vert_shader.data.as_ref().unwrap().module, ShaderType::Vertex)
-            .set_shader(&frag_shader.data.as_ref().unwrap().module, ShaderType::Fragment);
+            .set_shader(&frag_shader.data.as_ref().unwrap().module, ShaderType::Fragment)
+            .set_depth_stencil();
 
         // Create material data
         self.data = Some(MaterialData {

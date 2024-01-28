@@ -6,12 +6,7 @@ use crate::{RenderInstance, BindGroup};
 pub type TextureView = wgpu::TextureView;
 
 /// Texture usages.
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum TextureUsage {
-    Sampled,
-    Storage,
-    OutputAttachment,
-}
+pub type TextureUsages = wgpu::TextureUsages;
 
 // Texture format.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -58,7 +53,7 @@ impl Texture {
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
     #[tracing::instrument]
-    pub async fn new(instance: &RenderInstance, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsage) -> Self {
+    pub async fn new(instance: &RenderInstance, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsages) -> Self {
         info!(label, "Creating texture.");
         
         // Create texture
@@ -80,11 +75,7 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: f,
-            usage: match usage {
-                TextureUsage::Sampled => wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                TextureUsage::Storage => wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
-                TextureUsage::OutputAttachment => wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            },
+            usage: usage | wgpu::TextureUsages::COPY_DST,
             view_formats: &[f]
         });
 
