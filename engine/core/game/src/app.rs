@@ -6,7 +6,7 @@ use wde_ecs::{World, TransformComponent, LabelComponent, RenderComponentDynamic,
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
 use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
-use wde_resources::{ModelResource, ResourcesManager};
+use wde_resources::{MaterialResource, ModelResource, ResourcesManager};
 use wde_wgpu::{Buffer, ElementState, Event, KeyCode, LoopEvent, PhysicalKey, RenderEvent, RenderInstance, Window, WindowEvent};
 
 use crate::Renderer;
@@ -184,6 +184,7 @@ impl App {
             .add_component(big_model, RenderComponentDynamic {
                 id: 0,
                 model: res_manager.load::<ModelResource>("models/lost_empire.obj"),
+                material: res_manager.load::<MaterialResource>("materials/unicolor.json")
             }).unwrap();
 
 
@@ -201,7 +202,8 @@ impl App {
             }).unwrap()
             .add_component(cube, RenderComponentDynamic {
                 id: 1,
-                model: res_manager.load::<ModelResource>("models/cube.obj")
+                model: res_manager.load::<ModelResource>("models/cube.obj"),
+                material: res_manager.load::<MaterialResource>("materials/unicolor.json")
             }).unwrap();
 
 

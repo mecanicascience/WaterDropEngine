@@ -6,7 +6,9 @@ pub struct RenderComponentDynamic {
     /// Unique identifier of the entity to render.
     pub id: u32,
     /// The model to use for rendering.
-    pub model: ResourceHandle
+    pub model: ResourceHandle,
+    /// The material to use for rendering.
+    pub material: ResourceHandle
 }
 
 /// Store the rendering properties of a static entity.
@@ -15,5 +17,7 @@ pub struct RenderComponentStatic {
     /// Unique identifier of the entity to render.
     pub id: u32,
     /// The model to use for rendering.
-    pub model: ResourceHandle
+    pub model: ResourceHandle,
+    /// The material to use for rendering.
+    pub material: ResourceHandle
 }

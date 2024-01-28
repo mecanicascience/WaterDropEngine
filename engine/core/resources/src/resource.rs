@@ -15,6 +15,8 @@ pub enum ResourceType {
     Model,
     /// Shader resource.
     Shader,
+    /// Material resource.
+    Material,
 }
 
 
