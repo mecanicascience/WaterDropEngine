@@ -164,7 +164,6 @@ impl<'a> RenderPass<'a> {
     /// 
     /// * `RenderError::PipelineNotSet` - The pipeline is not set.
     /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
-    #[tracing::instrument]
     pub fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) -> Result<(), RenderError> {
         if !self.pipeline_set {
             error!(self.label, "Pipeline is not set.");
@@ -190,7 +189,6 @@ impl<'a> RenderPass<'a> {
     /// * `RenderError::PipelineNotSet` - The pipeline is not set.
     /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
     /// * `RenderError::MissingIndexBuffer` - The index buffer is not set.
-    #[tracing::instrument]
     pub fn draw_indexed(&mut self, indices: Range<u32>, instance_index: u32) -> Result<(), RenderError> {
         if !self.pipeline_set {
             error!(self.label, "Pipeline is not set.");

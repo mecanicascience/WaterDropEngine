@@ -138,10 +138,10 @@ impl App {
         let mut res_manager = ResourcesManager::new();
         
         // Wait for window
-        let window = window_r.recv().await.unwrap();
+        let mut window = window_r.recv().await.unwrap();
 
         // Create render instance
-        let render_instance = RenderInstance::new("WaterDropEngine", Some(&window)).await;
+        let mut render_instance = RenderInstance::new("WaterDropEngine", Some(&window)).await;
 
         // Handle editor messages and push new frame
         if editor_handler.is_some() {
@@ -308,7 +308,20 @@ impl App {
                 match ev.unwrap() {
                     LoopEvent::Close => { break; },
                     LoopEvent::Redraw => { },
-                    LoopEvent::Resize(_, _) => { continue; },
+                    LoopEvent::Resize(width, height) => {
+                        trace!("Handling resize event.");
+
+                        // Resize window
+                        window.resize(width, height);
+
+                        // Resize render instance
+                        render_instance.resize(width, height).unwrap_or_else(|e| {
+                            throw!("Failed to resize render instance : {:?}.", e);
+                        });
+
+                        // Resize render
+                        renderer.write().unwrap().resize(&render_instance, width, height).await;
+                    },
                 }
                 trace!("Handling next frame.");
             }

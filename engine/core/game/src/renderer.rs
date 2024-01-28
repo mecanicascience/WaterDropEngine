@@ -64,6 +64,13 @@ impl Renderer {
         for entity in world.entity_manager.living_entities.iter() {
             // Get render component dynamic
             if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+                // Check if pipeline is initialized
+                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                    if material.data.as_ref().unwrap().pipeline.is_initialized() {
+                        continue;
+                    }
+                }
+
                 // Create camera buffer bind group
                 let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
                     &render_instance,
@@ -75,23 +82,27 @@ impl Renderer {
                     BufferBindingType::Storage { read_only: true },
                     ShaderStages::VERTEX).await;
 
-                // Get material
+                // Initialize pipeline
                 if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
-                    // Check if pipeline is initialized
-                    if !material.data.as_ref().unwrap().pipeline.is_initialized() {
-                        material.data.as_mut().unwrap().pipeline
-                            .add_bind_group(camera_buffer_bind_group_layout)
-                            .add_bind_group(objects_bind_group_layout)
-                            .init(&render_instance).await
-                            .unwrap_or_else(|_| {
-                                error!("Failed to initialize pipeline for material {}.", material.label);
-                            });
-                    }
+                    material.data.as_mut().unwrap().pipeline
+                        .add_bind_group(camera_buffer_bind_group_layout)
+                        .add_bind_group(objects_bind_group_layout)
+                        .init(&render_instance).await
+                        .unwrap_or_else(|_| {
+                            error!("Failed to initialize pipeline for material {}.", material.label);
+                        });
                 }
             }
 
             // Get render component static
             if let Some(render_component) = world.get_component::<RenderComponentStatic>(*entity) {
+                // Check if pipeline is initialized
+                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                    if material.data.as_ref().unwrap().pipeline.is_initialized() {
+                        continue;
+                    }
+                }
+
                 // Create camera buffer bind group
                 let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
                     &render_instance,
@@ -103,18 +114,15 @@ impl Renderer {
                     BufferBindingType::Storage { read_only: true },
                     ShaderStages::VERTEX).await;
 
-                // Get material
+                // Initialize pipeline
                 if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
-                    // Check if pipeline is initialized
-                    if !material.data.as_ref().unwrap().pipeline.is_initialized() {
-                        material.data.as_mut().unwrap().pipeline
-                            .add_bind_group(camera_buffer_bind_group_layout)
-                            .add_bind_group(objects_bind_group_layout)
-                            .init(&render_instance).await
-                            .unwrap_or_else(|_| {
-                                error!("Failed to initialize pipeline for material {}.", material.label);
-                            });
-                    }
+                    material.data.as_mut().unwrap().pipeline
+                        .add_bind_group(camera_buffer_bind_group_layout)
+                        .add_bind_group(objects_bind_group_layout)
+                        .init(&render_instance).await
+                        .unwrap_or_else(|_| {
+                            error!("Failed to initialize pipeline for material {}.", material.label);
+                        });
                 }
             }
         }
@@ -256,5 +264,16 @@ impl Renderer {
 
         // Return
         RenderEvent::None
+    }
+
+    #[tracing::instrument]
+    pub async fn resize(&mut self, render_instance: &RenderInstance, width: u32, height: u32) {
+        // Recreate depth texture
+        self.depth_texture = Texture::new(
+            render_instance,
+            "Depth texture",
+            (width, height),
+            Texture::DEPTH_FORMAT,
+            TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING).await;
     }
 }

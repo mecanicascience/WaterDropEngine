@@ -48,7 +48,6 @@ impl TransformComponent {
     /// # Returns
     /// 
     /// The matrix transform from object to world space (translate * rotate * scale).
-    #[tracing::instrument]
     pub fn transform_obj_to_world(transform: TransformComponent) -> Mat4f {
         // Compute rotation matrix components
         let q = transform.rotation;
@@ -95,7 +94,6 @@ impl TransformComponent {
     /// # Returns
     /// 
     /// The matrix transform from world to object space (translate * rotate * scale)^(-1).
-    #[tracing::instrument]
     pub fn transform_world_to_obj(transform: TransformComponent) -> Mat4f {
         // Compute rotation matrix components
         let q = transform.rotation;
