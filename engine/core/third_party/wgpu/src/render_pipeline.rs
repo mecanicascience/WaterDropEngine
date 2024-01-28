@@ -72,6 +72,7 @@ impl std::fmt::Debug for RenderPipelineConfig {
 /// ```
 pub struct RenderPipeline {
     pub label: String,
+    is_initialized: bool,
     pipeline: Option<RenderPipelineRef>,
     layout: Option<PipelineLayout>,
     config: RenderPipelineConfig,
@@ -102,6 +103,7 @@ impl RenderPipeline {
             label: label.to_string(),
             pipeline: None,
             layout: None,
+            is_initialized: false,
             config: RenderPipelineConfig {
                 depth_stencil: false,
                 primitive_topology: wgpu::PrimitiveTopology::TriangleList,
@@ -273,6 +275,7 @@ impl RenderPipeline {
         // Set pipeline
         self.pipeline = Some(pipeline);
         self.layout = Some(layout);
+        self.is_initialized = true;
 
         res
     }
@@ -294,6 +297,16 @@ impl RenderPipeline {
     /// * `Option<&PipelineLayout>` - The pipeline layout.
     pub fn get_layout(&self) -> Option<&PipelineLayout> {
         self.layout.as_ref()
+    }
+
+    /// Check if the render pipeline is initialized.
+    ///
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the render pipeline is initialized, false otherwise.
+    pub fn is_initialized(&self) -> bool {
+        self.is_initialized
     }
 }
 

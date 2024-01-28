@@ -1,3 +1,6 @@
+/// Type for a bind group layout.
+pub type BindGroupLayout = wgpu::BindGroupLayout;
+
 /// Structure for a bind group.
 #[derive(Debug)]
 pub struct BindGroup {

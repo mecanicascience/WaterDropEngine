@@ -107,20 +107,11 @@ impl Resource for MaterialResource {
         let vert_shader = res_manager.get::<ShaderResource>(&self.temp_data.as_ref().unwrap().vert_shader).unwrap();
         let frag_shader = res_manager.get::<ShaderResource>(&self.temp_data.as_ref().unwrap().frag_shader).unwrap();
 
-        // Create camera bind group layout
-        // let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
-        //     &render_instance,
-        //     wde_wgpu::BufferBindingType::Uniform,
-        //     ShaderStages::VERTEX).await;
-
-        // Create default render pipeline
-        let mut render_pipeline = RenderPipeline::new("Main Render");
+        // Create material pipeline and set shaders
+        let mut render_pipeline = RenderPipeline::new(format!("Material {}", self.label).as_str());
         let _ = render_pipeline
             .set_shader(&vert_shader.data.as_ref().unwrap().module, ShaderType::Vertex)
-            .set_shader(&frag_shader.data.as_ref().unwrap().module, ShaderType::Fragment)
-            // .add_bind_group(camera_buffer_bind_group_layout)
-            // .add_bind_group(objects_bind_group_layout)
-            .init(&render_instance);
+            .set_shader(&frag_shader.data.as_ref().unwrap().module, ShaderType::Fragment);
 
         // Create material data
         self.data = Some(MaterialData {

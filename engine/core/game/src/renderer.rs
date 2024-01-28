@@ -1,19 +1,16 @@
-use tracing::debug;
-use wde_ecs::{RenderComponentDynamic, TransformComponent, TransformUniform, World};
-use wde_resources::{ModelResource, ResourcesManager, ShaderResource};
-use wde_wgpu::{Buffer, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderPipeline, ShaderStages, ShaderType, StoreOp};
+use tracing::{debug, error};
+use wde_ecs::{RenderComponentDynamic, RenderComponentStatic, TransformComponent, TransformUniform, World};
+use wde_resources::{MaterialResource, ModelResource, ResourcesManager};
+use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp};
 
 #[derive(Debug)]
 pub struct Renderer {
     // Object matrices SSBO
     objects: Buffer,
-    objects_bind_group: wde_wgpu::BindGroup,
+    objects_bind_group: BindGroup,
 
     // Camera buffer bind group
-    camera_buffer_bind_group: wde_wgpu::BindGroup,
-
-    // Render pipeline
-    render_pipeline: wde_wgpu::RenderPipeline,
+    camera_buffer_bind_group: BindGroup,
 }
 
 impl Renderer {
@@ -27,56 +24,59 @@ impl Renderer {
             &render_instance,
             "Object matrices SSBO",
             std::mem::size_of::<TransformUniform>() * MAX_OBJECTS as usize,
-            wde_wgpu::BufferUsage::STORAGE | wde_wgpu::BufferUsage::MAP_WRITE,
+            BufferUsage::STORAGE | BufferUsage::MAP_WRITE,
             None);
 
-        // Create object matrices SSBO bind group and bind group layout
-        let objects_bind_group_layout = objects.create_bind_group_layout(
-            &render_instance,
-            wde_wgpu::BufferBindingType::Storage { read_only: true },
-            ShaderStages::VERTEX).await;
+        // Create object matrices SSBO bind group
         let objects_bind_group = objects.create_bind_group(
             &render_instance,
-            wde_wgpu::BufferBindingType::Storage { read_only: true },
+            BufferBindingType::Storage { read_only: true },
             ShaderStages::VERTEX).await;
 
         // Create camera buffer bind group
         let camera_buffer_bind_group = camera_buffer.create_bind_group(
             &render_instance,
-            wde_wgpu::BufferBindingType::Uniform,
+            BufferBindingType::Uniform,
             ShaderStages::VERTEX).await;
-
-
-
-        // Create shaders
-        let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/unicolor/vert");
-        let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/unicolor/frag");
-
-        // Wait for shaders to load
-        res_manager.wait_for(&vertex_shader_handle, &render_instance).await;
-        res_manager.wait_for(&fragment_shader_handle, &render_instance).await;
-
-        // Create camera bind group layout
-        let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
-            &render_instance,
-            wde_wgpu::BufferBindingType::Uniform,
-            ShaderStages::VERTEX).await;
-
-        // Create default render pipeline
-        let mut render_pipeline = RenderPipeline::new("Main Render");
-        let _ = render_pipeline
-            .set_shader(&res_manager.get::<ShaderResource>(&vertex_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Vertex)
-            .set_shader(&res_manager.get::<ShaderResource>(&fragment_shader_handle).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
-            .add_bind_group(camera_buffer_bind_group_layout)
-            .add_bind_group(objects_bind_group_layout)
-            .init(&render_instance).await;
 
         // Create instance
         Self {
             objects,
             objects_bind_group,
-            camera_buffer_bind_group,
-            render_pipeline,
+            camera_buffer_bind_group
+        }
+    }
+
+    pub async fn update(&mut self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager, camera_buffer: &mut Buffer) {
+        // Render entities
+        for entity in world.entity_manager.living_entities.iter() {
+            // Get render component dynamic
+            if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+                // Create camera buffer bind group
+                let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
+                    &render_instance,
+                    BufferBindingType::Uniform,
+                    ShaderStages::VERTEX).await;
+
+                // Create object bind group layout
+                let objects_bind_group_layout = self.objects.create_bind_group_layout(&render_instance,
+                    BufferBindingType::Storage { read_only: true },
+                    ShaderStages::VERTEX).await;
+
+                // Get material
+                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                    // Check if pipeline is initialized
+                    if !material.data.as_ref().unwrap().pipeline.is_initialized() {
+                        material.data.as_mut().unwrap().pipeline
+                            .add_bind_group(camera_buffer_bind_group_layout)
+                            .add_bind_group(objects_bind_group_layout)
+                            .init(&render_instance).await
+                            .unwrap_or_else(|_| {
+                                error!("Failed to initialize pipeline for material {}.", material.label);
+                            });
+                    }
+                }
+            }
         }
     }
 
@@ -121,9 +121,9 @@ impl Renderer {
     }
 
     #[tracing::instrument]
-    pub async fn render(renderer: &Renderer, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
+    pub async fn render(&self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
         // Handle render event
-        let render_texture: wde_wgpu::RenderTexture = match RenderInstance::get_current_texture(&render_instance) {
+        let render_texture: RenderTexture = match RenderInstance::get_current_texture(&render_instance) {
             RenderEvent::Redraw(render_texture) => render_texture,
             event => return event,
         };
@@ -147,8 +147,8 @@ impl Renderer {
                 None);
 
             // Set bind groups
-            render_pass.set_bind_group(0, &renderer.camera_buffer_bind_group);
-            render_pass.set_bind_group(1, &renderer.objects_bind_group);
+            render_pass.set_bind_group(0, &self.camera_buffer_bind_group);
+            render_pass.set_bind_group(1, &self.objects_bind_group);
 
             // Render entities
             for entity in world.entity_manager.living_entities.iter() {
@@ -160,32 +160,48 @@ impl Renderer {
                         render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
                         render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
 
-                        // Set render pipeline
-                        match render_pass.set_pipeline(&renderer.render_pipeline) {
-                            Ok(_) => {
-                                let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id);
+                        // Get material
+                        if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                            // Check if pipeline is initialized
+                            if !material.data.as_ref().unwrap().pipeline.is_initialized() {
                                 continue;
-                            },
-                            Err(_) => {}
+                            }
+
+                            // Set render pipeline
+                            match render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline) {
+                                Ok(_) => {
+                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id);
+                                    continue;
+                                },
+                                Err(_) => {}
+                            }
                         }
                     }
                 }
 
                 // Get render component static
-                if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+                if let Some(render_component) = world.get_component::<RenderComponentStatic>(*entity) {
                     // Get model
                     if let Some(model) = res_manager.get::<ModelResource>(&render_component.model) {
                         // Set model buffers
                         render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
                         render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
 
-                        // Set render pipeline
-                        match render_pass.set_pipeline(&renderer.render_pipeline) {
-                            Ok(_) => {
-                                let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id);
+                        // Get material
+                        if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                            // Check if pipeline is initialized
+                            if !material.data.as_ref().unwrap().pipeline.is_initialized() {
                                 continue;
-                            },
-                            Err(_) => {}
+                            }
+
+                            // Set render pipeline
+                            match render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline) {
+                                Ok(_) => {
+                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id);
+                                    continue;
+                                },
+                                Err(_) => {}
+                            }
                         }
                     }
                 }

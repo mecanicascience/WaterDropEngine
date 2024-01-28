@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use tokio::sync::mpsc;
 use tracing::{span, Level};
@@ -241,12 +241,13 @@ impl App {
         let _renderer_initialization_span = span!(Level::INFO, "renderer_initialization").entered();
 
         // Create renderer
-        let renderer = Arc::new(Renderer::new(
+        let renderer = Arc::new(RwLock::new(Renderer::new(
             &render_instance, &mut world, &mut res_manager, &mut camera_buffer
-        ).await);
+        ).await));
 
-        // Update render SSBO
-        renderer.update_ssbo(&render_instance, &world, true);
+        // Update render
+        renderer.write().unwrap().update(&render_instance, &world, &res_manager, &mut camera_buffer).await;
+        renderer.write().unwrap().update_ssbo(&render_instance, &world, true);
 
         // End of renderer initialization
         drop(_renderer_initialization_span);
@@ -304,8 +305,9 @@ impl App {
                 // Update world
                 res_manager.update(&render_instance);
 
-                // Update render SSBO
-                renderer.update_ssbo(&render_instance, &world, false);
+                // Update render
+                renderer.write().unwrap().update(&render_instance, &world, &res_manager, &mut camera_buffer).await;
+                renderer.write().unwrap().update_ssbo(&render_instance, &world, false);
 
                 // Update camera
                 {
@@ -381,7 +383,7 @@ impl App {
 
             // ====== Render ======
             {
-                match Renderer::render(renderer.as_ref(), &render_instance, &world, &res_manager).await {
+                match renderer.read().unwrap().render( &render_instance, &world, &res_manager).await {
                     RenderEvent::Redraw(_) => {},
                     RenderEvent::Close => {
                         info!("Closing engine.");
