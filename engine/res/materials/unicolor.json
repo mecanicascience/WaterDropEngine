@@ -1,0 +1,11 @@
+{
+    "label": "Material label",
+    "metadata": {
+        "type": "MATERIAL",
+        "source": "",
+        "dependencies": [
+            "shaders/unicolor/frag",
+            "shaders/unicolor/vert"
+        ]
+    }
+}

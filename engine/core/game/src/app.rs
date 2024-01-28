@@ -183,8 +183,8 @@ impl App {
             }).unwrap()
             .add_component(big_model, RenderComponentDynamic {
                 id: 0,
-                model: res_manager.load::<ModelResource>("models/lost_empire.obj"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor.json")
+                model: res_manager.load::<ModelResource>("models/lost_empire"),
+                material: res_manager.load::<MaterialResource>("materials/unicolor")
             }).unwrap();
 
 
@@ -202,8 +202,8 @@ impl App {
             }).unwrap()
             .add_component(cube, RenderComponentDynamic {
                 id: 1,
-                model: res_manager.load::<ModelResource>("models/cube.obj"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor.json")
+                model: res_manager.load::<ModelResource>("models/cube"),
+                material: res_manager.load::<MaterialResource>("materials/unicolor")
             }).unwrap();
 
 

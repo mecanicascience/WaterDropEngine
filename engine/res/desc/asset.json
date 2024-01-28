@@ -1,0 +1,11 @@
+{
+    "label": "Asset",
+    "metadata": {
+        "type": "asset-type",
+        "source": "asset-source-file-path",
+        "dependencies": [
+            "asset-path-1",
+            "asset-path-2"
+        ]
+    }
+}

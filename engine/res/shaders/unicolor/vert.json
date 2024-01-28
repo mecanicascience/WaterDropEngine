@@ -1,0 +1,8 @@
+{
+    "label": "Unicolor Vertex",
+    "metadata": {
+        "type": "SHADER",
+        "source": "shaders/unicolor/vert.wgsl",
+        "dependencies": []
+    }
+}

@@ -1,5 +1,6 @@
 use std::{any::Any, sync::{Arc, Mutex}};
 
+use tracing::error;
 use wde_logger::info;
 use wde_wgpu::{RenderInstance, RenderPipeline};
 
@@ -8,7 +9,7 @@ use crate::{Resource, ResourceType, LoadedFlag};
 /// Temporary data to be transferred.
 #[derive(Clone, Debug)]
 struct TempMaterialData {
-    pub content: String,
+    pub _content: String,
 }
 
 /// Resource data.
@@ -32,20 +33,26 @@ pub struct MaterialResource {
 }
 
 impl Resource for MaterialResource {
-    /// Create a new material resource.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `label` - The label of the material.
     #[tracing::instrument]
-    fn new(label: &str) -> Self {
-        info!(label, "Creating material resource.");
+    fn new(desc: crate::ResourceDescription) -> Self where Self: Sized {
+        info!(desc.label, "Creating material resource.");
+        
+        // Check if resource type is correct
+        if desc.resource_type != Self::resource_type() {
+            error!(desc.label, "Trying to create a material resource with a non material resource description.");
+            return Self {
+                label: desc.label.to_string(),
+                data: None,
+                loaded: false,
+                async_loaded: LoadedFlag { flag: Arc::new(Mutex::new(false)), },
+            };
+        }
 
         // Create async loaded flag
         let async_loaded = LoadedFlag { flag: Arc::new(Mutex::new(true)), };
 
         Self {
-            label: label.to_string(),
+            label: desc.label.to_string(),
             data: None,
             async_loaded,
             loaded: false,

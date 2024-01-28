@@ -1,6 +1,9 @@
 use std::{any::Any, sync::{Arc, Mutex}};
 
+use wde_logger::throw;
 use wde_wgpu::RenderInstance;
+
+use crate::ResourceHandle;
 
 // Struct to hold the resource loading flag
 #[derive(Debug)]
@@ -16,7 +19,32 @@ pub enum ResourceType {
     /// Shader resource.
     Shader,
     /// Material resource.
-    Material,
+    Material
+}
+
+/// String to resource type conversion.
+impl From<&str> for ResourceType {
+    fn from(s: &str) -> Self {
+        match s {
+            "MODEL" => ResourceType::Model,
+            "SHADER" => ResourceType::Shader,
+            "MATERIAL" => ResourceType::Material,
+            _ => throw!("Unknown resource type: {}", s)
+        }
+    }
+}
+
+/// Description of a resource.
+#[derive(Debug)]
+pub struct ResourceDescription {
+    /// The label of the resource.
+    pub label: String,
+    /// The type of the resource.
+    pub resource_type: ResourceType,
+    /// The source of the resource.
+    pub source: String,
+    /// List of dependencies.
+    pub dependencies: Vec<Option<ResourceHandle>>,
 }
 
 
@@ -27,8 +55,8 @@ pub trait Resource: Any {
     /// 
     /// # Arguments
     /// 
-    /// * `label` - The label of the resource.
-    fn new(label: &str) -> Self where Self: Sized;
+    /// * `desc` - The description of the resource.
+    fn new(desc: ResourceDescription) -> Self where Self: Sized;
 
     /// Load the sync part of the resource.
     /// 

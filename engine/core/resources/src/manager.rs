@@ -3,7 +3,7 @@ use std::{collections::{HashMap, VecDeque}, fmt::Formatter, sync::{Arc, Mutex}};
 use wde_logger::{error, trace, debug, info};
 use wde_wgpu::RenderInstance;
 
-use crate::{Resource, ResourceType};
+use crate::{Resource, ResourceDescription, ResourceType};
 
 /// Maximum number of resources per type
 const MAX_RESOURCES_PER_TYPE: usize = 100;
@@ -169,10 +169,33 @@ impl ResourcesManagerInstance {
         
         // Add resource to path to resource map
         self.path_to_index.insert(path.to_string(), index);
+
+        // Read description of resource
+        let resource_str = std::fs::read_to_string(format!("res/{}.json", path));
+        if resource_str.is_err() {
+            error!(path, "Failed to read resource description.");
+            return index;
+        }
+        let resource_json = serde_json::from_str::<serde_json::Value>(&resource_str.unwrap());
+        let desc = match resource_json {
+            Ok(resource_json) => {
+                match self.get_resource_description(&path, &resource_json) {
+                    Some(desc) => desc,
+                    None => {
+                        error!(path, "Failed to parse resource description.");
+                        return index;
+                    }
+                }
+            },
+            Err(_) => {
+                error!(path, "Failed to parse resource description to JSON.");
+                return index;
+            }
+        };
         
         // Start loading resource
         debug!(path, "Loading resource.");
-        let resource = T::new(path);
+        let resource = T::new(desc);
         
         // Add resource to resources list
         let resources_arr = self.resources.get_mut(&resource_type).unwrap();
@@ -187,8 +210,133 @@ impl ResourcesManagerInstance {
         index
     }
 
+    /// Get the description of a resource from its JSON.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `path` - Path to the resource.
+    /// * `resource_json` - JSON value of the resource description.
+    #[tracing::instrument]
+    pub fn get_resource_description(&self, path: &str, resource_json: &serde_json::Value) -> Option<ResourceDescription> {
+        // Get label
+        let label = match resource_json.get("label") {
+            Some(label_json) => {
+                match label_json.as_str() {
+                    Some(label_json) => {
+                        label_json.to_string()
+                    },
+                    None => {
+                        error!(path, "Failed to get resource label while parsing.");
+                        path.to_string()
+                    }
+                }
+            },
+            None => {
+                error!(path, "Resource has no label.");
+                path.to_string()
+            },
+        };
+
+        // Get metadata
+        let (resource_type, source, dependencies) = match resource_json.get("metadata") {
+            Some(metadata) => {
+                // Get resource type
+                let resource_type = match metadata.get("type") {
+                    Some(resource_type) => {
+                        match resource_type.as_str() {
+                            Some(resource_type) => {
+                                ResourceType::from(resource_type)
+                            },
+                            None => {
+                                error!(label, path, "Failed to get resource type while parsing.");
+                                return None;
+                            }
+                        }
+                    },
+                    None => {
+                        error!(label, path, "Resource has no type.");
+                        return None;
+                    }
+                };
+
+                // Get source
+                let source = match metadata.get("source") {
+                    Some(source) => {
+                        match source.as_str() {
+                            Some(source) => {
+                                ("res/".to_string() + source).to_string()
+                            },
+                            None => {
+                                error!(label, path, "Failed to get resource source while parsing.");
+                                return None;
+                            }
+                        }
+                    },
+                    None => {
+                        error!(label, path, "Resource has no source.");
+                        return None;
+                    }
+                };
+
+                // Get dependencies
+                let dependencies: Vec<Option<ResourceHandle>> = match metadata.get("dependencies") {
+                    Some(dependencies) => {
+                        match dependencies.as_array() {
+                            Some(dependencies) => {
+                                dependencies.iter().map(|d| {
+                                    match d.as_str() {
+                                        Some(_d) => {
+                                            // let resource_index = self.load::<T>(d);
+                                            // let handle = ResourceHandle::new(&label, resource_type, index, 
+                                            //     Arc::new(Mutex::new(self))
+                                            // );
+                                            None
+                                        },
+                                        None => {
+                                            error!(path, "Failed to get resource dependencies while parsing.");
+                                            None
+                                        }
+                                    }
+                                }).collect::<Vec<_>>()
+                            },
+                            None => {
+                                error!(path, "Failed to get resource dependencies while parsing.");
+                                Vec::new()
+                            }
+                        }
+                    },
+                    None => {
+                        error!(path, "Resource has no dependencies.");
+                        Vec::new()
+                    }
+                };
+
+                // Return metadata
+                (resource_type, source, dependencies)
+            },
+            None => {
+                error!(path, "Failed to get resource metadata while parsing.");
+                return None;
+            }
+        };
+
+        // Create resource description
+        Some(ResourceDescription {
+            label,
+            resource_type,
+            source,
+            dependencies,
+        })
+    }
+
     /// Add a handle pointing to a resource location.
     fn add_handle(&mut self, handle: ResourceHandleIndex) {
+        // Check if handle is valid
+        if !self.handle_to_res.contains_key(&handle) {
+            error!(handle, "Invalid resource handle.");
+            return;
+        }
+
         // Add handle to handle count
         let (handle_count, _) = self.handle_to_res.get_mut(&handle).unwrap();
         *handle_count += 1;
@@ -197,6 +345,12 @@ impl ResourcesManagerInstance {
     /// Remove a handle pointing to a resource location.
     /// When no more handles are pointing to this resource, it is unloaded.
     fn remove_handle(&mut self, handle: ResourceHandleIndex, resource_type: ResourceType) {
+        // Check if handle is valid
+        if !self.handle_to_res.contains_key(&handle) {
+            error!(handle, "Invalid resource handle.");
+            return;
+        }
+
         // Remove handle from handle count
         let (handle_count_g, resource_index_g ) = {
             let (handle_count, resource_index) = self.handle_to_res.get_mut(&handle).unwrap();

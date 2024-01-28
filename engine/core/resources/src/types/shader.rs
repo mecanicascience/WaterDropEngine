@@ -4,7 +4,7 @@ use tokio::io::AsyncReadExt;
 use wde_logger::{debug, error, info};
 use wde_wgpu::RenderInstance;
 
-use crate::{Resource, ResourceType, LoadedFlag};
+use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType};
 
 /// Temporary data to be transferred.
 #[derive(Clone, Debug)]
@@ -24,6 +24,8 @@ pub struct ShaderData {
 pub struct ShaderResource {
     /// Label of the shader.
     pub label: String,
+    /// Path of the shader file.
+    pub path: String,
     /// Shader data.
     pub data: Option<ShaderData>,
     /// Loaded state of the shader.
@@ -45,27 +47,34 @@ impl std::fmt::Debug for ShaderResource {
 }
 
 impl Resource for ShaderResource {
-    /// Create a new shader resource.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `label` - The label of the shader.
     #[tracing::instrument]
-    fn new(label: &str) -> Self {
-        info!(label, "Creating shader resource.");
+    fn new(desc: ResourceDescription) -> Self where Self: Sized {
+        info!(desc.label, "Creating shader resource.");
+
+        // Check if resource type is correct
+        if desc.resource_type != Self::resource_type() {
+            error!(desc.label, "Trying to create a shader resource with a non shader resource description.");
+            return Self {
+                label: desc.label.to_string(),
+                path: desc.source.to_string(),
+                data: None,
+                loaded: false,
+                async_loaded: LoadedFlag { flag: Arc::new(Mutex::new(false)), },
+                sync_receiver: std::sync::mpsc::sync_channel(1).1
+            };
+        }
 
         // Create sync resources
         let async_loaded = LoadedFlag { flag: Arc::new(Mutex::new(false)), };
         let async_loaded_c = Arc::clone(&async_loaded.flag);
         let (sync_sender, sync_receiver) = std::sync::mpsc::sync_channel(1);
-        let path_c = label.to_string();
+        let path_c = desc.source.to_string();
         
         // Create async task
         let task = async move {
             // File path
             let path_f = std::env::current_exe().unwrap().as_path()
                 .parent().unwrap()
-                .join("res")
                 .join(path_c.clone().replace("/", "\\"));
 
             // Open file
@@ -99,7 +108,8 @@ impl Resource for ShaderResource {
         tokio::task::spawn(task);
 
         Self {
-            label: label.to_string(),
+            label: desc.label.to_string(),
+            path: desc.source.to_string(),
             data: None,
             loaded: false,
             async_loaded,

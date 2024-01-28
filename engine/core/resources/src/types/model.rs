@@ -4,7 +4,7 @@ use wde_logger::{debug, error, trace, info};
 use wde_math::Vec3f;
 use wde_wgpu::{Vertex, Buffer, RenderInstance, BufferUsage};
 
-use crate::{Resource, ResourceType, LoadedFlag};
+use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType};
 
 /// Bounding box of a model, centered at the origin.
 #[derive(Clone, Copy, Debug)]
@@ -38,6 +38,8 @@ pub struct ModelData {
 pub struct ModelResource {
     /// Label of the model.
     pub label: String,
+    /// Path of the model file.
+    pub path: String,
     /// Model data.
     pub data: Option<ModelData>,
     /// Loaded state of the model.
@@ -49,20 +51,28 @@ pub struct ModelResource {
 }
 
 impl Resource for ModelResource {
-    /// Create a new model resource.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `label` - The label of the model.
     #[tracing::instrument]
-    fn new(label: &str) -> Self {
-        info!(label, "Creating model resource.");
+    fn new(desc: ResourceDescription) -> Self where Self: Sized {
+        info!(desc.label, "Creating model resource.");
+
+        // Check if resource type is correct
+        if desc.resource_type != Self::resource_type() {
+            error!(desc.label, "Trying to create a model resource with a non model resource description.");
+            return Self {
+                label: desc.label.to_string(),
+                path: desc.source.to_string(),
+                data: None,
+                loaded: false,
+                async_loaded: LoadedFlag { flag: Arc::new(Mutex::new(false)), },
+                sync_receiver: std::sync::mpsc::sync_channel(1).1
+            };
+        }
 
         // Create sync resources
         let async_loaded = LoadedFlag { flag: Arc::new(Mutex::new(false)), };
         let async_loaded_c = Arc::clone(&async_loaded.flag);
         let (sync_sender, sync_receiver) = std::sync::mpsc::sync_channel(1);
-        let path_c = label.to_string();
+        let path_c = desc.source.to_string();
         
         // Create async task
         let task = async move {
@@ -72,7 +82,6 @@ impl Resource for ModelResource {
             // File path
             let path_f = std::env::current_exe().unwrap().as_path()
                 .parent().unwrap()
-                .join("res")
                 .join(path_c.clone().replace("/", "\\"));
 
             // Open file
@@ -171,7 +180,8 @@ impl Resource for ModelResource {
         tokio::task::spawn(task);
 
         Self {
-            label: label.to_string(),
+            label: desc.label.to_string(),
+            path: desc.source.to_string(),
             data: None,
             loaded: false,
             async_loaded,

@@ -49,8 +49,8 @@ impl Renderer {
 
 
         // Create shaders
-        let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/vertex.wgsl");
-        let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/frag.wgsl");
+        let vertex_shader_handle = res_manager.load::<ShaderResource>("shaders/unicolor/vert");
+        let fragment_shader_handle = res_manager.load::<ShaderResource>("shaders/unicolor/frag");
 
         // Wait for shaders to load
         res_manager.wait_for(&vertex_shader_handle, &render_instance).await;
