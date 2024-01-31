@@ -239,7 +239,7 @@ impl App {
         world
             .add_component(camera, LabelComponent { label : "Camera".to_string() }).unwrap()
             .add_component(camera, TransformComponent {
-                position: Vec3f { x: 0.0, y: 0.0, z: 1.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
+                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
             }).unwrap();
 
         // Create camera uniform buffer
@@ -286,7 +286,7 @@ impl App {
         // Create camera rotation
         let mut camera_rotation = Vec2f { x: 0.0, y: 0.0 };
         let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
-        let move_speed = 0.1;
+        let move_speed = 10.0;
         let sensitivity = 8.0;
         
         // Run main loop
@@ -369,22 +369,22 @@ impl App {
                         let right = TransformComponent::right(transform);
                         let up = TransformComponent::up(transform);
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyW)).unwrap_or(&false) {
-                            transform.position += forward * move_speed;
+                            transform.position += forward * move_speed * dt;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyS)).unwrap_or(&false) {
-                            transform.position -= forward * move_speed;
+                            transform.position -= forward * move_speed * dt;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyD)).unwrap_or(&false) {
-                            transform.position += right * move_speed;
+                            transform.position += right * move_speed * dt;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyA)).unwrap_or(&false) {
-                            transform.position -= right * move_speed;
+                            transform.position -= right * move_speed * dt;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyE)).unwrap_or(&false) {
-                            transform.position += up * move_speed;
+                            transform.position += up * move_speed * dt;
                         }
                         if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyQ)).unwrap_or(&false) {
-                            transform.position -= up * move_speed;
+                            transform.position -= up * move_speed * dt;
                         }
 
                         // Get x and y rotation
@@ -419,8 +419,12 @@ impl App {
                     // Update the uniform buffer
                     {
                         let mut camera_uniform = CameraUniform::new();
+                        let surface_config = render_instance.surface_config.as_ref().unwrap();
                         camera_uniform.world_to_screen = CameraUniform::get_world_to_screen(
-                            CameraComponent { aspect: 16.0 / 9.0, fovy: 60.0, znear: 0.1, zfar: 1000.0 },
+                            CameraComponent {
+                                aspect: surface_config.width as f32 / surface_config.height as f32,
+                                fovy: 60.0, znear: 0.1, zfar: 1000.0
+                            },
                             world.get_component::<TransformComponent>(camera).unwrap().clone()
                         ).into();
                         camera_buffer.write(&render_instance, bytemuck::cast_slice(&[camera_uniform]), 0);
