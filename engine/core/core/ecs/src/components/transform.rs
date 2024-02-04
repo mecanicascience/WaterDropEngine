@@ -18,7 +18,7 @@ impl TransformUniform {
     /// # Returns
     /// 
     /// The transform uniform.
-    pub fn new(transform: TransformComponent) -> Self {
+    pub fn new(transform: &TransformComponent) -> Self {
         Self {
             object_to_world: TransformComponent::transform_obj_to_world(transform).into()
         }
@@ -48,7 +48,7 @@ impl TransformComponent {
     /// # Returns
     /// 
     /// The matrix transform from object to world space (translate * rotate * scale).
-    pub fn transform_obj_to_world(transform: TransformComponent) -> Mat4f {
+    pub fn transform_obj_to_world(transform: &TransformComponent) -> Mat4f {
         // Compute rotation matrix components
         let q = transform.rotation;
         let x2 = q.v.x + q.v.x;

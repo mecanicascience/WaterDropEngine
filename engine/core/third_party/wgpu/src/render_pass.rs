@@ -182,14 +182,14 @@ impl<'a> RenderPass<'a> {
     /// # Arguments
     /// 
     /// * `indices` - Range of indices to draw.
-    /// * `instance_index` - Index of the instance to draw. This will use the instance at the index and the next instance.
+    /// * `instance_index` - Indice of the instance to draw.
     /// 
     /// # Errors
     /// 
     /// * `RenderError::PipelineNotSet` - The pipeline is not set.
     /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
     /// * `RenderError::MissingIndexBuffer` - The index buffer is not set.
-    pub fn draw_indexed(&mut self, indices: Range<u32>, instance_index: u32) -> Result<(), RenderError> {
+    pub fn draw_indexed(&mut self, indices: Range<u32>, instance_index: Range<u32>) -> Result<(), RenderError> {
         if !self.pipeline_set {
             error!(self.label, "Pipeline is not set.");
             return Err(RenderError::PipelineNotSet);
@@ -202,7 +202,7 @@ impl<'a> RenderPass<'a> {
             error!(self.label, "Index buffer is not set.");
             return Err(RenderError::MissingIndexBuffer);
         }
-        self.render_pass.draw_indexed(indices, 0, instance_index..(instance_index+1));
+        self.render_pass.draw_indexed(indices, 0, instance_index);
         Ok(())
     }
 }

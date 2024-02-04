@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use tokio::sync::mpsc;
 use tracing::{span, Level};
-use wde_ecs::{CameraComponent, CameraUniform, LabelComponent, RenderComponentDynamic, RenderComponentStatic, TransformComponent, World};
+use wde_ecs::{CameraComponent, CameraUniform, LabelComponent, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
 use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
@@ -164,8 +164,10 @@ impl App {
         world
             .register_component::<LabelComponent>()
             .register_component::<TransformComponent>()
-            .register_component::<RenderComponentDynamic>()
-            .register_component::<RenderComponentStatic>();
+            .register_component::<RenderComponent>()
+            .register_component::<RenderComponentInstanced>()
+            .register_component::<RenderComponentSSBODynamic>()
+            .register_component::<RenderComponentSSBOStatic>();
 
 
         // // Create big model
@@ -181,7 +183,7 @@ impl App {
         //         position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
         //     }).unwrap()
         //     .add_component(big_model, RenderComponentDynamic {
-        //         id: 0,
+        //         ids: 0..1,
         //         model: res_manager.load::<ModelResource>("models/lost_empire"),
         //         material: res_manager.load::<MaterialResource>("materials/unicolor")
         //     }).unwrap();
@@ -199,15 +201,18 @@ impl App {
             .add_component(cube, TransformComponent {
                 position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
             }).unwrap()
-            .add_component(cube, RenderComponentDynamic {
+            .add_component(cube, RenderComponentSSBODynamic { id: 0 }).unwrap()
+            .add_component(cube, RenderComponent {
                 id: 0,
                 model: res_manager.load::<ModelResource>("models/cube"),
                 material: res_manager.load::<MaterialResource>("materials/unicolor")
             }).unwrap();
 
         
-        // Create nxn monkey
+        // Create nxn monkeys
         let n = 30;
+        let mut indices = Vec::new();
+        let mut monkeys = Vec::new();
         for i in 0..n {
             for j in 0..n {
                 let monkey = match world.create_entity() {
@@ -215,19 +220,33 @@ impl App {
                     None => throw!("Failed to create entity. No more entity slots available."),
                 };
 
-                // Set model to monkey
+                // Create monkey
+                let render_index = i * n + j + 1;
                 world
-                    .add_component(monkey, LabelComponent { label : "Monkey".to_string() }).unwrap()
+                    .add_component(monkey, LabelComponent { label : format!("Monkey {}", render_index) }).unwrap()
                     .add_component(monkey, TransformComponent {
                         position: Vec3f { x: i as f32 * 1.0 - 15.0, y: 0.0, z: j as f32 * 1.0 - 15.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
                     }).unwrap()
-                    .add_component(monkey, RenderComponentDynamic {
-                        id: i * n + j + 1,
-                        model: res_manager.load::<ModelResource>("models/monkey"),
-                        material: res_manager.load::<MaterialResource>("materials/unicolor")
-                    }).unwrap();
+                    .add_component(monkey, RenderComponentSSBOStatic { id: render_index }).unwrap();
+                indices.push(render_index);
+                monkeys.push(monkey);
             }
         }
+        // Add parent monkey
+        let parent_monkey = match world.create_entity() {
+            Some(e) => e,
+            None => throw!("Failed to create entity. No more entity slots available."),
+        };
+        world
+            .add_component(parent_monkey, LabelComponent { label : "Parent monkey".to_string() }).unwrap()
+            .add_component(parent_monkey, TransformComponent {
+                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+            }).unwrap()
+            .add_component(parent_monkey, RenderComponentInstanced {
+                ids: indices.clone().into_iter().min().unwrap()..indices.clone().into_iter().max().unwrap() + 1,
+                model: res_manager.load::<ModelResource>("models/monkey"),
+                material: res_manager.load::<MaterialResource>("materials/unicolor")
+            }).unwrap();
 
 
 

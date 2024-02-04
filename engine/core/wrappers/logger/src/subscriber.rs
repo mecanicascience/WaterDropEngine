@@ -22,7 +22,7 @@ impl Logger {
         let tracing_layer = TracingLayer::new(tracing_file_name);
 
         // Register Layers
-        if cfg!(debug_assertions) {
+        if cfg!(features) && cfg!(features = "tracing") {
             tracing_subscriber::registry()
                 .with(tracing_layer)
                 .with(logger_layer)

@@ -1,5 +1,5 @@
 use tracing::{debug, error};
-use wde_ecs::{RenderComponentDynamic, RenderComponentStatic, TransformComponent, TransformUniform, World};
+use wde_ecs::{RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World};
 use wde_resources::{MaterialResource, ModelResource, ResourcesManager};
 use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
 
@@ -62,8 +62,8 @@ impl Renderer {
     pub async fn update(&mut self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager, camera_buffer: &mut Buffer) {
         // Render entities
         for entity in world.entity_manager.living_entities.iter() {
-            // Get render component dynamic
-            if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+            // Get render component
+            if let Some(render_component) = world.get_component::<RenderComponent>(*entity) {
                 // Check if pipeline is initialized
                 if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
                     if material.data.as_ref().unwrap().pipeline.is_initialized() {
@@ -94,8 +94,8 @@ impl Renderer {
                 }
             }
 
-            // Get render component static
-            if let Some(render_component) = world.get_component::<RenderComponentStatic>(*entity) {
+            // Get render component multi
+            if let Some(render_component) = world.get_component::<RenderComponentInstanced>(*entity) {
                 // Check if pipeline is initialized
                 if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
                     if material.data.as_ref().unwrap().pipeline.is_initialized() {
@@ -137,12 +137,13 @@ impl Renderer {
 
             // Write data
             for entity in world.entity_manager.living_entities.iter() {
-                if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+                // Get render component dynamic
+                if let Some(render_component) = world.get_component::<RenderComponentSSBODynamic>(*entity) {
                     // Set data
                     let transform = world.get_component::<TransformComponent>(*entity).unwrap();
                     unsafe {
-                        *data.add(render_component.id as usize) = TransformUniform::new(transform.clone());
-                    }
+                        *data.add(render_component.id as usize) = TransformUniform::new(transform);
+                    };
                 }
             }
         });
@@ -157,12 +158,13 @@ impl Renderer {
 
             // Write data
             for entity in world.entity_manager.living_entities.iter() {
-                if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+                // Get render component static
+                if let Some(render_component) = world.get_component::<RenderComponentSSBOStatic>(*entity) {
                     // Set data
                     let transform = world.get_component::<TransformComponent>(*entity).unwrap();
                     unsafe {
-                        *data.add(render_component.id as usize) = TransformUniform::new(transform.clone());
-                    }
+                        *data.add(render_component.id as usize) = TransformUniform::new(transform);
+                    };
                 }
             }
         });
@@ -200,8 +202,8 @@ impl Renderer {
 
             // Render entities
             for entity in world.entity_manager.living_entities.iter() {
-                // Get render component dynamic
-                if let Some(render_component) = world.get_component::<RenderComponentDynamic>(*entity) {
+                // Get render component
+                if let Some(render_component) = world.get_component::<RenderComponent>(*entity) {
                     // Get model
                     if let Some(model) = res_manager.get::<ModelResource>(&render_component.model) {
                         // Set model buffers
@@ -218,7 +220,7 @@ impl Renderer {
                             // Set render pipeline
                             match render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline) {
                                 Ok(_) => {
-                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id);
+                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id..(render_component.id + 1));
                                     continue;
                                 },
                                 Err(_) => {}
@@ -227,8 +229,8 @@ impl Renderer {
                     }
                 }
 
-                // Get render component static
-                if let Some(render_component) = world.get_component::<RenderComponentStatic>(*entity) {
+                // Get render component multi
+                if let Some(render_component) = world.get_component::<RenderComponentInstanced>(*entity) {
                     // Get model
                     if let Some(model) = res_manager.get::<ModelResource>(&render_component.model) {
                         // Set model buffers
@@ -245,7 +247,7 @@ impl Renderer {
                             // Set render pipeline
                             match render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline) {
                                 Ok(_) => {
-                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id);
+                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.ids.clone());
                                     continue;
                                 },
                                 Err(_) => {}
