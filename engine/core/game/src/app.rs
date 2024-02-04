@@ -383,7 +383,7 @@ impl App {
                         let mut transform = world.get_component::<TransformComponent>(camera).unwrap().clone();
 
                         // Update the transform position
-                        let dt = (last_time.elapsed().as_millis()) as f32 / 1000.0;
+                        let dt = ((last_time.elapsed().as_nanos()) as f64 / 1_000_000.0) as f32;
                         let forward = TransformComponent::forward(transform);
                         let right = TransformComponent::right(transform);
                         let up = TransformComponent::up(transform);
@@ -487,7 +487,7 @@ impl App {
 
             {
                 // Calculate fps
-                let fps = 1.0 / last_time.elapsed().as_secs_f32();
+                let fps = 1.0 / ((last_time.elapsed().as_nanos() as f64 / 1_000_000_000.0) as f32);
                 fps_frames[fps_frames_index] = fps;
                 fps_frames_index = fps_frames_index + 1;
                 if fps_frames_index >= fps_frames.len() {
