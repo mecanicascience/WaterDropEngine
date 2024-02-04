@@ -5,6 +5,6 @@ Cargo.lock
 .cargo/config
 .cargo/config.toml
 /.idea
-/.vscode
+/.vscode/settings.json
 log.txt
 trace.json

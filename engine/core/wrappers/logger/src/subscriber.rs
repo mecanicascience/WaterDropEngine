@@ -18,20 +18,20 @@ impl Logger {
         // Custom logger layer
         let logger_layer = LoggerLayer::new(log_file_name);
 
-        // Custom tracing layer
-        let tracing_layer = TracingLayer::new(tracing_file_name);
-
-        // Register Layers
-        if cfg!(features) && cfg!(features = "tracing") {
+        #[cfg(feature = "tracing")]
+        {
+            // Custom tracing layer
+            let tracing_layer = TracingLayer::new(tracing_file_name);
             tracing_subscriber::registry()
                 .with(tracing_layer)
                 .with(logger_layer)
                 .init();
-        } else {
-            tracing_subscriber::registry()
-                .with(logger_layer)
-                .init();
         }
+
+        #[cfg(not(feature = "tracing"))]
+        tracing_subscriber::registry()
+            .with(logger_layer)
+            .init();
 
         Self {
             tracing_file_name: tracing_file_name.to_string(),
