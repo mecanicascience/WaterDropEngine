@@ -179,7 +179,6 @@ impl Buffer {
     /// 
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
-    #[tracing::instrument]
     pub async fn copy_from_buffer(&mut self, instance: &RenderInstance, buffer: &Buffer) {
         trace!(src=buffer.label, dest=self.label, "Copying data from buffer to buffer.");
         
@@ -202,7 +201,6 @@ impl Buffer {
     /// * `instance` - The render instance.
     /// * `content` - The content to write to the buffer.
     /// * `offset` - The offset to write the content to.
-    #[tracing::instrument]
     pub fn write(&mut self, instance: &RenderInstance, content: &[u8], offset: usize) {
         trace!(self.label, "Writing to buffer.");
 
