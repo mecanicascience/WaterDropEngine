@@ -16,7 +16,7 @@ pub type EntityIndex = usize;
 pub type ComponentIndex = usize;
 
 /// Maximum number of entities in the manager (max for 1 manager ~2_000_000).
-pub const MAX_ENTITIES: usize = 10_000;
+pub const MAX_ENTITIES: usize = 100_000;
 /// Maximum number of components that can be created.
 pub const MAX_COMPONENTS: usize = 32;
 

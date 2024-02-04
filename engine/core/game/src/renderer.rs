@@ -1,5 +1,5 @@
 use tracing::{debug, error};
-use wde_ecs::{RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World};
+use wde_ecs::{RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World, MAX_ENTITIES};
 use wde_resources::{MaterialResource, ModelResource, ResourcesManager};
 use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
 
@@ -19,14 +19,11 @@ pub struct Renderer {
 impl Renderer {
     #[tracing::instrument]
     pub async fn new(render_instance: &RenderInstance, world: &mut World, res_manager: &mut ResourcesManager, camera_buffer: &mut Buffer) -> Self {
-        // Maximum number of objects in a scene
-        const MAX_OBJECTS: u32 = 10_000;
-        
         // Create object matrices SSBO
         let mut objects = Buffer::new(
             &render_instance,
             "Object matrices SSBO",
-            std::mem::size_of::<TransformUniform>() * MAX_OBJECTS as usize,
+            std::mem::size_of::<TransformUniform>() * MAX_ENTITIES as usize,
             BufferUsage::STORAGE | BufferUsage::MAP_WRITE,
             None);
 

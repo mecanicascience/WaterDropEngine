@@ -210,7 +210,7 @@ impl App {
 
         
         // Create nxn monkeys
-        let n = 30;
+        let n = 20;
         let mut indices = Vec::new();
         let mut monkeys = Vec::new();
         for i in 0..n {
@@ -225,7 +225,7 @@ impl App {
                 world
                     .add_component(monkey, LabelComponent { label : format!("Monkey {}", render_index) }).unwrap()
                     .add_component(monkey, TransformComponent {
-                        position: Vec3f { x: i as f32 * 1.0 - 15.0, y: 0.0, z: j as f32 * 1.0 - 15.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+                        position: Vec3f { x: i as f32 * 1.0 - (n as f32)/2.0, y: 0.0, z: j as f32 * 1.0 - (n as f32)/2.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
                     }).unwrap()
                     .add_component(monkey, RenderComponentSSBOStatic { id: render_index }).unwrap();
                 indices.push(render_index);
@@ -305,8 +305,8 @@ impl App {
         // Create camera rotation
         let mut camera_rotation = Vec2f { x: 0.0, y: 0.0 };
         let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
-        let move_speed = 10.0;
-        let sensitivity = 8.0;
+        let move_speed = 0.1; // 10.0;
+        let sensitivity = 0.05; // 8.0;
         
         // Run main loop
         loop {
