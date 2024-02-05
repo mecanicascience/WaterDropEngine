@@ -40,8 +40,6 @@ pub struct EntityManager {
 impl std::fmt::Debug for EntityManager {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EntityManager")
-            .field("components_list", &self.components_list)
-            .field("living_entities", &self.living_entities)
             .field("living_entity_count", &self.living_entity_count)
             .finish()
     }

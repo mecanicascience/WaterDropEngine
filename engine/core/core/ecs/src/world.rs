@@ -45,8 +45,8 @@ pub const MAX_COMPONENTS: usize = 32;
 /// ```
 pub struct World {
     // List of managers.
-    pub entity_manager: EntityManager,
-    pub component_manager: ComponentManager,
+    entity_manager: EntityManager,
+    component_manager: ComponentManager,
 }
 
 impl std::fmt::Debug for World {
@@ -106,7 +106,7 @@ impl World {
 
 
     // ======================================
-    // ============== COMPONENTS ==============
+    // ============= COMPONENTS =============
     // ======================================
 
     /// Registers a new component type to the world.
@@ -210,6 +210,19 @@ impl World {
         return Some(self);
     }
 
+    /// Gets all entities that have a given component.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `component_type` - The component type to get entities for.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Vec<EntityIndex>` - The list of entities that have the component.
+    pub fn get_entities_with_component<T: 'static>(&self) -> Vec<EntityIndex> {
+        self.component_manager.get_entities_with_component::<T>()
+    }
+
     /// Gets the component type of a generic component.
     /// 
     /// # Returns
@@ -220,4 +233,12 @@ impl World {
         self.component_manager.get_component_type::<T>();
         None
     }
+
+
+
+
+
+    // ======================================
+    // ============== SYSTEMS ===============
+    // ======================================
 }

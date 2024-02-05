@@ -144,7 +144,7 @@ impl<T: 'static> ComponentArray<T> {
     /// 
     /// * `Vec<EntityIndex>` - The list of entities of this type.
     pub fn get_entities(&self) -> Vec<EntityIndex> {
-        self.entity_to_index_map.keys().map(|&k| k).collect()
+        self.entity_to_index_map.keys().cloned().collect()
     }
 }
 
@@ -330,6 +330,11 @@ impl ComponentManager {
     }
 
     /// Gets all of the entity for a given component.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Vec<EntityIndex>` - The list of entities with the given component.
+    /// If the component type does not exist, an empty list is returned.
     pub fn get_entities_with_component<T: 'static>(&self) -> Vec<EntityIndex> {
         match self.components.get(&std::any::TypeId::of::<T>()) {
             Some(component_array) => {
@@ -350,6 +355,10 @@ impl ComponentManager {
     /// # Arguments
     /// 
     /// * `T` - The type of the component.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Option<ComponentIndex>` - The index of the component type.
     pub fn get_component_type<T: 'static>(&self) -> Option<ComponentIndex> {
         match self.component_types.get(&std::any::TypeId::of::<T>()) {
             Some(component_type) => Some(*component_type),

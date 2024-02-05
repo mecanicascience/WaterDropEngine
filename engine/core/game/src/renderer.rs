@@ -56,9 +56,10 @@ impl Renderer {
         }
     }
 
+    #[tracing::instrument]
     pub async fn update(&mut self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager, camera_buffer: &mut Buffer) {
         // Render entities
-        for entity in world.entity_manager.living_entities.iter() {
+        for entity in world.get_entities_with_component::<RenderComponent>().iter() {
             // Get render component
             if let Some(render_component) = world.get_component::<RenderComponent>(*entity) {
                 // Check if pipeline is initialized
@@ -90,8 +91,11 @@ impl Renderer {
                         });
                 }
             }
+        }
 
-            // Get render component multi
+        // Render entities instanced
+        for entity in world.get_entities_with_component::<RenderComponentInstanced>().iter() {
+            // Get render component instanced
             if let Some(render_component) = world.get_component::<RenderComponentInstanced>(*entity) {
                 // Check if pipeline is initialized
                 if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
@@ -133,7 +137,7 @@ impl Renderer {
             let data = view.as_mut_ptr() as *mut TransformUniform;
 
             // Write data
-            for entity in world.entity_manager.living_entities.iter() {
+            for entity in world.get_entities_with_component::<RenderComponentSSBODynamic>().iter() {
                 // Get render component dynamic
                 if let Some(render_component) = world.get_component::<RenderComponentSSBODynamic>(*entity) {
                     // Set data
@@ -154,7 +158,7 @@ impl Renderer {
             let data = view.as_mut_ptr() as *mut TransformUniform;
 
             // Write data
-            for entity in world.entity_manager.living_entities.iter() {
+            for entity in world.get_entities_with_component::<RenderComponentSSBOStatic>().iter() {
                 // Get render component static
                 if let Some(render_component) = world.get_component::<RenderComponentSSBOStatic>(*entity) {
                     // Set data
@@ -198,7 +202,7 @@ impl Renderer {
             render_pass.set_bind_group(1, &self.objects_bind_group);
 
             // Render entities
-            for entity in world.entity_manager.living_entities.iter() {
+            for entity in world.get_entities_with_component::<RenderComponent>().iter() {
                 // Get render component
                 if let Some(render_component) = world.get_component::<RenderComponent>(*entity) {
                     // Get model
@@ -225,7 +229,10 @@ impl Renderer {
                         }
                     }
                 }
+            }
 
+            // Render entities instanced
+            for entity in world.get_entities_with_component::<RenderComponentInstanced>().iter() {
                 // Get render component multi
                 if let Some(render_component) = world.get_component::<RenderComponentInstanced>(*entity) {
                     // Get model
