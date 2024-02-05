@@ -168,6 +168,7 @@ impl App {
             .register_component::<RenderComponentInstanced>()
             .register_component::<RenderComponentSSBODynamic>()
             .register_component::<RenderComponentSSBOStatic>();
+        let mut render_index = 0;
 
 
         // // Create big model
@@ -194,19 +195,36 @@ impl App {
             Some(e) => e,
             None => throw!("Failed to create entity. No more entity slots available."),
         };
-
-        // Set model to cube
         world
             .add_component(cube, LabelComponent { label : "Cube".to_string() }).unwrap()
             .add_component(cube, TransformComponent {
                 position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
             }).unwrap()
-            .add_component(cube, RenderComponentSSBODynamic { id: 0 }).unwrap()
+            .add_component(cube, RenderComponentSSBODynamic { id: render_index }).unwrap()
             .add_component(cube, RenderComponent {
-                id: 0,
+                id: render_index,
                 model: res_manager.load::<ModelResource>("models/cube"),
                 material: res_manager.load::<MaterialResource>("materials/unicolor")
             }).unwrap();
+        render_index += 1;
+
+        // Create cube 2
+        let cube2 = match world.create_entity() {
+            Some(e) => e,
+            None => throw!("Failed to create entity. No more entity slots available."),
+        };
+        world
+            .add_component(cube2, LabelComponent { label : "Cube 2".to_string() }).unwrap()
+            .add_component(cube2, TransformComponent {
+                position: Vec3f { x: -2.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.4
+            }).unwrap()
+            .add_component(cube2, RenderComponentSSBODynamic { id: render_index }).unwrap()
+            .add_component(cube2, RenderComponent {
+                id: render_index,
+                model: res_manager.load::<ModelResource>("models/cube"),
+                material: res_manager.load::<MaterialResource>("materials/unicolor")
+            }).unwrap();
+        render_index += 1;
 
         
         // Create nxn monkeys
@@ -221,7 +239,6 @@ impl App {
                 };
 
                 // Create monkey
-                let render_index = i * n + j + 1;
                 world
                     .add_component(monkey, LabelComponent { label : format!("Monkey {}", render_index) }).unwrap()
                     .add_component(monkey, TransformComponent {
@@ -230,6 +247,7 @@ impl App {
                     .add_component(monkey, RenderComponentSSBOStatic { id: render_index }).unwrap();
                 indices.push(render_index);
                 monkeys.push(monkey);
+                render_index += 1;
             }
         }
         // Add parent monkey

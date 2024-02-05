@@ -25,7 +25,7 @@ pub struct ResourceHandle {
     /// Type of the resource
     pub resource_type: ResourceType,
     /// Index of the resource handle
-    index: ResourceHandleIndex,
+    pub index: ResourceHandleIndex,
     /// Resources manager instance
     manager: Arc<RwLock<ResourcesManagerInstance>>,
 }

@@ -201,6 +201,10 @@ impl Renderer {
             render_pass.set_bind_group(0, &self.camera_buffer_bind_group);
             render_pass.set_bind_group(1, &self.objects_bind_group);
 
+            // Save last model and material
+            let mut last_model: Option<usize> = None;
+            let mut last_material: Option<usize> = None;
+
             // Render entities
             for entity in world.get_entities_with_component::<RenderComponent>().iter() {
                 // Get render component
@@ -208,8 +212,11 @@ impl Renderer {
                     // Get model
                     if let Some(model) = res_manager.get::<ModelResource>(&render_component.model) {
                         // Set model buffers
-                        render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
-                        render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
+                        if last_model.is_none() || last_model.unwrap() != render_component.model.index {
+                            render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
+                            render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
+                            last_model = Some(render_component.model.index);
+                        }
 
                         // Get material
                         if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
@@ -219,13 +226,19 @@ impl Renderer {
                             }
 
                             // Set render pipeline
-                            match render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline) {
-                                Ok(_) => {
-                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id..(render_component.id + 1));
+                            if last_material.is_none() || last_material.unwrap() != render_component.material.index {
+                                if render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline).is_err() {
                                     continue;
-                                },
-                                Err(_) => {}
+                                }
+                                last_material = Some(render_component.material.index);
                             }
+
+                            // Draw
+                            render_pass
+                                .draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.id..(render_component.id + 1))
+                                .unwrap_or_else(|_| {
+                                    error!("Failed to draw entity with id {}.", render_component.id);
+                                });
                         }
                     }
                 }
@@ -238,8 +251,11 @@ impl Renderer {
                     // Get model
                     if let Some(model) = res_manager.get::<ModelResource>(&render_component.model) {
                         // Set model buffers
-                        render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
-                        render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
+                        if last_model.is_none() || last_model.unwrap() != render_component.model.index {
+                            render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
+                            render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
+                            last_model = Some(render_component.model.index);
+                        }
 
                         // Get material
                         if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
@@ -249,13 +265,19 @@ impl Renderer {
                             }
 
                             // Set render pipeline
-                            match render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline) {
-                                Ok(_) => {
-                                    let _ = render_pass.draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.ids.clone());
+                            if last_material.is_none() || last_material.unwrap() != render_component.material.index {
+                                if render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline).is_err() {
                                     continue;
-                                },
-                                Err(_) => {}
+                                }
+                                last_material = Some(render_component.material.index);
                             }
+
+                            // Draw
+                            render_pass
+                                .draw_indexed(0..model.data.as_ref().unwrap().index_count, render_component.ids.clone())
+                                .unwrap_or_else(|_| {
+                                    error!("Failed to draw entity with ids {:?}.", render_component.ids);
+                                });
                         }
                     }
                 }
