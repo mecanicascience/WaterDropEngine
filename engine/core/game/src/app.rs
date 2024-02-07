@@ -321,10 +321,11 @@ impl App {
         let mut fps_avg = 0.0;
         
         // Create camera rotation
+        let mut last_camera_time = std::time::Instant::now();
         let mut camera_rotation = Vec2f { x: 0.0, y: 0.0 };
         let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
-        let move_speed = 0.1; // 10.0;
-        let sensitivity = 0.05; // 8.0;
+        let move_speed = 0.01;
+        let sensitivity = 0.002;
         
         // Run main loop
         loop {
@@ -401,7 +402,7 @@ impl App {
                         let mut transform = world.get_component::<TransformComponent>(camera).unwrap().clone();
 
                         // Update the transform position
-                        let dt = ((last_time.elapsed().as_nanos()) as f64 / 1_000_000.0) as f32;
+                        let dt = ((last_camera_time.elapsed().as_nanos()) as f64 / 1_000_000.0) as f32;
                         let forward = TransformComponent::forward(transform);
                         let right = TransformComponent::right(transform);
                         let up = TransformComponent::up(transform);
@@ -451,6 +452,9 @@ impl App {
 
                         // Update the transform
                         world.set_component(camera, transform).unwrap();
+
+                        // Set the last camera time
+                        last_camera_time = std::time::Instant::now();
                     }
 
                     // Update the uniform buffer
