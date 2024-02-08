@@ -1,13 +1,14 @@
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 use wde_ecs::{CameraComponent, CameraUniform, EntityIndex, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World, MAX_ENTITIES};
-use wde_resources::{MaterialResource, ModelResource, Resource, ResourceHandle, ResourcesManager};
-use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, DrawIndexedIndirectArgs, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
+use wde_resources::{MaterialResource, ModelResource, Resource, ResourceHandle, ResourcesManager, ShaderResource};
+use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, ComputePipeline, DrawIndexedIndirectArgs, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
 
 /// Describes the maximum number of indirect commands.
 const MAX_INDIRECT_COMMANDS: usize = 10_000;
 
 /// Describes a draw batch.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
 struct IndirectBatch {
     /// First entity index (Note that the index need to be the same as the index in the SSBO)
     first: u32,
@@ -21,6 +22,7 @@ struct IndirectBatch {
 
 /// Describes a set of draw indirect commands.
 #[derive(Debug, Copy, Clone)]
+#[repr(C)]
 struct DrawIndexedIndirectDesc {
     /// First draw indirect command index
     first: u64,
@@ -38,7 +40,11 @@ pub struct Renderer {
     objects_bind_group: BindGroup,
 
     // Render buffers
+    batch_commands_buffer: Buffer,
+    batch_commands_buffer_bind_group: BindGroup,
+    compute_pipeline: ComputePipeline,
     indirect_commands_buffer: Buffer,
+    indirect_commands_buffer_bind_group: BindGroup,
 
     // Camera buffer
     camera_buffer: Buffer,
@@ -74,13 +80,43 @@ impl Renderer {
             ShaderStages::VERTEX).await;
 
 
+        // Create batch indirect commands buffer
+        let mut batch_commands_buffer = Buffer::new(
+            &render_instance,
+            "Batch commands buffer",
+            std::mem::size_of::<IndirectBatch>() * MAX_INDIRECT_COMMANDS as usize,
+            BufferUsage::MAP_WRITE | BufferUsage::STORAGE,
+            None);
+        let batch_commands_buffer_bind_group = batch_commands_buffer.create_bind_group(
+            &render_instance,
+            BufferBindingType::Storage { read_only: true },
+            ShaderStages::COMPUTE).await;
+
         // Create draw indirect commands buffer
-        let indirect_commands_buffer = Buffer::new(
+        let mut indirect_commands_buffer = Buffer::new(
             &render_instance,
             "Draw indirect commands buffer",
             std::mem::size_of::<DrawIndexedIndirectArgs>() * MAX_INDIRECT_COMMANDS as usize,
-            BufferUsage::INDIRECT | BufferUsage::MAP_WRITE,
+            BufferUsage::INDIRECT | BufferUsage::STORAGE,
             None);
+        let indirect_commands_buffer_bind_group = indirect_commands_buffer.create_bind_group(
+            &render_instance,
+            BufferBindingType::Storage { read_only: false },
+            ShaderStages::COMPUTE).await;
+
+        // Create compute pipeline
+        let compute_shader = res_manager.load::<ShaderResource>("compute/record_draw_commands");
+        res_manager.wait_for(&compute_shader, render_instance).await;
+        let mut compute_pipeline = ComputePipeline::new("Draw indirect");
+        if compute_pipeline
+            .set_shader(&res_manager.get::<ShaderResource>(&compute_shader).unwrap().data.as_ref().unwrap().module)
+            .add_bind_group(batch_commands_buffer.create_bind_group_layout(
+                render_instance, BufferBindingType::Storage { read_only: true }, ShaderStages::COMPUTE).await)
+            .add_bind_group(indirect_commands_buffer.create_bind_group_layout(
+                render_instance, BufferBindingType::Storage { read_only: false }, ShaderStages::COMPUTE).await)
+            .init(&render_instance).is_err() {
+            error!("Failed to initialize compute pipeline.");
+        }
 
 
 
@@ -111,10 +147,17 @@ impl Renderer {
         Self {
             objects,
             objects_bind_group,
+
+            indirect_commands_buffer,
+            indirect_commands_buffer_bind_group,
+            compute_pipeline,
+            batch_commands_buffer,
+            batch_commands_buffer_bind_group,
+
             camera_buffer,
             camera_buffer_bind_group,
+
             depth_texture,
-            indirect_commands_buffer,
         }
     }
     
@@ -368,7 +411,6 @@ impl Renderer {
                 }
             }
         }
-        info!("Draws batches: {:?}", draws_batches);
 
         // Sort draw batches
         {
@@ -378,12 +420,64 @@ impl Renderer {
             // Sort draw batches
             draws_batches.sort_by(|a, b| a.batch_index.cmp(&b.batch_index));
         }
-        info!("Draws batches sorted: {:?}", draws_batches);
+
+        // Fill batch commands buffer
+        {
+            trace!("Filling batch commands buffer.");
+            let _trace_draws = tracing::span!(tracing::Level::TRACE, "fill_batch_commands");
+
+            // Write batch commands
+            self.batch_commands_buffer.map_mut(&render_instance, |mut view| {
+                // Cast data to IndirectBatch
+                let data = view.as_mut_ptr() as *mut IndirectBatch;
+
+                // Write data
+                for (i, draw) in draws_batches.iter().enumerate() {
+                    unsafe {
+                        *data.add(i) = *draw;
+                    };
+                }
+            });
+        }
+
+        // Run compute shader
+        {
+            trace!("Running compute shader.");
+            let _trace_compute = tracing::span!(tracing::Level::TRACE, "run_compute");
+
+            // Create command buffer
+            let mut command_buffer = CommandBuffer::new(
+                    &render_instance, "Compute render").await;
+
+            {
+                // Create compute pass
+                let mut compute_pass = command_buffer.create_compute_pass("Compute render");
+
+                // Set bind groups
+                compute_pass.set_bind_group(0, &self.batch_commands_buffer_bind_group);
+                compute_pass.set_bind_group(1, &self.indirect_commands_buffer_bind_group);
+
+                // Set pipeline
+                if compute_pass.set_pipeline(&self.compute_pipeline).is_err() {
+                    error!("Failed to set compute pipeline.");
+                    return RenderEvent::None;
+                }
+
+                // Run compute shader
+                if compute_pass.dispatch(draws_batches.len() as u32, 1, 1).is_err() {
+                    error!("Failed to run compute shader.");
+                    return RenderEvent::None;
+                }
+            }
+
+            // Submit command buffer
+            command_buffer.submit(&render_instance);
+        }
 
         // Record draw indirect commands
-        let mut draw_indirect_commands: Vec<DrawIndexedIndirectArgs> = Vec::new();
         let mut draw_indirect_desc: Vec<DrawIndexedIndirectDesc> = Vec::new();
         {
+            // let mut draw_indirect_commands: Vec<DrawIndexedIndirectArgs> = Vec::new();
             trace!("Record draw indirect commands.");
             let _trace_draws = tracing::span!(tracing::Level::TRACE, "record_draw_indirect");
 
@@ -396,13 +490,13 @@ impl Renderer {
             
             for draw in draws_batches.iter() {
                 // Create draw indirect command
-                let draw_indirect_command = DrawIndexedIndirectArgs {
-                    index_count: draw.index_count,
-                    instance_count: draw.count,
-                    first_index: 0,
-                    base_vertex: 0,
-                    first_instance: draw.first,
-                };
+                // let draw_indirect_command = DrawIndexedIndirectArgs {
+                //     index_count: draw.index_count,
+                //     instance_count: draw.count,
+                //     first_index: 0,
+                //     base_vertex: 0,
+                //     first_instance: draw.first,
+                // };
 
                 // Check if draw indirect command is contiguous
                 if draw.batch_index == draw_indirect_desc_item.batch_index {
@@ -421,27 +515,25 @@ impl Renderer {
                 }
 
                 // Add draw indirect command
-                draw_indirect_commands.push(draw_indirect_command);
+                // draw_indirect_commands.push(draw_indirect_command);
             }
 
             // Add last draw indirect command descriptor
             draw_indirect_desc.push(draw_indirect_desc_item);
+
+            // Write draw indirect commands
+            // self.indirect_commands_buffer.map_mut(&render_instance, |mut view| {
+            //     // Cast data to DrawIndexedIndirectArgs
+            //     let data = view.as_mut_ptr() as *mut DrawIndexedIndirectArgs;
+
+            //     // Write data
+            //     for (i, draw) in draw_indirect_commands.iter().enumerate() {
+            //         unsafe {
+            //             *data.add(i) = *draw;
+            //         };
+            //     }
+            // });
         }
-        info!("Indirect commands: {:?}", draw_indirect_commands);
-        info!("Indirect desc: {:?}", draw_indirect_desc);
-
-        // Write draw indirect commands
-        self.indirect_commands_buffer.map_mut(&render_instance, |mut view| {
-            // Cast data to DrawIndexedIndirectArgs
-            let data = view.as_mut_ptr() as *mut DrawIndexedIndirectArgs;
-
-            // Write data
-            for (i, draw) in draw_indirect_commands.iter().enumerate() {
-                unsafe {
-                    *data.add(i) = *draw;
-                };
-            }
-        });
 
         // Render
         {
