@@ -189,7 +189,7 @@ impl RenderPipeline {
     /// 
     /// * `Result<(), RenderError>` - The result of the initialization.
     #[tracing::instrument]
-    pub async fn init(&mut self, instance: &RenderInstance) -> Result<(), RenderError> {
+    pub async fn init(&mut self, instance: &RenderInstance<'_>) -> Result<(), RenderError> {
         trace!(self.label, "Initializing render pipeline.");
         let d = &self.config;
 

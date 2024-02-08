@@ -113,7 +113,7 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroupLayout` - The bind group layout of the buffer.
-    pub async fn create_bind_group_layout(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroupLayout {
+    pub async fn create_bind_group_layout(&mut self, instance: &RenderInstance<'_>, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroupLayout {
         // Create bind group layout
         let layout_entries = vec![
             wgpu::BindGroupLayoutEntry {
@@ -147,7 +147,7 @@ impl Buffer {
     /// # Returns
     /// 
     /// * `BindGroup` - The bind group of the buffer.
-    pub async fn create_bind_group(&mut self, instance: &RenderInstance, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroup {
+    pub async fn create_bind_group(&mut self, instance: &RenderInstance<'_>, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroup {
         // Create bind group layout
         let layout = self.create_bind_group_layout(instance, binding_type, visibility).await;
 
@@ -179,7 +179,7 @@ impl Buffer {
     /// 
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
-    pub async fn copy_from_buffer(&mut self, instance: &RenderInstance, buffer: &Buffer) {
+    pub async fn copy_from_buffer(&mut self, instance: &RenderInstance<'_>, buffer: &Buffer) {
         trace!(src=buffer.label, dest=self.label, "Copying data from buffer to buffer.");
         
         // Create command encoder

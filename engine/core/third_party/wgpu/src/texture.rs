@@ -53,7 +53,7 @@ impl Texture {
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
     #[tracing::instrument]
-    pub async fn new(instance: &RenderInstance, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsages) -> Self {
+    pub async fn new(instance: &RenderInstance<'_>, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsages) -> Self {
         info!(label, "Creating texture.");
         
         // Create texture
@@ -140,7 +140,7 @@ impl Texture {
     /// 
     /// * `instance` - Game instance.
     #[tracing::instrument]
-    pub async fn create_bind_group(&self, instance: &RenderInstance) -> BindGroup {
+    pub async fn create_bind_group(&self, instance: &RenderInstance<'_>) -> BindGroup {
         trace!(self.label, "Creating bind group.");
 
         // Create bind group layout

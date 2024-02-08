@@ -53,8 +53,8 @@ pub enum LoopEvent {
 #[derive(Debug)]
 pub struct Window {
     pub title: String,
-    pub size: Pair2u,
-    pub window: Option<winit::window::Window>
+    pub window: Option<winit::window::Window>,
+    pub init_size: Pair2u,
 }
 
 impl Window {
@@ -71,7 +71,7 @@ impl Window {
 
         Self {
             title: title.to_string(),
-            size: (width, height),
+            init_size: (width, height),
             window: None
         }
     }
@@ -90,7 +90,7 @@ impl Window {
         let event_loop = EventLoopBuilder::new().with_any_thread(true).build().unwrap();
         let window = Some(WindowBuilder::new()
             .with_title(self.title.clone())
-            .with_inner_size(winit::dpi::LogicalSize::new(self.size.0, self.size.1))
+            .with_inner_size(winit::dpi::LogicalSize::new(self.init_size.0, self.init_size.1))
             .with_min_inner_size(winit::dpi::LogicalSize::new(1, 1))
             .with_resizable(true)
             .with_visible(true)
@@ -128,22 +128,5 @@ impl Window {
 
         // Return window index
         window_index
-    }
-
-    /// Resize the window.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `width` - The new width of the window.
-    /// * `height` - The new height of the window.
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.size = (width, height);
-    }
-}
-
-impl Drop for Window {
-    #[tracing::instrument]
-    fn drop(&mut self) {
-        info!("Dropping window.");
     }
 }

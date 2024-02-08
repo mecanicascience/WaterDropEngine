@@ -41,7 +41,7 @@ impl Renderer {
     /// * `res_manager` - The resources manager
     /// * `camera_buffer` - The camera buffer
     #[tracing::instrument]
-    pub async fn new(render_instance: &RenderInstance, world: &mut World, res_manager: &mut ResourcesManager) -> Self {
+    pub async fn new(render_instance: &RenderInstance<'_>, world: &mut World, res_manager: &mut ResourcesManager) -> Self {
         // Create object matrices SSBO
         let mut objects = Buffer::new(
             &render_instance,
@@ -101,7 +101,7 @@ impl Renderer {
     /// * `res_manager` - The resources manager
     /// * `camera_buffer` - The camera buffer
     #[tracing::instrument]
-    pub async fn init_pipelines(&mut self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager) {
+    pub async fn init_pipelines(&mut self, render_instance: &RenderInstance<'_>, world: &World, res_manager: &ResourcesManager) {
         // Initialize pipelines
         for entity in world.get_entities_with_component::<RenderComponent>().iter() {
             // Get render component
@@ -233,7 +233,7 @@ impl Renderer {
     /// * `world` - The world
     /// * `res_manager` - The resources manager
     #[tracing::instrument]
-    pub async fn render(&self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
+    pub async fn render(&self, render_instance: &RenderInstance<'_>, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
         debug!("Starting render.");
 
         // Handle render event
@@ -316,6 +316,33 @@ impl Renderer {
                 }
             }
         }
+
+        // // Create draw indirect commands
+        // let mut draw_indirect_commands: Vec<DrawIndexedIndirect> = Vec::new();
+        // {
+        //     trace!("Creating draw indirect commands.");
+        //     let _trace_draws = tracing::span!(tracing::Level::TRACE, "create_draw_indirect");
+
+        //     for draw in draws_batches.iter() {
+        //         // Get model
+        //         if let Some(model) = res_manager.get::<ModelResource>(&draw.model) {
+        //             // Check if model is initialized
+        //             if !model.loaded() {
+        //                 continue;
+        //             }
+
+        //             // Create draw indirect command
+        //             let draw_indirect = DrawIndexedIndirect {
+        //                 vertex_count: model.data.as_ref().unwrap().vertex_count,
+        //                 instance_count: draw.entities.end - draw.entities.start,
+        //                 base_index: 0,
+        //                 vertex_offset: 0,
+        //                 base_instance: draw.entities.start,
+        //             };
+        //             draw_indirect_commands.push(draw_indirect);
+        //         }
+        //     }
+        // }
 
         // Render
         {
@@ -426,7 +453,7 @@ impl Renderer {
 
 
     #[tracing::instrument]
-    pub async fn resize(&mut self, render_instance: &RenderInstance, width: u32, height: u32) {
+    pub async fn resize(&mut self, render_instance: &RenderInstance<'_>, width: u32, height: u32) {
         // Recreate depth texture
         self.depth_texture = Texture::new(
             render_instance,

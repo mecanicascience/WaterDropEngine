@@ -137,10 +137,11 @@ impl App {
         let mut res_manager = ResourcesManager::new();
         
         // Wait for window
-        let mut window = window_r.recv().await.unwrap();
+        let window = window_r.recv().await.unwrap();
+        let mut window_size = window.init_size.clone();
 
         // Create render instance
-        let mut render_instance = RenderInstance::new("WaterDropEngine", Some(&window)).await;
+        let mut render_instance = RenderInstance::new("WaterDropEngine", window).await;
 
         // Handle editor messages and push new frame
         if editor_handler.is_some() {
@@ -210,7 +211,7 @@ impl App {
 
                     // Resize window
                     let (width, height) = ev;
-                    window.resize(width, height);
+                    window_size = (width, height);
 
                     // Resize render instance
                     render_instance.resize(width, height).unwrap_or_else(|e| {
@@ -279,12 +280,12 @@ impl App {
 
                 if should_resize {
                     // Resize render instance
-                    render_instance.resize(window.size.0, window.size.1).unwrap_or_else(|e| {
+                    render_instance.resize(window_size.0, window_size.1).unwrap_or_else(|e| {
                         throw!("Failed to resize render instance : {:?}.", e);
                     });
 
                     // Resize render
-                    renderer.write().unwrap().resize(&render_instance, window.size.0, window.size.1).await;
+                    renderer.write().unwrap().resize(&render_instance, window_size.0, window_size.1).await;
                 }
             }
 

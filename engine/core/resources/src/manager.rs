@@ -519,7 +519,7 @@ impl ResourcesManager {
     /// * `handle` - Handle pointing to the resource location.
     /// * `render_instance` - The render instance.
     #[tracing::instrument]
-    pub async fn wait_for(&mut self, handle: &ResourceHandle, render_instance: &RenderInstance) {
+    pub async fn wait_for(&mut self, handle: &ResourceHandle, render_instance: &RenderInstance<'_>) {
         debug!(handle.index, "Waiting synchronously for resource to be loaded.");
 
         // Check if handle is valid

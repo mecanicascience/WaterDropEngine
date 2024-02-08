@@ -70,7 +70,7 @@ pub enum RenderEvent {
 /// // Present texture
 /// instance.present(render_texture);
 /// ```
-pub struct RenderInstance {
+pub struct RenderInstance<'a> {
     /// Label of the instance.
     pub label: String,
     /// Instance of the GPU device.
@@ -78,12 +78,12 @@ pub struct RenderInstance {
     /// Queue for the GPU device.
     pub queue: wgpu::Queue,
     /// Surface of the GPU device.
-    pub surface: Option<wgpu::Surface>,
+    pub surface: wgpu::Surface<'a>,
     /// Surface configuration of the GPU device.
     pub surface_config: Option<wgpu::SurfaceConfiguration>,
 }
 
-impl std::fmt::Debug for RenderInstance {
+impl std::fmt::Debug for RenderInstance<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RenderInstance")
             .field("label", &self.label)
@@ -92,16 +92,16 @@ impl std::fmt::Debug for RenderInstance {
     }
 }
 
-impl RenderInstance {
+impl RenderInstance<'_> {
     /// Create a new instance of the GPU device.
     /// 
     /// # Arguments
     /// 
     /// * `label` - Label of the instance.
     /// * `window` - Window of the instance. If `None`, the instance will be created without a surface.
-    #[tracing::instrument]
-    pub async fn new(label: &str, window: Option<&Window>) -> Self {
+    pub async fn new(label: &str, window: Window) -> RenderInstance<'static> {
         info!(label, "Creating render instance.");
+        let _trace = span!(Level::INFO, "new").entered();
 
         // Set flags
         let flags = if cfg!(debug_assertions) {
@@ -121,30 +121,16 @@ impl RenderInstance {
 
         // Retrieve surface and adapter
         trace!(label, "Retrieving surface and adapter.");
-        let window_ref = if window.is_some() {
-            let window_instance = window.as_ref().unwrap();
-            if window_instance.window.is_none() {
-                throw!("Cannot create render instance without a window for '{}'.", label);
-            }
-            Some(window_instance.window.as_ref().unwrap())
-        } else {
-            None
-        };
-        let surface = if window.is_some() {
-            Some(
-                unsafe { instance.create_surface(&window_ref.unwrap()) }
-                .unwrap_or_else(|e| throw!("Failed to create surface for '{}': {:?}.", label, e)))
+        if window.window.is_none() {
+            throw!("Cannot create render instance without a window for '{}'.", label);
         }
-        else {
-            None
-        };
+        Some(window.window.as_ref().unwrap());
+        let surface = unsafe { instance.create_surface(window.window.unwrap_unchecked()) }
+                .unwrap_or_else(|e| throw!("Failed to create surface for '{}': {:?}.", label, e));
         let adaptater = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::None,
-                compatible_surface: match surface {
-                    Some(ref s) => Some(s),
-                    None => None
-                },
+                compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
             .await
@@ -156,27 +142,16 @@ impl RenderInstance {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some(label),
-                    features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
-                    limits: wgpu::Limits::default()
+                    required_features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
+                    required_limits: wgpu::Limits::default()
                 },
                 None,
             )
             .await
             .unwrap_or_else(|e| throw!("Failed to create device for '{}': {:?}.", label, e));
 
-        // If no surface, return instance
-        if surface.is_none() {
-            return RenderInstance {
-                label: label.to_string(),
-                device,
-                queue,
-                surface: None,
-                surface_config: None,
-            }
-        }
-
         // Retrieve surface format (sRGB if possible)
-        let surface_caps = surface.as_ref().unwrap().get_capabilities(&adaptater);
+        let surface_caps = surface.get_capabilities(&adaptater);
         let surface_format = surface_caps.formats.iter()
             .copied()
             .filter(|f| f.is_srgb()) 
@@ -188,13 +163,14 @@ impl RenderInstance {
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: window.unwrap().size.0,
-            height: window.unwrap().size.1,
+            width: window.init_size.0,
+            height: window.init_size.1,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![]
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2
         };
-        surface.as_ref().unwrap().configure(&device, &surface_config);
+        surface.configure(&device, &surface_config);
 
         // Return instance
         RenderInstance {
@@ -217,16 +193,10 @@ impl RenderInstance {
     /// * `RenderEvent` - Render event.
     #[tracing::instrument]
     pub fn get_current_texture(render_instance: &RenderInstance) -> RenderEvent {
-        // If no surface, return
-        if render_instance.surface.is_none() {
-            warn!(render_instance.label, "Cannot render to texture without a surface.");
-            return RenderEvent::None;
-        }
-
         // Get current texture
         debug!(render_instance.label, "Getting current texture.");
         let _get_current_texture = span!(Level::INFO, "acquire_texture").entered();
-        let render_texture = render_instance.surface.as_ref().unwrap().get_current_texture();
+        let render_texture = render_instance.surface.get_current_texture();
         drop(_get_current_texture);
 
         // Check if texture is acquired
@@ -286,12 +256,6 @@ impl RenderInstance {
     /// * `RenderError::CannotPresent` - Cannot present render texture.
     #[tracing::instrument]
     pub fn present(&self, render_texture: RenderTexture) -> Result<(), RenderError> {
-        // If no surface, return
-        if self.surface.is_none() {
-            error!(self.label, "Cannot present render texture without a surface.");
-            return Err(RenderError::CannotPresent);
-        }
-
         // Present render texture
         debug!(self.label, "Presenting render texture.");
         render_texture.texture.present();
@@ -313,12 +277,6 @@ impl RenderInstance {
     pub fn resize(&mut self, width: u32, height: u32) -> Result<(), RenderError> {
         trace!(self.label, width, height, "Resizing render instance.");
 
-        // If no surface, return
-        if self.surface.is_none() {
-            error!(self.label, "Cannot resize render instance without a surface.");
-            return Err(RenderError::CannotResize);
-        }
-
         // If same size, return
         if self.surface_config.as_ref().unwrap().width == width && self.surface_config.as_ref().unwrap().height == height {
             return Ok(());
@@ -328,13 +286,13 @@ impl RenderInstance {
         if self.surface_config.as_ref().unwrap().width > 0 && self.surface_config.as_ref().unwrap().height > 0 {
             self.surface_config.as_mut().unwrap().width = width;
             self.surface_config.as_mut().unwrap().height = height;
-            self.surface.as_ref().unwrap().configure(&self.device, &self.surface_config.as_ref().unwrap());
+            self.surface.configure(&self.device, &self.surface_config.as_ref().unwrap());
         }
         Ok(())
     }
 }
 
-impl Drop for RenderInstance {
+impl Drop for RenderInstance<'_> {
     #[tracing::instrument]
     fn drop(&mut self) {
         info!(self.label, "Dropping render instance.");

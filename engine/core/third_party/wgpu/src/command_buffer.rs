@@ -60,7 +60,7 @@ impl CommandBuffer {
     /// * `instance` - The render instance.
     /// * `label` - The label of the command buffer.
     #[tracing::instrument]
-    pub async fn new(instance: &RenderInstance, label: &str) -> Self {
+    pub async fn new(instance: &RenderInstance<'_>, label: &str) -> Self {
         debug!(label, "Creating command buffer.");
 
         // Create command encoder

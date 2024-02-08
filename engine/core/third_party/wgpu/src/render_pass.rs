@@ -6,6 +6,10 @@ use crate::{BindGroup, ShaderType, Buffer, RenderError};
 
 use super::render_pipeline::RenderPipeline;
 
+// Alias struct for the draw indirect functions.
+pub use wgpu::util::DrawIndirectArgs;
+pub use wgpu::util::DrawIndexedIndirectArgs;
+
 /// Create a render pass instance.
 /// 
 /// # Example
