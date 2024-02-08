@@ -170,8 +170,8 @@ impl Scene {
                     position: Vec3f { x: 0.0, y: 0.0, z: 0.5 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.2
                 }).unwrap()
                 .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
-                .add_component(entity, RenderComponent {
-                    id: render_index,
+                .add_component(entity, RenderComponentInstanced {
+                    ids: render_index..render_index + 1,
                     model: res_manager.load::<ModelResource>("models/cube"),
                     material: res_manager.load::<MaterialResource>("materials/unicolor")
                 }).unwrap();

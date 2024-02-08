@@ -142,7 +142,9 @@ impl RenderInstance<'_> {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some(label),
-                    required_features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
+                    required_features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS
+                        | wgpu::Features::INDIRECT_FIRST_INSTANCE
+                        | wgpu::Features::MULTI_DRAW_INDIRECT,
                     required_limits: wgpu::Limits::default()
                 },
                 None,

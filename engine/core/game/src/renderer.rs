@@ -1,19 +1,33 @@
-use std::ops::Range;
-
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use wde_ecs::{CameraComponent, CameraUniform, EntityIndex, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World, MAX_ENTITIES};
 use wde_resources::{MaterialResource, ModelResource, Resource, ResourceHandle, ResourcesManager};
-use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
+use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, DrawIndexedIndirectArgs, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
+
+/// Describes the maximum number of indirect commands.
+const MAX_INDIRECT_COMMANDS: usize = 10_000;
 
 /// Describes a draw batch.
 #[derive(Debug)]
 struct IndirectBatch {
-    /// Model of the set of entities
-    model: ResourceHandle,
-    /// Material of the set of entities
-    material: ResourceHandle,
-    /// Entity list (Note that the index need to be the same as the index in the SSBO)
-    entities: Range<u32>,
+    /// First entity index (Note that the index need to be the same as the index in the SSBO)
+    first: u32,
+    /// Number of entities
+    count: u32,
+    /// Number of indices in the model
+    index_count: u32,
+    /// Batch index. This uniquely identifies a model and material pair.
+    batch_index: u32,
+}
+
+/// Describes a set of draw indirect commands.
+#[derive(Debug, Copy, Clone)]
+struct DrawIndexedIndirectDesc {
+    /// First draw indirect command index
+    first: u64,
+    /// Number of draw indirect commands
+    count: u32,
+    /// Batch index. This uniquely identifies a model and material pair.
+    batch_index: u32,
 }
 
 
@@ -22,6 +36,9 @@ pub struct Renderer {
     // Object matrices SSBO
     objects: Buffer,
     objects_bind_group: BindGroup,
+
+    // Render buffers
+    indirect_commands_buffer: Buffer,
 
     // Camera buffer
     camera_buffer: Buffer,
@@ -57,6 +74,16 @@ impl Renderer {
             ShaderStages::VERTEX).await;
 
 
+        // Create draw indirect commands buffer
+        let indirect_commands_buffer = Buffer::new(
+            &render_instance,
+            "Draw indirect commands buffer",
+            std::mem::size_of::<DrawIndexedIndirectArgs>() * MAX_INDIRECT_COMMANDS as usize,
+            BufferUsage::INDIRECT | BufferUsage::MAP_WRITE,
+            None);
+
+
+
         // Create camera uniform buffer
         let mut camera_buffer = Buffer::new(
             &render_instance,
@@ -87,6 +114,7 @@ impl Renderer {
             camera_buffer,
             camera_buffer_bind_group,
             depth_texture,
+            indirect_commands_buffer,
         }
     }
     
@@ -236,18 +264,21 @@ impl Renderer {
     pub async fn render(&self, render_instance: &RenderInstance<'_>, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
         debug!("Starting render.");
 
-        // Handle render event
+        // Acquire render texture
         let render_texture: RenderTexture = match RenderInstance::get_current_texture(&render_instance) {
             RenderEvent::Redraw(render_texture) => render_texture,
             event => return event,
         };
 
         // Create draw batches
+        let mut batch_references: Vec<(ResourceHandle, ResourceHandle)> = Vec::new();
         let mut draws_batches: Vec<IndirectBatch> = Vec::new();
         {
             trace!("Creating draw batches.");
             let _trace_draws = tracing::span!(tracing::Level::TRACE, "create_batches");
-
+            
+            // Create draw batch for first entity
+            let mut batch_indices: Vec<(u32, u32)> = Vec::new();
             let first_entity = match world.get_entities_with_component::<RenderComponent>().iter().next() {
                 Some(entity) => {
                     world.get_component::<RenderComponent>(*entity).unwrap()
@@ -255,38 +286,50 @@ impl Renderer {
                 None => return RenderEvent::None,
             };
             draws_batches.push(IndirectBatch {
-                model: first_entity.model.clone(),
-                material: first_entity.material.clone(),
-                entities: first_entity.id..(first_entity.id + 1),
+                first: first_entity.id,
+                count: 1,
+                batch_index: 0,
+                index_count: res_manager.get::<ModelResource>(&first_entity.model).unwrap().data.as_ref().unwrap().index_count as u32
             });
+            batch_indices.push((first_entity.model.index as u32, first_entity.material.index as u32));
+            batch_references.push((first_entity.model.clone(), first_entity.material.clone()));
+
 
             // Create draw batches for entities with render component
-            let mut first_batch = true;
+            let mut first_entity = true;
             for entity in world.get_entities_with_component::<RenderComponent>().iter() {
                 // Ignore first entity
-                if first_batch {
-                    first_batch = false;
+                if first_entity {
+                    first_entity = false;
                     continue;
                 }
 
                 // Compare model and material with the last draw
                 let entity_render = world.get_component::<RenderComponent>(*entity).unwrap();
-                let same_model = draws_batches.last().unwrap().model.index == entity_render.model.index;
-                let same_material = draws_batches.last().unwrap().material.index == entity_render.material.index;
-                let contiguous = entity_render.id == draws_batches.last().unwrap().entities.end;
+                let entity_batch_index = match batch_indices.iter().position(|&pair| pair == (entity_render.model.index as u32, entity_render.material.index as u32)) {
+                    Some(index) => index,
+                    None => {
+                        batch_indices.push((entity_render.model.index as u32, entity_render.material.index as u32));
+                        batch_references.push((entity_render.model.clone(), entity_render.material.clone()));
+                        batch_indices.len() - 1
+                    }
+                };
+                let same_batch_index = draws_batches.last().unwrap().batch_index == entity_batch_index as u32;
+                let contiguous = entity_render.id == (draws_batches.last().unwrap().first + draws_batches.last().unwrap().count);
 
                 // Handle draw creation
-                if same_model && same_material && contiguous {
+                if same_batch_index && contiguous {
                     // Add entity to the last draw
                     let last_draw = draws_batches.last_mut().unwrap();
-                    last_draw.entities.end += 1;
+                    last_draw.count += 1;
                 }
                 else {
                     // Create a new draw
                     let new_draw = IndirectBatch {
-                        model: entity_render.model.clone(),
-                        material: entity_render.material.clone(),
-                        entities: entity_render.id..(entity_render.id + 1),
+                        first: entity_render.id,
+                        count: 1,
+                        batch_index: entity_batch_index as u32,
+                        index_count: res_manager.get::<ModelResource>(&entity_render.model).unwrap().data.as_ref().unwrap().index_count as u32
                     };
                     draws_batches.push(new_draw);
                 }
@@ -296,53 +339,109 @@ impl Renderer {
             for entity in world.get_entities_with_component::<RenderComponentInstanced>().iter() {
                 // Compare model and material with the last draw
                 let entity_render = world.get_component::<RenderComponentInstanced>(*entity).unwrap();
-                let same_model = draws_batches.last().unwrap().model.index == entity_render.model.index;
-                let same_material = draws_batches.last().unwrap().material.index == entity_render.material.index;
+                let entity_batch_index = match batch_indices.iter().position(|&pair| pair == (entity_render.model.index as u32, entity_render.material.index as u32)) {
+                    Some(index) => index,
+                    None => {
+                        batch_indices.push((entity_render.model.index as u32, entity_render.material.index as u32));
+                        batch_references.push((entity_render.model.clone(), entity_render.material.clone()));
+                        batch_indices.len() - 1
+                    }
+                };
+                let same_batch_index = draws_batches.last().unwrap().batch_index == entity_batch_index as u32;
+                let contiguous = entity_render.ids.start == (draws_batches.last().unwrap().first + draws_batches.last().unwrap().count);
 
                 // Handle draw creation
-                if same_model && same_material && entity_render.ids.start == draws_batches.last().unwrap().entities.end {
+                if same_batch_index && contiguous {
                     // Add entity to the last draw
                     let last_draw = draws_batches.last_mut().unwrap();
-                    last_draw.entities.end += entity_render.ids.end - entity_render.ids.start;
+                    last_draw.count += entity_render.ids.end - entity_render.ids.start;
                 }
                 else {
                     // Create a new draw
                     let new_draw = IndirectBatch {
-                        model: entity_render.model.clone(),
-                        material: entity_render.material.clone(),
-                        entities: entity_render.ids.clone(),
+                        first: entity_render.ids.start,
+                        count: entity_render.ids.end - entity_render.ids.start,
+                        batch_index: entity_batch_index as u32,
+                        index_count: res_manager.get::<ModelResource>(&entity_render.model).unwrap().data.as_ref().unwrap().index_count as u32
                     };
                     draws_batches.push(new_draw);
                 }
             }
         }
+        info!("Draws batches: {:?}", draws_batches);
 
-        // // Create draw indirect commands
-        // let mut draw_indirect_commands: Vec<DrawIndexedIndirect> = Vec::new();
-        // {
-        //     trace!("Creating draw indirect commands.");
-        //     let _trace_draws = tracing::span!(tracing::Level::TRACE, "create_draw_indirect");
+        // Sort draw batches
+        {
+            trace!("Sorting draw batches.");
+            let _trace_draws = tracing::span!(tracing::Level::TRACE, "sort_batches");
 
-        //     for draw in draws_batches.iter() {
-        //         // Get model
-        //         if let Some(model) = res_manager.get::<ModelResource>(&draw.model) {
-        //             // Check if model is initialized
-        //             if !model.loaded() {
-        //                 continue;
-        //             }
+            // Sort draw batches
+            draws_batches.sort_by(|a, b| a.batch_index.cmp(&b.batch_index));
+        }
+        info!("Draws batches sorted: {:?}", draws_batches);
 
-        //             // Create draw indirect command
-        //             let draw_indirect = DrawIndexedIndirect {
-        //                 vertex_count: model.data.as_ref().unwrap().vertex_count,
-        //                 instance_count: draw.entities.end - draw.entities.start,
-        //                 base_index: 0,
-        //                 vertex_offset: 0,
-        //                 base_instance: draw.entities.start,
-        //             };
-        //             draw_indirect_commands.push(draw_indirect);
-        //         }
-        //     }
-        // }
+        // Record draw indirect commands
+        let mut draw_indirect_commands: Vec<DrawIndexedIndirectArgs> = Vec::new();
+        let mut draw_indirect_desc: Vec<DrawIndexedIndirectDesc> = Vec::new();
+        {
+            trace!("Record draw indirect commands.");
+            let _trace_draws = tracing::span!(tracing::Level::TRACE, "record_draw_indirect");
+
+            // Create first draw indirect command descriptor
+            let mut draw_indirect_desc_item = DrawIndexedIndirectDesc {
+                first: 0,
+                count: 0,
+                batch_index: draws_batches[0].batch_index,
+            };
+            
+            for draw in draws_batches.iter() {
+                // Create draw indirect command
+                let draw_indirect_command = DrawIndexedIndirectArgs {
+                    index_count: draw.index_count,
+                    instance_count: draw.count,
+                    first_index: 0,
+                    base_vertex: 0,
+                    first_instance: draw.first,
+                };
+
+                // Check if draw indirect command is contiguous
+                if draw.batch_index == draw_indirect_desc_item.batch_index {
+                    draw_indirect_desc_item.count += 1;
+                }
+                else {
+                    // Add draw indirect command descriptor
+                    draw_indirect_desc.push(draw_indirect_desc_item);
+
+                    // Create new draw indirect command descriptor
+                    draw_indirect_desc_item = DrawIndexedIndirectDesc {
+                        first: draw_indirect_desc_item.first + draw_indirect_desc_item.count as u64,
+                        count: 1,
+                        batch_index: draw.batch_index,
+                    };
+                }
+
+                // Add draw indirect command
+                draw_indirect_commands.push(draw_indirect_command);
+            }
+
+            // Add last draw indirect command descriptor
+            draw_indirect_desc.push(draw_indirect_desc_item);
+        }
+        info!("Indirect commands: {:?}", draw_indirect_commands);
+        info!("Indirect desc: {:?}", draw_indirect_desc);
+
+        // Write draw indirect commands
+        self.indirect_commands_buffer.map_mut(&render_instance, |mut view| {
+            // Cast data to DrawIndexedIndirectArgs
+            let data = view.as_mut_ptr() as *mut DrawIndexedIndirectArgs;
+
+            // Write data
+            for (i, draw) in draw_indirect_commands.iter().enumerate() {
+                unsafe {
+                    *data.add(i) = *draw;
+                };
+            }
+        });
 
         // Render
         {
@@ -367,45 +466,35 @@ impl Renderer {
                 // Set bind groups
                 render_pass.set_bind_group(0, &self.camera_buffer_bind_group);
                 render_pass.set_bind_group(1, &self.objects_bind_group);
-                
-                // Last model and material
-                let mut last_model: Option<usize> = None;
-                let mut last_material: Option<usize> = None;
 
                 // Render entities
-                for draw in draws_batches.iter() {
+                for draw in draw_indirect_desc.iter() {
                     // Get model
-                    if let Some(model) = res_manager.get::<ModelResource>(&draw.model) {
+                    if let Some(model) = res_manager.get::<ModelResource>(&batch_references[draw.batch_index as usize].0) {
                         // Check if model is initialized
                         if !model.loaded() {
                             continue;
                         }
 
                         // Set model buffers
-                        if last_model.is_none() || last_model.unwrap() != draw.model.index {
-                            render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
-                            render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
-                            last_model = Some(draw.model.index);
-                        }
+                        render_pass.set_vertex_buffer(0, &model.data.as_ref().unwrap().vertex_buffer);
+                        render_pass.set_index_buffer(&model.data.as_ref().unwrap().index_buffer);
 
                         // Get material
-                        if let Some(material) = res_manager.get_mut::<MaterialResource>(&draw.material) {
+                        if let Some(material) = res_manager.get_mut::<MaterialResource>(&batch_references[draw.batch_index as usize].1) {
                             // Check if pipeline is initialized
                             if !material.data.as_ref().unwrap().pipeline.is_initialized() {
                                 continue;
                             }
 
                             // Set render pipeline
-                            if last_material.is_none() || last_material.unwrap() != draw.material.index {
-                                if render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline).is_err() {
-                                    continue;
-                                }
-                                last_material = Some(draw.material.index);
+                            if render_pass.set_pipeline(&material.data.as_ref().unwrap().pipeline).is_err() {
+                                continue;
                             }
 
                             // Draw
                             render_pass
-                                .draw_indexed(0..model.data.as_ref().unwrap().index_count, draw.entities.clone())
+                                .multi_draw_indexed_indirect(&self.indirect_commands_buffer, draw.first * std::mem::size_of::<DrawIndexedIndirectArgs>() as u64, draw.count)
                                 .unwrap_or_else(|_| {
                                     error!("Failed to draw batch {:?}.", draw);
                                 });

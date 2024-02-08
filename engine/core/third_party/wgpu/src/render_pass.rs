@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use wde_logger::{error, debug};
+use wgpu::BufferAddress;
 
 use crate::{BindGroup, ShaderType, Buffer, RenderError};
 
@@ -207,6 +208,65 @@ impl<'a> RenderPass<'a> {
             return Err(RenderError::MissingIndexBuffer);
         }
         self.render_pass.draw_indexed(indices, 0, instance_index);
+        Ok(())
+    }
+
+
+
+    /// Draws primitives from the active vertex buffers.
+    /// The draw is indirect, meaning the draw arguments are read from a buffer.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `buffer` - The buffer to read the draw arguments from.
+    /// * `offset` - The offset to read the draw arguments from.
+    /// * `count` - The number of draw arguments to read.
+    /// 
+    /// # Errors
+    /// 
+    /// * `RenderError::PipelineNotSet` - The pipeline is not set.
+    /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
+    pub fn multi_draw_indirect(&mut self, buffer: &'a Buffer, offset: BufferAddress, count: u32) -> Result<(), RenderError> {
+        if !self.pipeline_set {
+            error!(self.label, "Pipeline is not set.");
+            return Err(RenderError::PipelineNotSet);
+        }
+        if !self.vertex_buffer_set {
+            error!(self.label, "Vertex buffer is not set.");
+            return Err(RenderError::MissingVertexBuffer);
+        }
+        self.render_pass.multi_draw_indirect(&buffer.buffer, offset, count);
+        Ok(())
+    }
+
+    /// Draws primitives from the active vertex buffers as indexed triangles.
+    /// The draw is indirect, meaning the draw arguments are read from a buffer.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `buffer` - The buffer to read the draw arguments from.
+    /// * `offset` - The offset to read the draw arguments from.
+    /// * `count` - The number of draw arguments to read.
+    /// 
+    /// # Errors
+    /// 
+    /// * `RenderError::PipelineNotSet` - The pipeline is not set.
+    /// * `RenderError::MissingVertexBuffer` - The vertex buffer is not set.
+    /// * `RenderError::MissingIndexBuffer` - The index buffer is not set.
+    pub fn multi_draw_indexed_indirect(&mut self, buffer: &'a Buffer, offset: BufferAddress, count: u32) -> Result<(), RenderError> {
+        if !self.pipeline_set {
+            error!(self.label, "Pipeline is not set.");
+            return Err(RenderError::PipelineNotSet);
+        }
+        if !self.vertex_buffer_set {
+            error!(self.label, "Vertex buffer is not set.");
+            return Err(RenderError::MissingVertexBuffer);
+        }
+        if !self.index_buffer_set {
+            error!(self.label, "Index buffer is not set.");
+            return Err(RenderError::MissingIndexBuffer);
+        }
+        self.render_pass.multi_draw_indexed_indirect(&buffer.buffer, offset, count);
         Ok(())
     }
 }
