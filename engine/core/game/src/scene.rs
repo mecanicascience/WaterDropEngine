@@ -77,80 +77,106 @@ impl Scene {
 
 
         // Create cube
-        let cube = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
-        world
-            .add_component(cube, LabelComponent { label : "Cube".to_string() }).unwrap()
-            .add_component(cube, TransformComponent {
-                position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
-            }).unwrap()
-            .add_component(cube, RenderComponentSSBODynamic { id: render_index }).unwrap()
-            .add_component(cube, RenderComponent {
-                id: render_index,
-                model: res_manager.load::<ModelResource>("models/cube"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor")
-            }).unwrap();
-        render_index += 1;
+        {
+            let entity = match world.create_entity() {
+                Some(e) => e,
+                None => throw!("Failed to create entity. No more entity slots available."),
+            };
+            world
+                .add_component(entity, LabelComponent { label : "Cube".to_string() }).unwrap()
+                .add_component(entity, TransformComponent {
+                    position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+                }).unwrap()
+                .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
+                .add_component(entity, RenderComponent {
+                    id: render_index,
+                    model: res_manager.load::<ModelResource>("models/cube"),
+                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                }).unwrap();
+            render_index += 1;
+        }
 
-        // Create cube 2
-        let cube2 = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
-        world
-            .add_component(cube2, LabelComponent { label : "Cube 2".to_string() }).unwrap()
-            .add_component(cube2, TransformComponent {
-                position: Vec3f { x: -2.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.4
-            }).unwrap()
-            .add_component(cube2, RenderComponentSSBODynamic { id: render_index }).unwrap()
-            .add_component(cube2, RenderComponent {
-                id: render_index,
-                model: res_manager.load::<ModelResource>("models/cube"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor")
-            }).unwrap();
-        render_index += 1;
+        // Create cube
+        {
+            let entity = match world.create_entity() {
+                Some(e) => e,
+                None => throw!("Failed to create entity. No more entity slots available."),
+            };
+            world
+                .add_component(entity, LabelComponent { label : "Cube 2".to_string() }).unwrap()
+                .add_component(entity, TransformComponent {
+                    position: Vec3f { x: -2.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.4
+                }).unwrap()
+                .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
+                .add_component(entity, RenderComponent {
+                    id: render_index,
+                    model: res_manager.load::<ModelResource>("models/cube"),
+                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                }).unwrap();
+            render_index += 1;
+        }
 
         
         // Create nxn monkeys
         let n = 20;
-        let mut indices = Vec::new();
-        let mut monkeys = Vec::new();
+        let mut monkey_indices = Vec::new();
         for i in 0..n {
             for j in 0..n {
-                let monkey = match world.create_entity() {
+                let entity = match world.create_entity() {
                     Some(e) => e,
                     None => throw!("Failed to create entity. No more entity slots available."),
                 };
 
                 // Create monkey
                 world
-                    .add_component(monkey, LabelComponent { label : format!("Monkey {}", render_index) }).unwrap()
-                    .add_component(monkey, TransformComponent {
+                    .add_component(entity, LabelComponent { label : format!("Monkey {}", render_index) }).unwrap()
+                    .add_component(entity, TransformComponent {
                         position: Vec3f { x: i as f32 * 1.0 - (n as f32)/2.0, y: 0.0, z: j as f32 * 1.0 - (n as f32)/2.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
                     }).unwrap()
-                    .add_component(monkey, RenderComponentSSBOStatic { id: render_index }).unwrap();
-                indices.push(render_index);
-                monkeys.push(monkey);
+                    .add_component(entity, RenderComponentSSBOStatic { id: render_index }).unwrap();
+                monkey_indices.push(render_index);
                 render_index += 1;
             }
         }
         // Add parent monkey
-        let parent_monkey = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
-        world
-            .add_component(parent_monkey, LabelComponent { label : "Parent monkey".to_string() }).unwrap()
-            .add_component(parent_monkey, TransformComponent {
-                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
-            }).unwrap()
-            .add_component(parent_monkey, RenderComponentInstanced {
-                ids: indices.clone().into_iter().min().unwrap()..indices.clone().into_iter().max().unwrap() + 1,
-                model: res_manager.load::<ModelResource>("models/monkey"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor")
-            }).unwrap();
+        {
+            let entity = match world.create_entity() {
+                Some(e) => e,
+                None => throw!("Failed to create entity. No more entity slots available."),
+            };
+            world
+                .add_component(entity, LabelComponent { label : "Parent monkey".to_string() }).unwrap()
+                .add_component(entity, TransformComponent {
+                    position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
+                }).unwrap()
+                .add_component(entity, RenderComponentInstanced {
+                    ids: monkey_indices.clone().into_iter().min().unwrap()..monkey_indices.clone().into_iter().max().unwrap() + 1,
+                    model: res_manager.load::<ModelResource>("models/monkey"),
+                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                }).unwrap();
+            render_index += 1;
+        }
+
+
+        // Create cube
+        {
+            let entity = match world.create_entity() {
+                Some(e) => e,
+                None => throw!("Failed to create entity. No more entity slots available."),
+            };
+            world
+                .add_component(entity, LabelComponent { label : "Cube".to_string() }).unwrap()
+                .add_component(entity, TransformComponent {
+                    position: Vec3f { x: 0.0, y: 0.0, z: 0.5 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.2
+                }).unwrap()
+                .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
+                .add_component(entity, RenderComponent {
+                    id: render_index,
+                    model: res_manager.load::<ModelResource>("models/cube"),
+                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                }).unwrap();
+            // render_index += 1;
+        }
 
 
 
