@@ -311,7 +311,6 @@ impl RenderPipeline {
 }
 
 impl Drop for RenderPipeline {
-    #[tracing::instrument]
     fn drop(&mut self) {
         info!(self.label, "Dropping render pipeline.");
     }
