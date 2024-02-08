@@ -24,7 +24,8 @@ pub struct ResourceHandle {
     pub label: String,
     /// Type of the resource
     pub resource_type: ResourceType,
-    /// Index of the resource handle
+    /// Index of the resource handle.
+    /// This index uniquely identifies a resource.
     pub index: ResourceHandleIndex,
     /// Resources manager instance
     manager: Arc<RwLock<ResourcesManagerInstance>>,
@@ -48,7 +49,7 @@ impl ResourceHandle {
     /// 
     /// * `label` - Label of the resource.
     /// * `resource_type` - Type of the resource.
-    /// * `index` - Index of the resource handle.
+    /// * `index` - Index of the resource.
     /// * `manager` - Resources manager instance.
     fn new(label: &str, resource_type: ResourceType, index: ResourceHandleIndex, manager: Arc<RwLock<ResourcesManagerInstance>>) -> Self {
         // Add handle to resource location
