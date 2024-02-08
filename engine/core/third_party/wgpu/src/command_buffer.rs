@@ -1,6 +1,6 @@
 use wde_logger::{trace, debug};
 
-use crate::{RenderInstance, Buffer, TextureView};
+use crate::{Buffer, ComputePass, RenderInstance, TextureView};
 
 use super::render_pass::RenderPass;
 
@@ -131,6 +131,23 @@ impl CommandBuffer {
         });
 
         RenderPass::new(label, render_pass)
+    }
+
+    /// Create a new compute pass.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `label` - The label of the compute pass.
+    #[tracing::instrument]
+    pub fn create_compute_pass<'pass>(&'pass mut self, label: &str) -> ComputePass<'pass> {
+        trace!(label, "Creating compute pass.");
+
+        let compute_pass = self.encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some(format!("'{}' Compute Pass", label).as_str()),
+            timestamp_writes: None
+        });
+
+        ComputePass::new(label, compute_pass)
     }
 
     /// Finish and submit a command buffer.
