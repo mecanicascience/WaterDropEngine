@@ -1,5 +1,5 @@
 use tracing::{debug, error};
-use wde_ecs::{RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World, MAX_ENTITIES};
+use wde_ecs::{CameraComponent, CameraUniform, EntityIndex, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World, MAX_ENTITIES};
 use wde_resources::{MaterialResource, ModelResource, ResourcesManager};
 use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
 
@@ -9,7 +9,8 @@ pub struct Renderer {
     objects: Buffer,
     objects_bind_group: BindGroup,
 
-    // Camera buffer bind group
+    // Camera buffer
+    camera_buffer: Buffer,
     camera_buffer_bind_group: BindGroup,
 
     // Depth texture
@@ -17,8 +18,16 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    /// Create a new renderer instance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `render_instance` - The render instance
+    /// * `world` - The world of the scene
+    /// * `res_manager` - The resources manager
+    /// * `camera_buffer` - The camera buffer
     #[tracing::instrument]
-    pub async fn new(render_instance: &RenderInstance, world: &mut World, res_manager: &mut ResourcesManager, camera_buffer: &mut Buffer) -> Self {
+    pub async fn new(render_instance: &RenderInstance, world: &mut World, res_manager: &mut ResourcesManager) -> Self {
         // Create object matrices SSBO
         let mut objects = Buffer::new(
             &render_instance,
@@ -33,11 +42,21 @@ impl Renderer {
             BufferBindingType::Storage { read_only: true },
             ShaderStages::VERTEX).await;
 
+
+        // Create camera uniform buffer
+        let mut camera_buffer = Buffer::new(
+            &render_instance,
+            "Camera buffer",
+            std::mem::size_of::<CameraUniform>(),
+            wde_wgpu::BufferUsage::UNIFORM | wde_wgpu::BufferUsage::COPY_DST,
+            None);
+
         // Create camera buffer bind group
         let camera_buffer_bind_group = camera_buffer.create_bind_group(
             &render_instance,
             BufferBindingType::Uniform,
             ShaderStages::VERTEX).await;
+
 
         // Create depth texture
         let depth_texture = Texture::new(
@@ -51,14 +70,25 @@ impl Renderer {
         Self {
             objects,
             objects_bind_group,
+            camera_buffer,
             camera_buffer_bind_group,
             depth_texture,
         }
     }
+    
 
+
+    /// Update the renderer instance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `render_instance` - The render instance
+    /// * `world` - The world of the scene
+    /// * `res_manager` - The resources manager
+    /// * `camera_buffer` - The camera buffer
     #[tracing::instrument]
-    pub async fn update(&mut self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager, camera_buffer: &mut Buffer) {
-        // Render entities
+    pub async fn init_pipelines(&mut self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager) {
+        // Initialize pipelines
         for entity in world.get_entities_with_component::<RenderComponent>().iter() {
             // Get render component
             if let Some(render_component) = world.get_component::<RenderComponent>(*entity) {
@@ -70,7 +100,7 @@ impl Renderer {
                 }
 
                 // Create camera buffer bind group
-                let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
+                let camera_buffer_bind_group_layout = self.camera_buffer.create_bind_group_layout(
                     &render_instance,
                     BufferBindingType::Uniform,
                     ShaderStages::VERTEX).await;
@@ -93,7 +123,7 @@ impl Renderer {
             }
         }
 
-        // Render entities instanced
+        // Initialize pipelines instanced
         for entity in world.get_entities_with_component::<RenderComponentInstanced>().iter() {
             // Get render component instanced
             if let Some(render_component) = world.get_component::<RenderComponentInstanced>(*entity) {
@@ -105,7 +135,7 @@ impl Renderer {
                 }
 
                 // Create camera buffer bind group
-                let camera_buffer_bind_group_layout = camera_buffer.create_bind_group_layout(
+                let camera_buffer_bind_group_layout = self.camera_buffer.create_bind_group_layout(
                     &render_instance,
                     BufferBindingType::Uniform,
                     ShaderStages::VERTEX).await;
@@ -129,6 +159,15 @@ impl Renderer {
         }
     }
 
+
+
+    /// Update the renderer instance SSBO.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `render_instance` - The render instance
+    /// * `world` - The world
+    /// * `update_static` - True if static objects should be updated
     #[tracing::instrument]
     pub fn update_ssbo(&self, render_instance: &RenderInstance, world: &World, update_static: bool) {
         // Update dynamic objects
@@ -171,6 +210,15 @@ impl Renderer {
         });
     }
 
+
+
+    /// Render the renderer instance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `render_instance` - The render instance
+    /// * `world` - The world
+    /// * `res_manager` - The resources manager
     #[tracing::instrument]
     pub async fn render(&self, render_instance: &RenderInstance, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
         // Handle render event
@@ -293,6 +341,33 @@ impl Renderer {
         // Return
         RenderEvent::None
     }
+
+
+
+    /// Update the active camera.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `render_instance` - The render instance
+    /// * `camera_buffer` - The camera buffer
+    #[tracing::instrument]
+    pub fn update_camera(&mut self, render_instance: &RenderInstance, world: &World, camera: EntityIndex) {
+        // Create camera uniform
+        let mut camera_uniform = CameraUniform::new();
+        let surface_config = render_instance.surface_config.as_ref().unwrap();
+        camera_uniform.world_to_screen = CameraUniform::get_world_to_screen(
+            CameraComponent {
+                aspect: surface_config.width as f32 / surface_config.height as f32,
+                fovy: 60.0, znear: 0.1, zfar: 1000.0
+            },
+            world.get_component::<TransformComponent>(camera).unwrap().clone()
+        ).into();
+
+        // Write camera buffer
+        self.camera_buffer.write(&render_instance, bytemuck::cast_slice(&[camera_uniform]), 0);
+    }
+
+
 
     #[tracing::instrument]
     pub async fn resize(&mut self, render_instance: &RenderInstance, width: u32, height: u32) {

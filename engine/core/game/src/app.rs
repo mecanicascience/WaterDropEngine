@@ -2,14 +2,12 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use tokio::sync::mpsc;
 use tracing::{span, Level};
-use wde_ecs::{CameraComponent, CameraUniform, LabelComponent, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
 use wde_logger::{info, throw, trace, debug};
 use wde_editor_interactions::EditorHandler;
-use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
-use wde_resources::{MaterialResource, ModelResource, ResourcesManager};
-use wde_wgpu::{Buffer, ElementState, Event, KeyCode, LoopEvent, PhysicalKey, RenderEvent, RenderInstance, Window, WindowEvent};
+use wde_resources::ResourcesManager;
+use wde_wgpu::{ElementState, Event, LoopEvent, PhysicalKey, RenderEvent, RenderInstance, Window, WindowEvent};
 
-use crate::Renderer;
+use crate::{Renderer, Scene};
 
 pub struct App {}
 
@@ -23,8 +21,10 @@ impl App {
         debug!("======== Starting engine ========");
 
 
+
+
         // ======== WINDOW CREATION ========
-        let _window_creation_span = span!(Level::INFO, "window_creation").entered();
+        let _window_creation_span = span!(Level::INFO, "window_init").entered();
         // Create window
         let mut window = Window::new(800, 600, "WaterDropEngine");
 
@@ -117,8 +117,10 @@ impl App {
         drop(_window_creation_span);
 
 
+
+
         // ======== ENGINE INITIALIZATION ========
-        let _engine_initialization_span = span!(Level::INFO, "engine_initialization").entered();
+        let _engine_initialization_span = span!(Level::INFO, "engine_init").entered();
 
         // Create editor handler
         let mut editor_handler: Option<EditorHandler> = if cfg!(debug_assertions) != true { None } else {
@@ -130,7 +132,6 @@ impl App {
 
         // Create list of input keys
         let mut keys_states: HashMap<PhysicalKey, bool> = HashMap::new();
-
 
         // Create resource manager
         let mut res_manager = ResourcesManager::new();
@@ -156,158 +157,24 @@ impl App {
         drop(_engine_initialization_span);
 
 
-        // ======== WORLD CONTENT ========
-        let _world_content_span = span!(Level::INFO, "world_content").entered();
 
-        // Create world
-        let mut world = World::new();
-        world
-            .register_component::<LabelComponent>()
-            .register_component::<TransformComponent>()
-            .register_component::<RenderComponent>()
-            .register_component::<RenderComponentInstanced>()
-            .register_component::<RenderComponentSSBODynamic>()
-            .register_component::<RenderComponentSSBOStatic>();
-        let mut render_index = 0;
+        // ======== SCENE INITIALIZATION ========
+        let _scene_initialization_span = span!(Level::INFO, "scene_init").entered();
+        let mut scene = Scene::new(&mut res_manager);
+        drop(_scene_initialization_span);
 
-
-        // // Create big model
-        // let big_model = match world.create_entity() {
-        //     Some(e) => e,
-        //     None => throw!("Failed to create entity. No more entity slots available."),
-        // };
-
-        // // Set model to big model
-        // world
-        //     .add_component(big_model, LabelComponent { label : "Big model".to_string() }).unwrap()
-        //     .add_component(big_model, TransformComponent {
-        //         position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
-        //     }).unwrap()
-        //     .add_component(big_model, RenderComponentDynamic {
-        //         ids: 0..1,
-        //         model: res_manager.load::<ModelResource>("models/lost_empire"),
-        //         material: res_manager.load::<MaterialResource>("materials/unicolor")
-        //     }).unwrap();
-
-
-        // Create cube
-        let cube = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
-        world
-            .add_component(cube, LabelComponent { label : "Cube".to_string() }).unwrap()
-            .add_component(cube, TransformComponent {
-                position: Vec3f { x: -0.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
-            }).unwrap()
-            .add_component(cube, RenderComponentSSBODynamic { id: render_index }).unwrap()
-            .add_component(cube, RenderComponent {
-                id: render_index,
-                model: res_manager.load::<ModelResource>("models/cube"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor")
-            }).unwrap();
-        render_index += 1;
-
-        // Create cube 2
-        let cube2 = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
-        world
-            .add_component(cube2, LabelComponent { label : "Cube 2".to_string() }).unwrap()
-            .add_component(cube2, TransformComponent {
-                position: Vec3f { x: -2.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.4
-            }).unwrap()
-            .add_component(cube2, RenderComponentSSBODynamic { id: render_index }).unwrap()
-            .add_component(cube2, RenderComponent {
-                id: render_index,
-                model: res_manager.load::<ModelResource>("models/cube"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor")
-            }).unwrap();
-        render_index += 1;
-
-        
-        // Create nxn monkeys
-        let n = 20;
-        let mut indices = Vec::new();
-        let mut monkeys = Vec::new();
-        for i in 0..n {
-            for j in 0..n {
-                let monkey = match world.create_entity() {
-                    Some(e) => e,
-                    None => throw!("Failed to create entity. No more entity slots available."),
-                };
-
-                // Create monkey
-                world
-                    .add_component(monkey, LabelComponent { label : format!("Monkey {}", render_index) }).unwrap()
-                    .add_component(monkey, TransformComponent {
-                        position: Vec3f { x: i as f32 * 1.0 - (n as f32)/2.0, y: 0.0, z: j as f32 * 1.0 - (n as f32)/2.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
-                    }).unwrap()
-                    .add_component(monkey, RenderComponentSSBOStatic { id: render_index }).unwrap();
-                indices.push(render_index);
-                monkeys.push(monkey);
-                render_index += 1;
-            }
-        }
-        // Add parent monkey
-        let parent_monkey = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
-        world
-            .add_component(parent_monkey, LabelComponent { label : "Parent monkey".to_string() }).unwrap()
-            .add_component(parent_monkey, TransformComponent {
-                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
-            }).unwrap()
-            .add_component(parent_monkey, RenderComponentInstanced {
-                ids: indices.clone().into_iter().min().unwrap()..indices.clone().into_iter().max().unwrap() + 1,
-                model: res_manager.load::<ModelResource>("models/monkey"),
-                material: res_manager.load::<MaterialResource>("materials/unicolor")
-            }).unwrap();
-
-
-
-        // Create camera
-        let camera = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
-        world
-            .add_component(camera, LabelComponent { label : "Camera".to_string() }).unwrap()
-            .add_component(camera, TransformComponent {
-                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
-            }).unwrap();
-
-        // Create camera uniform buffer
-        let mut camera_buffer = Buffer::new(
-            &render_instance,
-            "Camera buffer",
-            std::mem::size_of::<CameraUniform>(),
-            wde_wgpu::BufferUsage::UNIFORM | wde_wgpu::BufferUsage::COPY_DST,
-            None);
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.world_to_screen = CameraUniform::get_world_to_screen(
-            CameraComponent { aspect: 16.0 / 9.0, fovy: 60.0, znear: 0.1, zfar: 1000.0 },
-            world.get_component::<TransformComponent>(camera).unwrap().clone()
-        ).into();
-        camera_buffer.write(&render_instance, bytemuck::cast_slice(&[camera_uniform]), 0);
-
-        // End of world content
-        drop(_world_content_span);
 
 
         // ======== RENDERER INITIALIZATION ========
-        let _renderer_initialization_span = span!(Level::INFO, "renderer_initialization").entered();
+        let _renderer_initialization_span = span!(Level::INFO, "renderer_init").entered();
 
         // Create renderer
         let renderer = Arc::new(RwLock::new(Renderer::new(
-            &render_instance, &mut world, &mut res_manager, &mut camera_buffer
+            &render_instance, &mut scene.world, &mut res_manager
         ).await));
 
-        // Update render
-        renderer.write().unwrap().update(&render_instance, &world, &res_manager, &mut camera_buffer).await;
-        renderer.write().unwrap().update_ssbo(&render_instance, &world, true);
+        // Update SSBO for static resources
+        renderer.write().unwrap().update_ssbo(&render_instance, &scene.world, true);
 
         // End of renderer initialization
         drop(_renderer_initialization_span);
@@ -319,13 +186,6 @@ impl App {
         let mut fps_frames = vec![0.0; 20];
         let mut fps_frames_index = 0;
         let mut fps_avg = 0.0;
-        
-        // Create camera rotation
-        let mut last_camera_time = std::time::Instant::now();
-        let mut camera_rotation = Vec2f { x: 0.0, y: 0.0 };
-        let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
-        let move_speed = 0.01;
-        let sensitivity = 0.002;
         
         // Run main loop
         loop {
@@ -370,7 +230,6 @@ impl App {
                     _ => { }
                 }
 
-
                 trace!("Handling next frame.");
             }
 
@@ -388,96 +247,24 @@ impl App {
                     keys_states.insert(key, pressed);
                 }
 
-                // Update world
+                // Update resources manager (resources async loading and releasing)
                 res_manager.update(&render_instance);
 
+                // Update scene
+                scene.set_keys_states(keys_states.clone());
+                scene.update();
+
                 // Update render
-                renderer.write().unwrap().update(&render_instance, &world, &res_manager, &mut camera_buffer).await;
-                renderer.write().unwrap().update_ssbo(&render_instance, &world, false);
-
-                // Update camera
-                {
-                    // Update the camera controller
-                    {
-                        let mut transform = world.get_component::<TransformComponent>(camera).unwrap().clone();
-
-                        // Update the transform position
-                        let dt = ((last_camera_time.elapsed().as_nanos()) as f64 / 1_000_000.0) as f32;
-                        let forward = TransformComponent::forward(transform);
-                        let right = TransformComponent::right(transform);
-                        let up = TransformComponent::up(transform);
-                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyW)).unwrap_or(&false) {
-                            transform.position += forward * move_speed * dt;
-                        }
-                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyS)).unwrap_or(&false) {
-                            transform.position -= forward * move_speed * dt;
-                        }
-                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyD)).unwrap_or(&false) {
-                            transform.position += right * move_speed * dt;
-                        }
-                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyA)).unwrap_or(&false) {
-                            transform.position -= right * move_speed * dt;
-                        }
-                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyE)).unwrap_or(&false) {
-                            transform.position += up * move_speed * dt;
-                        }
-                        if *keys_states.get(&PhysicalKey::Code(KeyCode::KeyQ)).unwrap_or(&false) {
-                            transform.position -= up * move_speed * dt;
-                        }
-
-                        // Get x and y rotation
-                        camera_rotation.x += if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowLeft)).unwrap_or(&false) {
-                            sensitivity * dt
-                        } else if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowRight)).unwrap_or(&false) {
-                            -sensitivity * dt
-                        } else {
-                            0.0
-                        };
-                        camera_rotation.y += if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowUp)).unwrap_or(&false) {
-                            sensitivity * dt
-                        } else if *keys_states.get(&PhysicalKey::Code(KeyCode::ArrowDown)).unwrap_or(&false) {
-                            -sensitivity * dt
-                        } else {
-                            0.0
-                        };
-
-                        // Clamp the y rotation (to avoid gimbal lock)
-                        let bounds_rot_y = Rad(88.0);
-                        camera_rotation.y = camera_rotation.y.clamp(-bounds_rot_y.0, bounds_rot_y.0);
-
-                        // Update the transform rotation
-                        let rot_x = Quatf::from_axis_angle(Vector3 {x:0.0, y:1.0, z:0.0}, Rad(camera_rotation.x));
-                        let rot_y = Quatf::from_axis_angle(Vector3 {x:-1.0, y:0.0, z:0.0}, Rad(-camera_rotation.y));
-                        transform.rotation = camera_initial_rot * rot_x * rot_y;
-
-                        // Update the transform
-                        world.set_component(camera, transform).unwrap();
-
-                        // Set the last camera time
-                        last_camera_time = std::time::Instant::now();
-                    }
-
-                    // Update the uniform buffer
-                    {
-                        let mut camera_uniform = CameraUniform::new();
-                        let surface_config = render_instance.surface_config.as_ref().unwrap();
-                        camera_uniform.world_to_screen = CameraUniform::get_world_to_screen(
-                            CameraComponent {
-                                aspect: surface_config.width as f32 / surface_config.height as f32,
-                                fovy: 60.0, znear: 0.1, zfar: 1000.0
-                            },
-                            world.get_component::<TransformComponent>(camera).unwrap().clone()
-                        ).into();
-                        camera_buffer.write(&render_instance, bytemuck::cast_slice(&[camera_uniform]), 0);
-                    }
-                }
+                renderer.write().unwrap().init_pipelines(&render_instance, &scene.world, &res_manager).await;
+                renderer.write().unwrap().update_ssbo(&render_instance, &scene.world, false);
+                renderer.write().unwrap().update_camera(&render_instance, &scene.world, scene.active_camera);
             }
 
 
             // ====== Render ======
             {
                 let mut should_resize = false;
-                match renderer.read().unwrap().render(&render_instance, &world, &res_manager).await {
+                match renderer.read().unwrap().render(&render_instance, &scene.world, &res_manager).await {
                     RenderEvent::Redraw(_) => {},
                     RenderEvent::Close => {
                         info!("Closing engine.");
