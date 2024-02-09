@@ -11,6 +11,19 @@ struct IndirectBatch {
 @group(0) @binding(0)
 var<storage, read> batches: array<IndirectBatch>;
 
+struct DrawIndirectCommandDescriptor {
+    /// The offset to the first draw call
+    first: u32,
+    /// The number of draw calls
+    count: u32,
+    /// The index of the batch
+    batch_index: u32,
+    /// Padding
+    _padding: u32,
+};
+@group(1) @binding(0)
+var<storage, read_write> indirect_desc: array<DrawIndirectCommandDescriptor>;
+
 struct DrawIndexedIndirectCommand {
     /// Number of indices to draw
     index_count: u32,
@@ -23,7 +36,7 @@ struct DrawIndexedIndirectCommand {
     /// The base instance within the instance buffer
     first_instance: u32,
 };
-@group(1) @binding(0)
+@group(2) @binding(0)
 var<storage, read_write> indirect_commands: array<DrawIndexedIndirectCommand>;
 
 
@@ -32,9 +45,9 @@ var<storage, read_write> indirect_commands: array<DrawIndexedIndirectCommand>;
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     // Get the index of the batch
     let index = id.x;
-
-    // Record the indirect command
     let batch = batches[index];
+
+    // Record the indirect draw command
     let command = DrawIndexedIndirectCommand(
         batch.index_count,
         batch.count,
@@ -42,4 +55,12 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         0,
         batch.first);
     indirect_commands[index] = command;
+
+    // Record the indirect draw command descriptor
+    let desc = DrawIndirectCommandDescriptor(
+        index,
+        1,
+        batch.batch_index,
+        0);
+    indirect_desc[index] = desc;
 }

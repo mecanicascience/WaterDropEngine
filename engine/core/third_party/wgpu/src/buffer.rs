@@ -1,8 +1,8 @@
 use std::fmt::Formatter;
 
 use tracing::warn;
-use wde_logger::{trace, info};
-use wgpu::{util::DeviceExt, BindGroupLayout};
+use wde_logger::info;
+use wgpu::{util::DeviceExt, BindGroupLayout, BufferView};
 
 use crate::{RenderInstance, BindGroup, CommandBuffer};
 
@@ -180,8 +180,6 @@ impl Buffer {
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
     pub async fn copy_from_buffer(&mut self, instance: &RenderInstance<'_>, buffer: &Buffer) {
-        trace!(src=buffer.label, dest=self.label, "Copying data from buffer to buffer.");
-        
         // Create command encoder
         let mut command_buffer = CommandBuffer::new(
             instance,
@@ -202,12 +200,36 @@ impl Buffer {
     /// * `content` - The content to write to the buffer.
     /// * `offset` - The offset to write the content to.
     pub fn write(&mut self, instance: &RenderInstance, content: &[u8], offset: usize) {
-        trace!(self.label, "Writing to buffer.");
-
         instance.queue.write_buffer(
             &self.buffer,
             offset as u64,
             content);
+    }
+
+    /// Map the buffer.
+    /// This will wait for the buffer to be mapped.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instance` - The render instance.
+    /// * `callback` - A closure that takes a reference to the buffer.
+    /// The callback takes reference to the buffer.
+    pub fn map(&self, instance: &RenderInstance, callback: impl FnOnce(BufferView)) {
+        // Map buffer
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let buffer_slice = self.buffer.slice(..);
+        buffer_slice.map_async(wgpu::MapMode::Read,
+            move |r| sender.send(r).unwrap());
+
+        // Wait for the buffer to be mapped
+        instance.device.poll(wgpu::Maintain::Wait);
+        receiver.recv().unwrap().unwrap();
+
+        // Call callback
+        callback(buffer_slice.get_mapped_range());
+
+        // Unmap buffer
+        self.buffer.unmap();
     }
 
     /// Map the buffer as mutable.
@@ -219,8 +241,6 @@ impl Buffer {
     /// * `callback` - A closure that takes a mutable reference to the buffer.
     /// The callback takes a mutable reference to the buffer.
     pub fn map_mut(&self, instance: &RenderInstance, callback: impl FnOnce(BufferViewMut)) {
-        trace!(self.label, "Mapping buffer.");
-
         // Map buffer
         let (sender, receiver) = std::sync::mpsc::channel();
         let buffer_slice = self.buffer.slice(..);
@@ -230,14 +250,12 @@ impl Buffer {
         // Wait for the buffer to be mapped
         instance.device.poll(wgpu::Maintain::Wait);
         receiver.recv().unwrap().unwrap();
-        trace!(self.label, "Buffer mapped.");
 
         // Call callback
         callback(buffer_slice.get_mapped_range_mut());
 
         // Unmap buffer
         self.buffer.unmap();
-        trace!(self.label, "Buffer unmapped.");
     }
 }
 
