@@ -21,7 +21,7 @@ struct OutputData {
 var<storage, read_write> output: OutputData;
 
 
-@compute @workgroup_size(1)
+@compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     // If same batch index as right neighbor, do nothing
     let curbatch = indirect_desc_temporary[id.x];

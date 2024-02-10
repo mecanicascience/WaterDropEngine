@@ -560,7 +560,7 @@ impl Renderer {
                 }
 
                 // Run compute shader
-                if compute_pass.dispatch(draws_batches.len() as u32, 1, 1).is_err() {
+                if compute_pass.dispatch((draws_batches.len() as f32 / 256.0).ceil() as u32, 1, 1).is_err() {
                     error!("Failed to run compute shader.");
                     return RenderEvent::None;
                 }
@@ -581,7 +581,7 @@ impl Renderer {
                 }
 
                 // Run compute shader
-                if compute_pass.dispatch(draws_batches.len() as u32, 1, 1).is_err() {
+                if compute_pass.dispatch((draws_batches.len() as f32 / 256.0).ceil() as u32, 1, 1).is_err() {
                     error!("Failed to run compute shader.");
                     return RenderEvent::None;
                 }
