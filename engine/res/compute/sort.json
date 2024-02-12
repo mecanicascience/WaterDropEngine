@@ -1,0 +1,8 @@
+{
+    "label": "Sort an array of uint32",
+    "metadata": {
+        "type": "SHADER",
+        "source": "compute/sort.comp.wgsl",
+        "dependencies": []
+    }
+}
