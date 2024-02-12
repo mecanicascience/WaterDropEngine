@@ -2,9 +2,9 @@ use std::fmt::Formatter;
 
 use tracing::warn;
 use wde_logger::info;
-use wgpu::{util::DeviceExt, BindGroupLayout, BufferView};
+use wgpu::{util::DeviceExt, BufferView};
 
-use crate::{RenderInstance, BindGroup, CommandBuffer};
+use crate::{RenderInstance, CommandBuffer};
 
 /// Buffer usages.
 pub type BufferUsage = wgpu::BufferUsages;
@@ -24,9 +24,6 @@ pub type BufferViewMut<'a> = wgpu::BufferViewMut<'a>;
 /// 
 /// ```
 /// let mut buffer = Buffer::new(&instance, "Buffer", 1024, BufferUsage::Vertex, None);
-/// 
-/// // Create a bind group for the buffer
-/// let bind_group = buffer.create_bind_group(&instance, BufferBindingType::Uniform, wgpu::ShaderStages::VERTEX);
 /// 
 /// // Copy data from another buffer
 /// buffer.copy_from_buffer(&instance, &[...]);
@@ -100,76 +97,6 @@ impl Buffer {
                 }
             },
         }
-    }
-
-    /// Create a bind group layout for the buffer.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `instance` - The render instance.
-    /// * `binding_type` - The type of the buffer.
-    /// * `visibility` - The list of shader stages that can access the buffer.
-    /// 
-    /// # Returns
-    /// 
-    /// * `BindGroupLayout` - The bind group layout of the buffer.
-    pub async fn create_bind_group_layout(&mut self, instance: &RenderInstance<'_>, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroupLayout {
-        // Create bind group layout
-        let layout_entries = vec![
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility,
-                ty: wgpu::BindingType::Buffer {
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                    ty: binding_type,
-                },
-                count: None,
-            }
-        ];
-
-        instance.device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
-                label: Some(format!("'{}' Buffer Bind Group Layout", self.label).as_str()),
-                entries: &layout_entries,
-            }
-        )
-    }
-
-    /// Create a bind group for the buffer.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `instance` - The render instance.
-    /// * `binding_type` - The type of the buffer.
-    /// * `visibility` - The list of shader stages that can access the buffer.
-    /// 
-    /// # Returns
-    /// 
-    /// * `BindGroup` - The bind group of the buffer.
-    pub async fn create_bind_group(&mut self, instance: &RenderInstance<'_>, binding_type: BufferBindingType, visibility: ShaderStages) -> BindGroup {
-        // Create bind group layout
-        let layout = self.create_bind_group_layout(instance, binding_type, visibility).await;
-
-        // Create bind group
-        let bind_group = instance.device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                label: Some(format!("'{}' Buffer Bind Group", self.label).as_str()),
-                layout: &layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: self.buffer.as_entire_binding(),
-                    }
-                ],
-            }
-        );
-
-        // Return bind group
-        BindGroup::new(
-            self.label.clone(),
-            bind_group
-        )
     }
 
 

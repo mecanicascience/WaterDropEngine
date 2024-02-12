@@ -1,6 +1,6 @@
 use wde_logger::{trace, info};
 
-use crate::{RenderInstance, BindGroup};
+use crate::RenderInstance;
 
 /// Texture view
 pub type TextureView = wgpu::TextureView;
@@ -131,62 +131,6 @@ impl Texture {
             size,
         }
     }
-
-
-    /// Create a texture bind group.
-    /// The bindings in group are 0: texture view, 1: sampler.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `instance` - Game instance.
-    #[tracing::instrument]
-    pub async fn create_bind_group(&self, instance: &RenderInstance<'_>) -> BindGroup {
-        trace!(self.label, "Creating bind group.");
-
-        // Create bind group layout
-        let layout_entries = vec![
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                },
-                count: None
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            }
-        ];
-        let layout = instance.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some(format!("Texture '{}' Bind Group Layout", self.label).as_str()),
-            entries: &layout_entries,
-        });
-        
-        // Create bind group
-        let texture_bind_group = instance.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(format!("'{}' Texture Bind Group", self.label).as_str()),
-            layout: &layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&self.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
-                }
-            ],
-        });
-
-        // Return texture bind group
-        BindGroup::new(self.label.clone(), texture_bind_group)
-    }
-
 
 
     /// Copy buffer to texture.

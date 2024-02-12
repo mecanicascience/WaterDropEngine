@@ -1,7 +1,7 @@
 use tracing::{debug, error, trace, warn};
 use wde_ecs::{CameraComponent, CameraUniform, EntityIndex, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, TransformUniform, World, MAX_ENTITIES};
 use wde_resources::{MaterialResource, ModelResource, Resource, ResourceHandle, ResourcesManager, ShaderResource};
-use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, ComputePipeline, DrawIndexedIndirectArgs, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
+use wde_wgpu::{BindGroup, BindGroupBuilder, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, ComputePipeline, DrawIndexedIndirectArgs, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
 
 /// Describes the maximum number of indirect commands.
 const MAX_INDIRECT_COMMANDS: usize = 1_000_000;
@@ -85,7 +85,7 @@ impl Renderer {
     pub async fn new(render_instance: &RenderInstance<'_>, world: &mut World, res_manager: &mut ResourcesManager) -> Self {
         // ==== Object matrices SSBO ====
         // Create object matrices SSBO
-        let mut objects = Buffer::new(
+        let objects = Buffer::new(
             &render_instance,
             "Object matrices SSBO",
             std::mem::size_of::<TransformUniform>() * MAX_ENTITIES as usize,
@@ -93,76 +93,69 @@ impl Renderer {
             None);
 
         // Create object matrices SSBO bind group
-        let objects_bind_group = objects.create_bind_group(
-            &render_instance,
-            BufferBindingType::Storage { read_only: true },
-            ShaderStages::VERTEX).await;
+        let mut objects_bind_group_builder = BindGroupBuilder::new("Objects matrices SSBO");
+        objects_bind_group_builder
+            .add_buffer(0, &objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
 
 
         // ==== Indirect draw commands ====
         // Create batch indirect commands buffer
-        let mut batch_commands_buffer = Buffer::new(
+        let batch_commands_buffer = Buffer::new(
             &render_instance,
             "Batch commands buffer",
             std::mem::size_of::<IndirectBatch>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::MAP_WRITE | BufferUsage::STORAGE,
             None);
-        let batch_commands_buffer_bind_group = batch_commands_buffer.create_bind_group(
-            &render_instance,
-            BufferBindingType::Storage { read_only: true },
-            ShaderStages::COMPUTE).await;
+        let mut batch_commands_buffer_bind_group_builder = BindGroupBuilder::new("Batch commands buffer");
+        batch_commands_buffer_bind_group_builder
+            .add_buffer(0, &batch_commands_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
 
         // Create draw indirect descriptor buffer temporary
-        let mut draw_indirect_desc_buffer_temporary = Buffer::new(
+        let draw_indirect_desc_buffer_temporary = Buffer::new(
             &render_instance,
             "Draw indirect descriptor buffer temporary",
             std::mem::size_of::<DrawIndexedIndirectDesc>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::STORAGE,
             None);
-        let draw_indirect_desc_buffer_temporary_bind_group_write = draw_indirect_desc_buffer_temporary.create_bind_group(
-            &render_instance,
-            BufferBindingType::Storage { read_only: false },
-            ShaderStages::COMPUTE).await;
-        let draw_indirect_desc_buffer_temporary_bind_group_read = draw_indirect_desc_buffer_temporary.create_bind_group(
-            &render_instance,
-            BufferBindingType::Storage { read_only: true },
-            ShaderStages::COMPUTE).await;
+        let mut draw_indirect_desc_buffer_temporary_bind_group_write_builder = BindGroupBuilder::new("Draw indirect descriptor buffer temporary write");
+        draw_indirect_desc_buffer_temporary_bind_group_write_builder
+            .add_buffer(0, &draw_indirect_desc_buffer_temporary, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
+        let mut draw_indirect_desc_buffer_temporary_bind_group_read_builder = BindGroupBuilder::new("Draw indirect descriptor buffer temporary read");
+        draw_indirect_desc_buffer_temporary_bind_group_read_builder
+            .add_buffer(0, &draw_indirect_desc_buffer_temporary, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
 
         // Create draw indirect descriptor buffer
-        let mut draw_indirect_desc_buffer = Buffer::new(
+        let draw_indirect_desc_buffer = Buffer::new(
             &render_instance,
             "Draw indirect descriptor buffer",
             std::mem::size_of::<DrawIndexedIndirectDesc>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::STORAGE | BufferUsage::MAP_READ,
             None);
-        let draw_indirect_desc_buffer_bind_group = draw_indirect_desc_buffer.create_bind_group(
-            &render_instance,
-            BufferBindingType::Storage { read_only: false },
-            ShaderStages::COMPUTE).await;
+        let mut draw_indirect_desc_buffer_bind_group_builder = BindGroupBuilder::new("Draw indirect descriptor buffer");
+        draw_indirect_desc_buffer_bind_group_builder
+            .add_buffer(0, &draw_indirect_desc_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
 
         // Create draw indirect data buffer
-        let mut draw_indirect_data_buffer = Buffer::new(
+        let draw_indirect_data_buffer = Buffer::new(
             &render_instance,
             "Draw indirect data buffer",
             std::mem::size_of::<DrawIndirectData>() as usize,
             BufferUsage::STORAGE | BufferUsage::MAP_READ | BufferUsage::MAP_WRITE,
             None);
-        let draw_indirect_data_buffer_bind_group = draw_indirect_data_buffer.create_bind_group(
-            &render_instance,
-            BufferBindingType::Storage { read_only: false },
-            ShaderStages::COMPUTE).await;
+        let mut draw_indirect_data_buffer_bind_group_builder = BindGroupBuilder::new("Draw indirect data buffer");
+        draw_indirect_data_buffer_bind_group_builder
+            .add_buffer(0, &draw_indirect_data_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
 
         // Create draw indirect commands buffer
-        let mut indirect_commands_buffer = Buffer::new(
+        let indirect_commands_buffer = Buffer::new(
             &render_instance,
             "Draw indirect commands buffer",
             std::mem::size_of::<DrawIndexedIndirectArgs>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::INDIRECT | BufferUsage::STORAGE,
             None);
-        let indirect_commands_buffer_bind_group = indirect_commands_buffer.create_bind_group(
-            &render_instance,
-            BufferBindingType::Storage { read_only: false },
-            ShaderStages::COMPUTE).await;
+        let mut indirect_commands_buffer_bind_group_builder = BindGroupBuilder::new("Draw indirect commands buffer");
+        indirect_commands_buffer_bind_group_builder
+            .add_buffer(0, &indirect_commands_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
 
         // Create compute pipeline for indirect draw commands
         let compute_shader = res_manager.load::<ShaderResource>("compute/record_draw_commands");
@@ -170,12 +163,9 @@ impl Renderer {
         let mut record_indirect_compute_pipeline = ComputePipeline::new("Draw indirect");
         if record_indirect_compute_pipeline
             .set_shader(&res_manager.get::<ShaderResource>(&compute_shader).unwrap().data.as_ref().unwrap().module)
-            .add_bind_group(batch_commands_buffer.create_bind_group_layout(
-                render_instance, BufferBindingType::Storage { read_only: true }, ShaderStages::COMPUTE).await)
-            .add_bind_group(draw_indirect_desc_buffer_temporary.create_bind_group_layout(
-                render_instance, BufferBindingType::Storage { read_only: false }, ShaderStages::COMPUTE).await)
-            .add_bind_group(indirect_commands_buffer.create_bind_group_layout(
-                render_instance, BufferBindingType::Storage { read_only: false }, ShaderStages::COMPUTE).await)
+            .add_bind_group(BindGroup::new(&render_instance, batch_commands_buffer_bind_group_builder.clone()))
+            .add_bind_group(BindGroup::new(&render_instance, draw_indirect_desc_buffer_temporary_bind_group_write_builder.clone()))
+            .add_bind_group(BindGroup::new(&render_instance, indirect_commands_buffer_bind_group_builder.clone()))
             .init(&render_instance).is_err() {
             error!("Failed to initialize compute pipeline.");
         }
@@ -186,12 +176,9 @@ impl Renderer {
         let mut record_indirect_compute_instructions_pipeline = ComputePipeline::new("Draw indirect instructions");
         if record_indirect_compute_instructions_pipeline
             .set_shader(&res_manager.get::<ShaderResource>(&compute_shader).unwrap().data.as_ref().unwrap().module)
-            .add_bind_group(draw_indirect_desc_buffer_temporary.create_bind_group_layout(
-                render_instance, BufferBindingType::Storage { read_only: true }, ShaderStages::COMPUTE).await)
-            .add_bind_group(draw_indirect_desc_buffer.create_bind_group_layout(
-                render_instance, BufferBindingType::Storage { read_only: false }, ShaderStages::COMPUTE).await)
-            .add_bind_group(draw_indirect_data_buffer.create_bind_group_layout(
-                render_instance, BufferBindingType::Storage { read_only: false }, ShaderStages::COMPUTE).await)
+            .add_bind_group(BindGroup::new(&render_instance, draw_indirect_desc_buffer_temporary_bind_group_read_builder.clone()))
+            .add_bind_group(BindGroup::new(&render_instance, draw_indirect_desc_buffer_bind_group_builder.clone()))
+            .add_bind_group(BindGroup::new(&render_instance, draw_indirect_data_buffer_bind_group_builder.clone()))
             .init(&render_instance).is_err() {
             error!("Failed to initialize compute pipeline.");
         }
@@ -199,7 +186,7 @@ impl Renderer {
 
         // ==== Camera buffer ====
         // Create camera uniform buffer
-        let mut camera_buffer = Buffer::new(
+        let camera_buffer = Buffer::new(
             &render_instance,
             "Camera buffer",
             std::mem::size_of::<CameraUniform>(),
@@ -207,10 +194,10 @@ impl Renderer {
             None);
 
         // Create camera buffer bind group
-        let camera_buffer_bind_group = camera_buffer.create_bind_group(
-            &render_instance,
-            BufferBindingType::Uniform,
-            ShaderStages::VERTEX).await;
+        let mut camera_buffer_bind_group_builder = BindGroupBuilder::new("Camera buffer");
+        camera_buffer_bind_group_builder
+            .add_buffer(0, &camera_buffer, ShaderStages::VERTEX, BufferBindingType::Uniform);
+        let camera_buffer_bind_group = BindGroup::new(&render_instance, camera_buffer_bind_group_builder);
 
 
         // ==== Render textures ====
@@ -225,20 +212,20 @@ impl Renderer {
 
         // Create instance
         Self {
+            objects_bind_group: BindGroup::new(&render_instance, objects_bind_group_builder),
             objects,
-            objects_bind_group,
 
+            indirect_commands_buffer_bind_group: BindGroup::new(&render_instance, indirect_commands_buffer_bind_group_builder),
             indirect_commands_buffer: indirect_commands_buffer,
-            indirect_commands_buffer_bind_group,
+            batch_commands_buffer_bind_group: BindGroup::new(&render_instance, batch_commands_buffer_bind_group_builder),
             batch_commands_buffer,
-            batch_commands_buffer_bind_group,
-            draw_indirect_desc_buffer: draw_indirect_desc_buffer,
-            draw_indirect_desc_buffer_bind_group,
+            draw_indirect_desc_buffer_bind_group: BindGroup::new(&render_instance, draw_indirect_desc_buffer_bind_group_builder),
+            draw_indirect_desc_buffer,
+            draw_indirect_desc_buffer_temporary_bind_group_read: BindGroup::new(&render_instance, draw_indirect_desc_buffer_temporary_bind_group_read_builder),
+            draw_indirect_desc_buffer_temporary_bind_group_write: BindGroup::new(&render_instance, draw_indirect_desc_buffer_temporary_bind_group_write_builder),
             _draw_indirect_desc_buffer_temporary: draw_indirect_desc_buffer_temporary,
-            draw_indirect_desc_buffer_temporary_bind_group_write,
-            draw_indirect_desc_buffer_temporary_bind_group_read,
+            draw_indirect_data_buffer_bind_group: BindGroup::new(&render_instance, draw_indirect_data_buffer_bind_group_builder),
             draw_indirect_data_buffer,
-            draw_indirect_data_buffer_bind_group,
             record_indirect_compute_pipeline,
             record_indirect_compute_instructions_pipeline,
 
@@ -272,22 +259,20 @@ impl Renderer {
                     }
                 }
 
-                // Create camera buffer bind group
-                let camera_buffer_bind_group_layout = self.camera_buffer.create_bind_group_layout(
-                    &render_instance,
-                    BufferBindingType::Uniform,
-                    ShaderStages::VERTEX).await;
-
-                // Create object bind group layout
-                let objects_bind_group_layout = self.objects.create_bind_group_layout(&render_instance,
-                    BufferBindingType::Storage { read_only: true },
-                    ShaderStages::VERTEX).await;
-
                 // Initialize pipeline
                 if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                    // Create layouts
+                    let mut camera_buffer_bind_group_builder = BindGroupBuilder::new("Camera buffer");
+                    camera_buffer_bind_group_builder
+                        .add_buffer(0, &self.camera_buffer, ShaderStages::VERTEX, BufferBindingType::Uniform);
+
+                    let mut objects_bind_group_layout = BindGroupBuilder::new("Objects matrices SSBO");
+                    objects_bind_group_layout
+                        .add_buffer(0, &self.objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
+
                     material.data.as_mut().unwrap().pipeline
-                        .add_bind_group(camera_buffer_bind_group_layout)
-                        .add_bind_group(objects_bind_group_layout)
+                        .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bind_group_builder.clone()).layout)
+                        .add_bind_group(BindGroup::new(&render_instance, objects_bind_group_layout.clone()).layout)
                         .init(&render_instance).await
                         .unwrap_or_else(|_| {
                             error!("Failed to initialize pipeline for material {}.", material.label);
@@ -307,22 +292,20 @@ impl Renderer {
                     }
                 }
 
-                // Create camera buffer bind group
-                let camera_buffer_bind_group_layout = self.camera_buffer.create_bind_group_layout(
-                    &render_instance,
-                    BufferBindingType::Uniform,
-                    ShaderStages::VERTEX).await;
-
-                // Create object bind group layout
-                let objects_bind_group_layout = self.objects.create_bind_group_layout(&render_instance,
-                    BufferBindingType::Storage { read_only: true },
-                    ShaderStages::VERTEX).await;
-
                 // Initialize pipeline
                 if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
+                    // Create layouts
+                    let mut camera_buffer_bind_group_builder = BindGroupBuilder::new("Camera buffer");
+                    camera_buffer_bind_group_builder
+                        .add_buffer(0, &self.camera_buffer, ShaderStages::VERTEX, BufferBindingType::Uniform);
+
+                    let mut objects_bind_group_layout = BindGroupBuilder::new("Objects matrices SSBO");
+                    objects_bind_group_layout
+                        .add_buffer(0, &self.objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
+
                     material.data.as_mut().unwrap().pipeline
-                        .add_bind_group(camera_buffer_bind_group_layout)
-                        .add_bind_group(objects_bind_group_layout)
+                        .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bind_group_builder.clone()).layout)
+                        .add_bind_group(BindGroup::new(&render_instance, objects_bind_group_layout.clone()).layout)
                         .init(&render_instance).await
                         .unwrap_or_else(|_| {
                             error!("Failed to initialize pipeline for material {}.", material.label);

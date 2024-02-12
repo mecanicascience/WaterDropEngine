@@ -140,8 +140,6 @@ impl CommandBuffer {
     /// * `label` - The label of the compute pass.
     #[tracing::instrument]
     pub fn create_compute_pass<'pass>(&'pass mut self, label: &str) -> ComputePass<'pass> {
-        trace!(label, "Creating compute pass.");
-
         let compute_pass = self.encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(format!("'{}' Compute Pass", label).as_str()),
             timestamp_writes: None

@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use tracing::{info, trace, error};
 use wgpu::ShaderStages;
 
-use crate::{BindGroupLayout, PipelineLayout, RenderError, RenderInstance};
+use crate::{BindGroup, PipelineLayout, RenderError, RenderInstance};
 
 // Compute pipeline configuration
 struct ComputePipelineConfig {
@@ -94,9 +94,9 @@ impl ComputePipeline {
     /// 
     /// # Arguments
     /// 
-    /// * `layout` - The bind group layout.
-    pub fn add_bind_group(&mut self, layout: BindGroupLayout) -> &mut Self {
-        self.config.bind_groups.push(layout);
+    /// * `group` - The bind group layout to add to the pipeline.
+    pub fn add_bind_group(&mut self, group: BindGroup) -> &mut Self {
+        self.config.bind_groups.push(group.layout);
         self
     }
 

@@ -93,7 +93,7 @@ impl<'a> ComputePass<'a> {
     /// * `binding` - The binding of the bind group.
     /// * `bind_group` - The bind group to set.
     pub fn set_bind_group(&mut self, binding: u32, bind_group: &'a BindGroup) -> &mut Self {
-        self.compute_pass.set_bind_group(binding, &bind_group.get_group(), &[]);
+        self.compute_pass.set_bind_group(binding, &bind_group.group, &[]);
         self
     }
 
