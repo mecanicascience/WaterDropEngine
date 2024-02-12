@@ -36,7 +36,7 @@ struct DrawIndexedIndirectCommand {
     /// The base instance within the instance buffer
     first_instance: u32,
 };
-@group(2) @binding(0)
+@group(1) @binding(1)
 var<storage, read_write> indirect_commands: array<DrawIndexedIndirectCommand>;
 
 

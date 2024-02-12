@@ -53,14 +53,12 @@ pub struct Renderer {
     batch_buffer: Buffer,
     batch_bg: BindGroup,
     indirect_buffer: Buffer,
-    indirect_buffer_bg: BindGroup,
     indirect_desc: Buffer,
     indirect_desc_bg: BindGroup,
     _indirect_desc_tmp: Buffer,
-    indirect_desc_tmp_write_bg: BindGroup,
+    indirect_desc_commands_bg: BindGroup,
     indirect_desc_tmp_read_bg: BindGroup,
     indirect_data: Buffer,
-    indirect_data_bg: BindGroup,
     indirect_compute: ComputePipeline,
     indirect_compute_instructions: ComputePipeline,
     
@@ -106,10 +104,6 @@ impl Renderer {
             std::mem::size_of::<IndirectBatch>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::MAP_WRITE | BufferUsage::STORAGE,
             None);
-        let mut batch_bg_build = BindGroupBuilder::new("Batch commands buffer");
-        batch_bg_build
-            .add_buffer(0, &batch_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
-
         // Create draw indirect descriptor buffer temporary
         let indirect_desc_tmp = Buffer::new(
             &render_instance,
@@ -117,35 +111,6 @@ impl Renderer {
             std::mem::size_of::<DrawIndexedIndirectDesc>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::STORAGE,
             None);
-        let mut indirect_desc_tmp_write_bg_build = BindGroupBuilder::new("Draw indirect descriptor buffer temporary write");
-        indirect_desc_tmp_write_bg_build
-            .add_buffer(0, &indirect_desc_tmp, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
-        let mut indirect_desc_tmp_read_bg_build = BindGroupBuilder::new("Draw indirect descriptor buffer temporary read");
-        indirect_desc_tmp_read_bg_build
-            .add_buffer(0, &indirect_desc_tmp, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
-
-        // Create draw indirect descriptor buffer
-        let indirect_desc = Buffer::new(
-            &render_instance,
-            "Draw indirect descriptor buffer",
-            std::mem::size_of::<DrawIndexedIndirectDesc>() * MAX_INDIRECT_COMMANDS as usize,
-            BufferUsage::STORAGE | BufferUsage::MAP_READ,
-            None);
-        let mut indirect_desc_bg_build = BindGroupBuilder::new("Draw indirect descriptor buffer");
-        indirect_desc_bg_build
-            .add_buffer(0, &indirect_desc, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
-
-        // Create draw indirect data buffer
-        let indirect_data = Buffer::new(
-            &render_instance,
-            "Draw indirect data buffer",
-            std::mem::size_of::<DrawIndirectData>() as usize,
-            BufferUsage::STORAGE | BufferUsage::MAP_READ | BufferUsage::MAP_WRITE,
-            None);
-        let mut indirect_data_bg_build = BindGroupBuilder::new("Draw indirect data buffer");
-        indirect_data_bg_build
-            .add_buffer(0, &indirect_data, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
-
         // Create draw indirect commands buffer
         let indirect_buffer = Buffer::new(
             &render_instance,
@@ -153,22 +118,51 @@ impl Renderer {
             std::mem::size_of::<DrawIndexedIndirectArgs>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::INDIRECT | BufferUsage::STORAGE,
             None);
-        let mut indirect_buffer_bg_build = BindGroupBuilder::new("Draw indirect commands buffer");
-        indirect_buffer_bg_build
-            .add_buffer(0, &indirect_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
 
-        // Create compute pipeline for indirect draw commands
+        // Create bind groups
+        let mut batch_bg_build = BindGroupBuilder::new("Batch commands buffer");
+        batch_bg_build
+            .add_buffer(0, &batch_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
+        let mut indirect_desc_commands_bg_build = BindGroupBuilder::new("Draw indirect descriptor buffer temporary write");
+        indirect_desc_commands_bg_build
+            .add_buffer(0, &indirect_desc_tmp, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false })
+            .add_buffer(1, &indirect_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
+        
+        // Create compute pipeline
         let shader = res_manager.load::<ShaderResource>("compute/record_draw_commands");
         res_manager.wait_for(&shader, render_instance).await;
         let mut indirect_compute = ComputePipeline::new("Draw indirect");
         if indirect_compute
             .set_shader(&res_manager.get::<ShaderResource>(&shader).unwrap().data.as_ref().unwrap().module)
             .add_bind_group(BindGroup::new(&render_instance, batch_bg_build.clone()))
-            .add_bind_group(BindGroup::new(&render_instance, indirect_desc_tmp_write_bg_build.clone()))
-            .add_bind_group(BindGroup::new(&render_instance, indirect_buffer_bg_build.clone()))
-            .init(&render_instance).is_err() {
-            error!("Failed to initialize compute pipeline.");
-        }
+            .add_bind_group(BindGroup::new(&render_instance, indirect_desc_commands_bg_build.clone()))
+            .init(&render_instance).is_err() { error!("Failed to initialize compute pipeline."); }
+
+
+        // ==== Indirect draw description ====
+        // Create draw indirect descriptor buffer
+        let indirect_desc = Buffer::new(
+            &render_instance,
+            "Draw indirect descriptor buffer",
+            std::mem::size_of::<DrawIndexedIndirectDesc>() * MAX_INDIRECT_COMMANDS as usize,
+            BufferUsage::STORAGE | BufferUsage::MAP_READ,
+            None);
+        // Create draw indirect data buffer
+        let indirect_data = Buffer::new(
+            &render_instance,
+            "Draw indirect data buffer",
+            std::mem::size_of::<DrawIndirectData>() as usize,
+            BufferUsage::STORAGE | BufferUsage::MAP_READ | BufferUsage::MAP_WRITE,
+            None);
+
+        // Create bind groups
+        let mut indirect_desc_tmp_read_bg_build = BindGroupBuilder::new("Draw indirect descriptor buffer temporary read");
+        indirect_desc_tmp_read_bg_build
+            .add_buffer(0, &indirect_desc_tmp, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
+        let mut indirect_desc_bg_build = BindGroupBuilder::new("Draw indirect descriptor buffer");
+        indirect_desc_bg_build
+            .add_buffer(0, &indirect_desc, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false })
+            .add_buffer(1, &indirect_data, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false });
 
         // Create compute pipeline
         let shader = res_manager.load::<ShaderResource>("compute/record_draw_instructions");
@@ -178,10 +172,7 @@ impl Renderer {
             .set_shader(&res_manager.get::<ShaderResource>(&shader).unwrap().data.as_ref().unwrap().module)
             .add_bind_group(BindGroup::new(&render_instance, indirect_desc_tmp_read_bg_build.clone()))
             .add_bind_group(BindGroup::new(&render_instance, indirect_desc_bg_build.clone()))
-            .add_bind_group(BindGroup::new(&render_instance, indirect_data_bg_build.clone()))
-            .init(&render_instance).is_err() {
-            error!("Failed to initialize compute pipeline.");
-        }
+            .init(&render_instance).is_err() { error!("Failed to initialize compute pipeline."); }
 
 
         // ==== Camera buffer ====
@@ -215,18 +206,17 @@ impl Renderer {
             objects_bind_group: BindGroup::new(&render_instance, objects_bg_build),
             objects,
 
-            indirect_buffer_bg: BindGroup::new(&render_instance, indirect_buffer_bg_build),
-            indirect_buffer,
             batch_bg: BindGroup::new(&render_instance, batch_bg_build),
-            batch_buffer,
             indirect_desc_bg: BindGroup::new(&render_instance, indirect_desc_bg_build),
+            indirect_desc_commands_bg: BindGroup::new(&render_instance, indirect_desc_commands_bg_build),
+            batch_buffer,
             indirect_desc,
-            indirect_desc_tmp_read_bg: BindGroup::new(&render_instance, indirect_desc_tmp_read_bg_build),
-            indirect_desc_tmp_write_bg: BindGroup::new(&render_instance, indirect_desc_tmp_write_bg_build),
-            _indirect_desc_tmp: indirect_desc_tmp,
-            indirect_data_bg: BindGroup::new(&render_instance, indirect_data_bg_build),
-            indirect_data,
+            indirect_buffer,
             indirect_compute,
+
+            indirect_desc_tmp_read_bg: BindGroup::new(&render_instance, indirect_desc_tmp_read_bg_build),
+            _indirect_desc_tmp: indirect_desc_tmp,
+            indirect_data,
             indirect_compute_instructions,
 
             camera_buffer,
@@ -533,8 +523,7 @@ impl Renderer {
 
                 // Set bind groups
                 compute_pass.set_bind_group(0, &self.batch_bg);
-                compute_pass.set_bind_group(1, &self.indirect_desc_tmp_write_bg);
-                compute_pass.set_bind_group(2, &self.indirect_buffer_bg);
+                compute_pass.set_bind_group(1, &self.indirect_desc_commands_bg);
 
                 // Set pipeline
                 if compute_pass.set_pipeline(&self.indirect_compute).is_err() {
@@ -555,7 +544,6 @@ impl Renderer {
                 // Set bind groups
                 compute_pass.set_bind_group(0, &self.indirect_desc_tmp_read_bg);
                 compute_pass.set_bind_group(1, &self.indirect_desc_bg);
-                compute_pass.set_bind_group(2, &self.indirect_data_bg);
 
                 // Set pipeline
                 if compute_pass.set_pipeline(&self.indirect_compute_instructions).is_err() {

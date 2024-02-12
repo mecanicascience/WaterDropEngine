@@ -17,7 +17,7 @@ struct OutputData {
     /// The number of descriptors that will generate indirect commands
     descriptor_count: atomic<u32>,
 };
-@group(2) @binding(0)
+@group(1) @binding(1)
 var<storage, read_write> output: OutputData;
 
 
