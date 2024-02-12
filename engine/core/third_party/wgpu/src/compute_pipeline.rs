@@ -106,11 +106,12 @@ impl ComputePipeline {
     /// 
     /// * `offset` - The offset of the push constant.
     /// * `size` - The size of the push constant.
-    pub fn add_push_constant(&mut self, offset: u32, size: u32) {
+    pub fn add_push_constant(&mut self, size: u32) -> &mut Self {
         self.config.push_constants.push(wgpu::PushConstantRange {
             stages : ShaderStages::COMPUTE,
-            range: offset..offset + size,
+            range: 0..0 + size,
         });
+        self
     }
 
     /// Initialize a new compute pipeline.

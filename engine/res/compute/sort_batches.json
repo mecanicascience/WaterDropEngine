@@ -1,0 +1,8 @@
+{
+    "label": "Sort the batches",
+    "metadata": {
+        "type": "SHADER",
+        "source": "compute/sort_batches.comp.wgsl",
+        "dependencies": []
+    }
+}

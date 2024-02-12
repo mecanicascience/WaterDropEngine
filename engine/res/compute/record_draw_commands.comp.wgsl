@@ -1,3 +1,6 @@
+@group(0) @binding(0)
+var<storage, read> batches_indices: array<u32>;
+
 struct IndirectBatch {
     /// First entity index (Note that the index need to be the same as the index in the SSBO)
     first: u32,
@@ -8,8 +11,9 @@ struct IndirectBatch {
     /// Batch index. This uniquely identifies a model and material pair.
     batch_index: u32,
 }
-@group(0) @binding(0)
+@group(0) @binding(1)
 var<storage, read> batches: array<IndirectBatch>;
+
 
 struct DrawIndirectCommandDescriptor {
     /// The offset to the first draw call
@@ -45,7 +49,7 @@ var<storage, read_write> indirect_commands: array<DrawIndexedIndirectCommand>;
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     // Get the index of the batch
     let index = id.x;
-    let batch = batches[index];
+    let batch = batches[batches_indices[index]];
 
     // Record the indirect draw command
     let command = DrawIndexedIndirectCommand(

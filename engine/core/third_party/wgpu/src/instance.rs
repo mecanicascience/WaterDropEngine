@@ -1,5 +1,6 @@
 use tracing::{span, Level};
 use wde_logger::{debug, trace, warn, error, throw, info};
+use wgpu::Limits;
 
 use crate::{Window, TextureView};
 
@@ -136,16 +137,22 @@ impl RenderInstance<'_> {
             .await
             .unwrap_or_else(|| throw!("Failed to create adapter for '{}'.", label));
 
+        // Set required features
+        let required_features = wgpu::Features::MAPPABLE_PRIMARY_BUFFERS
+            | wgpu::Features::INDIRECT_FIRST_INSTANCE
+            | wgpu::Features::MULTI_DRAW_INDIRECT
+            | wgpu::Features::PUSH_CONSTANTS;
+
+        // Set limits
+        let mut required_limits = Limits::default();
+        required_limits.max_push_constant_size = 256;
+
         // Create device instance and queue
         trace!(label, "Requesting device.");
         let (device, queue) = adaptater
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    label: Some(label),
-                    required_features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS
-                        | wgpu::Features::INDIRECT_FIRST_INSTANCE
-                        | wgpu::Features::MULTI_DRAW_INDIRECT,
-                    required_limits: wgpu::Limits::default()
+                    label: Some(label), required_features, required_limits
                 },
                 None,
             )

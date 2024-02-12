@@ -49,17 +49,24 @@ pub struct Renderer {
     objects: Buffer,
     objects_bind_group: BindGroup,
 
-    // Render buffers
-    batch_buffer: Buffer,
-    batch_bg: BindGroup,
-    indirect_buffer: Buffer,
-    indirect_desc: Buffer,
+    // Sort batches
+    sort_batches: ComputePipeline,
+
+    // Draw indirect commands
+    batch_write_bg: BindGroup,
+    batch_read_bg: BindGroup,
     indirect_desc_bg: BindGroup,
-    _indirect_desc_tmp: Buffer,
     indirect_desc_commands_bg: BindGroup,
-    indirect_desc_tmp_read_bg: BindGroup,
-    indirect_data: Buffer,
+    batch_buffer: Buffer,
+    indirect_desc: Buffer,
+    indirect_buffer: Buffer,
     indirect_compute: ComputePipeline,
+
+    // Draw indirect description
+    indirect_desc_tmp_read_bg: BindGroup,
+    batch_buffer_indices: Buffer,
+    indirect_data: Buffer,
+    _indirect_desc_tmp: Buffer,
     indirect_compute_instructions: ComputePipeline,
     
     // Camera buffer
@@ -96,22 +103,46 @@ impl Renderer {
             .add_buffer(0, &objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
 
 
-        // ==== Indirect draw commands ====
-        // Create batch indirect commands buffer
+        // ==== Sort batches ====
+        // Create buffers
         let batch_buffer = Buffer::new(
             &render_instance,
             "Batch commands buffer",
             std::mem::size_of::<IndirectBatch>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::MAP_WRITE | BufferUsage::STORAGE,
             None);
-        // Create draw indirect descriptor buffer temporary
+        let batch_buffer_indices = Buffer::new(
+            &render_instance,
+            "Batch commands buffer indices",
+            std::mem::size_of::<u32>() * MAX_INDIRECT_COMMANDS as usize,
+            BufferUsage::MAP_WRITE | BufferUsage::STORAGE,
+            None);
+
+        // Create bind groups
+        let mut batch_bg_build_write = BindGroupBuilder::new("Batch commands buffer");
+        batch_bg_build_write
+            .add_buffer(0, &batch_buffer_indices, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false })
+            .add_buffer(1, &batch_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
+
+        // Create compute pipeline
+        let shader = res_manager.load::<ShaderResource>("compute/sort_batches");
+        res_manager.wait_for(&shader, render_instance).await;
+        let mut sort_batches = ComputePipeline::new("Sort batches");
+        if sort_batches
+            .set_shader(&res_manager.get::<ShaderResource>(&shader).unwrap().data.as_ref().unwrap().module)
+            .add_push_constant(std::mem::size_of::<[u32; 2]>() as u32)
+            .add_bind_group(BindGroup::new(&render_instance, batch_bg_build_write.clone()))
+            .init(&render_instance).is_err() { error!("Failed to initialize compute pipeline."); }
+
+
+        // ==== Indirect draw commands ====
+        // Create buffers
         let indirect_desc_tmp = Buffer::new(
             &render_instance,
             "Draw indirect descriptor buffer temporary",
             std::mem::size_of::<DrawIndexedIndirectDesc>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::STORAGE,
             None);
-        // Create draw indirect commands buffer
         let indirect_buffer = Buffer::new(
             &render_instance,
             "Draw indirect commands buffer",
@@ -120,9 +151,10 @@ impl Renderer {
             None);
 
         // Create bind groups
-        let mut batch_bg_build = BindGroupBuilder::new("Batch commands buffer");
-        batch_bg_build
-            .add_buffer(0, &batch_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
+        let mut batch_bg_build_read = BindGroupBuilder::new("Batch commands buffer");
+        batch_bg_build_read
+            .add_buffer(0, &batch_buffer_indices, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true })
+            .add_buffer(1, &batch_buffer, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: true });
         let mut indirect_desc_commands_bg_build = BindGroupBuilder::new("Draw indirect descriptor buffer temporary write");
         indirect_desc_commands_bg_build
             .add_buffer(0, &indirect_desc_tmp, ShaderStages::COMPUTE, BufferBindingType::Storage { read_only: false })
@@ -134,23 +166,22 @@ impl Renderer {
         let mut indirect_compute = ComputePipeline::new("Draw indirect");
         if indirect_compute
             .set_shader(&res_manager.get::<ShaderResource>(&shader).unwrap().data.as_ref().unwrap().module)
-            .add_bind_group(BindGroup::new(&render_instance, batch_bg_build.clone()))
+            .add_bind_group(BindGroup::new(&render_instance, batch_bg_build_read.clone()))
             .add_bind_group(BindGroup::new(&render_instance, indirect_desc_commands_bg_build.clone()))
             .init(&render_instance).is_err() { error!("Failed to initialize compute pipeline."); }
 
 
         // ==== Indirect draw description ====
-        // Create draw indirect descriptor buffer
+        // Create buffers
         let indirect_desc = Buffer::new(
             &render_instance,
-            "Draw indirect descriptor buffer",
+            "Draw indirect descriptor",
             std::mem::size_of::<DrawIndexedIndirectDesc>() * MAX_INDIRECT_COMMANDS as usize,
             BufferUsage::STORAGE | BufferUsage::MAP_READ,
             None);
-        // Create draw indirect data buffer
         let indirect_data = Buffer::new(
             &render_instance,
-            "Draw indirect data buffer",
+            "Draw indirect data",
             std::mem::size_of::<DrawIndirectData>() as usize,
             BufferUsage::STORAGE | BufferUsage::MAP_READ | BufferUsage::MAP_WRITE,
             None);
@@ -206,10 +237,14 @@ impl Renderer {
             objects_bind_group: BindGroup::new(&render_instance, objects_bg_build),
             objects,
 
-            batch_bg: BindGroup::new(&render_instance, batch_bg_build),
+            sort_batches,
+
+            batch_write_bg: BindGroup::new(&render_instance, batch_bg_build_write),
+            batch_read_bg: BindGroup::new(&render_instance, batch_bg_build_read),
             indirect_desc_bg: BindGroup::new(&render_instance, indirect_desc_bg_build),
             indirect_desc_commands_bg: BindGroup::new(&render_instance, indirect_desc_commands_bg_build),
             batch_buffer,
+            batch_buffer_indices,
             indirect_desc,
             indirect_buffer,
             indirect_compute,
@@ -490,15 +525,19 @@ impl Renderer {
                     };
                 }
             });
-        }
 
-        // Sort draw batches
-        {
-            trace!("Sorting draw batches.");
-            let _trace_draws = tracing::span!(tracing::Level::TRACE, "sort_batches");
+            // Write batch commands indices
+            self.batch_buffer_indices.map_mut(&render_instance, |mut view| {
+                // Cast data to u32
+                let data = view.as_mut_ptr() as *mut u32;
 
-            // Sort draw batches
-            draws_batches.sort_by(|a, b| a.batch_index.cmp(&b.batch_index));
+                // Write data
+                for (i, _pair) in draws_batches.iter().enumerate() {
+                    unsafe {
+                        *data.add(i) = i as u32;
+                    };
+                }
+            });
         }
 
         // Create indirect commands
@@ -518,11 +557,36 @@ impl Renderer {
             let mut command_buffer = CommandBuffer::new(
                     &render_instance, "Create indirect commands").await;
 
+            { // Sort batches
+                let mut compute_pass = command_buffer.create_compute_pass("Sort batches");
+
+                // Set bind groups
+                compute_pass.set_bind_group(0, &self.batch_write_bg);
+
+                // Set pipeline
+                if compute_pass.set_pipeline(&self.sort_batches).is_err() {
+                    error!("Failed to set compute pipeline.");
+                    return RenderEvent::None;
+                }
+
+                for i in 0..draws_batches.len() {
+                    // Set push constants
+                    let push_constants = [draws_batches.len() as u32, (i % 2) as u32];
+                    compute_pass.set_push_constants(bytemuck::cast_slice(&push_constants));
+
+                    // Run compute shader
+                    if compute_pass.dispatch((draws_batches.len() as f32 / 256.0).ceil() as u32, 1, 1).is_err() {
+                        error!("Failed to run compute shader.");
+                        return RenderEvent::None;
+                    }
+                }
+            }
+
             { // Create indirect commands list
                 let mut compute_pass = command_buffer.create_compute_pass("Create indirect commands");
 
                 // Set bind groups
-                compute_pass.set_bind_group(0, &self.batch_bg);
+                compute_pass.set_bind_group(0, &self.batch_read_bg);
                 compute_pass.set_bind_group(1, &self.indirect_desc_commands_bg);
 
                 // Set pipeline
