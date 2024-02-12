@@ -4,7 +4,7 @@ use wde_resources::{MaterialResource, ModelResource, Resource, ResourceHandle, R
 use wde_wgpu::{BindGroup, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, ComputePipeline, DrawIndexedIndirectArgs, LoadOp, Operations, RenderEvent, RenderInstance, RenderTexture, ShaderStages, StoreOp, Texture, TextureUsages};
 
 /// Describes the maximum number of indirect commands.
-const MAX_INDIRECT_COMMANDS: usize = 10_000;
+const MAX_INDIRECT_COMMANDS: usize = 1_000_000;
 
 /// Describes a draw batch.
 #[derive(Debug, Copy, Clone)]
@@ -500,15 +500,6 @@ impl Renderer {
             }
         }
 
-        // Sort draw batches
-        {
-            trace!("Sorting draw batches.");
-            let _trace_draws = tracing::span!(tracing::Level::TRACE, "sort_batches");
-
-            // Sort draw batches
-            draws_batches.sort_by(|a, b| a.batch_index.cmp(&b.batch_index));
-        }
-
         // Fill batch commands buffer
         {
             trace!("Filling batch commands buffer.");
@@ -526,6 +517,15 @@ impl Renderer {
                     };
                 }
             });
+        }
+
+        // Sort draw batches
+        {
+            trace!("Sorting draw batches.");
+            let _trace_draws = tracing::span!(tracing::Level::TRACE, "sort_batches");
+
+            // Sort draw batches
+            draws_batches.sort_by(|a, b| a.batch_index.cmp(&b.batch_index));
         }
 
         // Create indirect commands
