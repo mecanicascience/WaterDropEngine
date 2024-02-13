@@ -1,14 +1,5 @@
-import './App.css'
-import { createIPCServer } from './lib/Ipc'
+const App = () => {
+    return <div>Salut</div>;
+};
 
-// Start IPC communication
-createIPCServer();
-
-// Start the app
-export default function App() {
-    return (
-        <>
-            <p>Start here</p>
-        </>
-    )
-}
+export default App;
