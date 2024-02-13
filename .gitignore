@@ -1,2 +1,10 @@
-editor_tests/
-engine_tests/
+/target
+core/*/target
+**/*.rs.bk
+Cargo.lock
+.cargo/config
+.cargo/config.toml
+/.idea
+/.vscode/settings.json
+log.txt
+trace.json
