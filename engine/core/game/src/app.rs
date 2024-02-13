@@ -3,7 +3,6 @@ use std::{collections::HashMap, sync::{Arc, RwLock}};
 use tokio::sync::mpsc;
 use tracing::{span, Level};
 use wde_logger::{info, throw, trace, debug};
-use wde_editor_interactions::EditorHandler;
 use wde_resources::ResourcesManager;
 use wde_wgpu::{ElementState, Event, LoopEvent, PhysicalKey, RenderEvent, RenderInstance, Window, WindowEvent};
 
@@ -122,14 +121,6 @@ impl App {
         // ======== ENGINE INITIALIZATION ========
         let _engine_initialization_span = span!(Level::INFO, "engine_init").entered();
 
-        // Create editor handler
-        let mut editor_handler: Option<EditorHandler> = if cfg!(debug_assertions) != true { None } else {
-            match EditorHandler::new() {
-                Ok(h) => if h.started() { Some(h) } else { None }
-                Err(_) => None
-            }
-        };
-
         // Create list of input keys
         let mut keys_states: HashMap<PhysicalKey, bool> = HashMap::new();
 
@@ -142,19 +133,6 @@ impl App {
 
         // Create render instance
         let mut render_instance = RenderInstance::new("WaterDropEngine", window).await;
-
-        // Handle editor messages and push new frame
-        if editor_handler.is_some() {
-            let editor = editor_handler.as_mut().unwrap();
-            match editor.process() {
-                Ok(_) => {
-                    // Set last frame
-                    let r = rand::random::<u32>();
-                    let _ = editor.set_current_frame(format!("Hello {} world.", r).as_bytes());
-                },
-                Err(_) => {}
-            }
-        }
         drop(_engine_initialization_span);
 
 

@@ -119,6 +119,25 @@ impl Buffer {
         command_buffer.submit(&instance);
     }
 
+    /// Copy data to the buffer from a texture.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instance` - The render instance.
+    /// * `texture` - The texture to copy from.
+    pub async fn copy_from_texture(&mut self, instance: &RenderInstance<'_>, texture: &wgpu::Texture) {
+        // Create command encoder
+        let mut command_buffer = CommandBuffer::new(
+            instance,
+            &format!("Copy texture to '{}' Buffer", self.label)).await;
+
+        // Copy texture
+        command_buffer.copy_texture_to_buffer(&texture, &self, texture.size());
+
+        // Submit commands
+        command_buffer.submit(&instance);
+    }
+
     /// Write data to the buffer.
     /// 
     /// # Arguments

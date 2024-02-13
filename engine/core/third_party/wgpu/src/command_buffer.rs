@@ -1,4 +1,5 @@
 use wde_logger::{trace, debug};
+use wgpu::Texture;
 
 use crate::{Buffer, ComputePass, RenderInstance, TextureView};
 
@@ -59,7 +60,6 @@ impl CommandBuffer {
     /// 
     /// * `instance` - The render instance.
     /// * `label` - The label of the command buffer.
-    #[tracing::instrument]
     pub async fn new(instance: &RenderInstance<'_>, label: &str) -> Self {
         debug!(label, "Creating command buffer.");
 
@@ -82,7 +82,6 @@ impl CommandBuffer {
     /// * `color_texture` - The color texture to render to.
     /// * `color_operations` - The color operations. If `None`, clear the color texture to black.
     /// * `depth_texture` - The depth texture to render to.
-    #[tracing::instrument]
     pub fn create_render_pass<'pass>(&'pass mut self, label: &str,
         color_texture: &'pass TextureView,
         color_operations: Option<Operations<Color>>,
@@ -138,7 +137,6 @@ impl CommandBuffer {
     /// # Arguments
     /// 
     /// * `label` - The label of the compute pass.
-    #[tracing::instrument]
     pub fn create_compute_pass<'pass>(&'pass mut self, label: &str) -> ComputePass<'pass> {
         let compute_pass = self.encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(format!("'{}' Compute Pass", label).as_str()),
@@ -153,7 +151,6 @@ impl CommandBuffer {
     /// # Arguments
     /// 
     /// * `instance` - The render instance.
-    #[tracing::instrument]
     pub fn submit(self, instance: &RenderInstance) {
         instance.queue.submit(std::iter::once(self.encoder.finish()));
         debug!(self.label, "Submitted command buffer.");
@@ -166,7 +163,6 @@ impl CommandBuffer {
     /// 
     /// * `source` - The source buffer.
     /// * `destination` - The destination buffer.
-    #[tracing::instrument]
     pub fn copy_buffer_to_buffer(&mut self, source: &Buffer, destination: &Buffer) {
         trace!(src=source.label, dest=destination.label, "Copying buffer to buffer.");
 
@@ -174,5 +170,35 @@ impl CommandBuffer {
             &source.buffer, 0,
             &destination.buffer, 0,
             source.buffer.size());
+    }
+
+    /// Copy a texture to a buffer.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `source` - The source texture.
+    /// * `destination` - The destination buffer.
+    /// * `size` - The size of the texture.
+    pub fn copy_texture_to_buffer(&mut self, source: &Texture, destination: &Buffer, size: wgpu::Extent3d) {
+        trace!(dest=destination.label, "Copying texture to buffer.");
+
+        // Create texture copy
+        let texture_copy = source.as_image_copy();
+
+        // Create buffer copy
+        let buffer_copy = wgpu::ImageCopyBuffer {
+            buffer: &destination.buffer,
+            layout: wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * 4 * size.width),
+                rows_per_image: None,
+            }
+        };
+
+        // Copy texture to buffer
+        self.encoder.copy_texture_to_buffer(
+            texture_copy,
+            buffer_copy,
+            size);
     }
 }

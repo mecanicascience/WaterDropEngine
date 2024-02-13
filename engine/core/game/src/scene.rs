@@ -118,7 +118,7 @@ impl Scene {
 
         
         // Create nxn monkeys
-        let n = 500;
+        let n = 10;
         let mut monkey_indices = Vec::new();
         for i in 0..n {
             for j in 0..n {

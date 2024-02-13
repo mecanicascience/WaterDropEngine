@@ -399,6 +399,7 @@ impl Renderer {
     /// * `render_instance` - The render instance
     /// * `world` - The world
     /// * `res_manager` - The resources manager
+    /// * `editor_handler` - The editor handler
     #[tracing::instrument]
     pub async fn render(&self, render_instance: &RenderInstance<'_>, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
         debug!("Starting render.");

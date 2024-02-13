@@ -9,7 +9,6 @@ description = "The game root crate"
 wde_ecs = { path = "../core/ecs" }
 wde_resources = { path = "../resources" }
 wde_wgpu = { path = "../third_party/wgpu" }
-wde_editor_interactions = { path = "../third_party/editor" }
 wde_logger = { path = "../wrappers/logger" }
 wde_math = { path = "../wrappers/math" }
 tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_info"] }

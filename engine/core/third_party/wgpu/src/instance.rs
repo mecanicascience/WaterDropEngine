@@ -2,7 +2,7 @@ use tracing::{span, Level};
 use wde_logger::{debug, trace, warn, error, throw, info};
 use wgpu::Limits;
 
-use crate::{Window, TextureView};
+use crate::{TextureView, Window};
 
 /// Error type of the renderer.
 #[derive(Debug)]
@@ -170,7 +170,7 @@ impl RenderInstance<'_> {
         // Set surface configuration
         trace!(label, "Configuring surface.");
         let surface_config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             format: surface_format,
             width: window.init_size.0,
             height: window.init_size.1,
