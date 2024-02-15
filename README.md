@@ -49,7 +49,6 @@ core/
 |
 ├─────────── Third Party Systems ───────────
 |   └── third_party/
-|      ├── editor/
 |      └── wgpu/
 ├──────────────── Wrappers ─────────────────
 |   └── wrappers/
