@@ -1,8 +1,11 @@
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::{LoggerLayer, TracingLayer};
+use crate::LoggerLayer;
+#[cfg(feature = "tracing")]
+use crate::TracingLayer;
 
 pub struct Logger {
+    #[allow(dead_code)]
     tracing_file_name: String,
 }
 
@@ -14,7 +17,7 @@ impl Logger {
     /// 
     /// * `log_file_name` - The name of the file to write the log data to.
     /// * `tracing_file_name` - The name of the file to write the tracing data to.
-    pub fn new(log_file_name: &str ,tracing_file_name: &str) -> Self {
+    pub fn new(log_file_name: &str, tracing_file_name: &str) -> Self {
         // Custom logger layer
         let logger_layer = LoggerLayer::new(log_file_name);
 
@@ -42,6 +45,7 @@ impl Logger {
     /// This must be called once after all other logging functions.
     pub fn close(&self) {
         // Write the footer
+        #[cfg(feature = "tracing")]
         TracingLayer::close(&self.tracing_file_name);
     }
 }

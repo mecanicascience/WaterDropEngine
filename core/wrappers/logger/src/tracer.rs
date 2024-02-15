@@ -1,3 +1,5 @@
+#![cfg(feature = "tracing")]
+
 use std::{collections::BTreeMap, io::{Read, Write}};
 use regex::Regex;
 use tracing::{field::Field, span};
