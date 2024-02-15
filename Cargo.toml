@@ -21,3 +21,4 @@ tokio = { version = "1.35", features = ["rt", "macros", "rt-multi-thread"] }
 [features]
 default = []
 tracing = ["wde_logger/tracing"]
+editor = ["wde_game/editor"]

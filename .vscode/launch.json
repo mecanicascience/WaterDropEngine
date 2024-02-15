@@ -7,13 +7,13 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Trace engine",
+            "name": "Trace editor",
             "cargo": {
                 "args": [
                     "build",
                     "--bin=wde-engine",
                     "--package=wde-engine",
-                    "--features=tracing"
+                    "--features=tracing,editor"
                 ],
                 "filter": {
                     "name": "wde-engine",
@@ -26,12 +26,33 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug engine",
+            "name": "Debug editor",
             "cargo": {
                 "args": [
                     "build",
                     "--bin=wde-engine",
-                    "--package=wde-engine"
+                    "--package=wde-engine",
+                    "--features=editor"
+                ],
+                "filter": {
+                    "name": "wde-engine",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Release editor",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--release",
+                    "--bin=wde-engine",
+                    "--package=wde-engine",
+                    "--features=editor"
                 ],
                 "filter": {
                     "name": "wde-engine",

@@ -13,8 +13,7 @@ fn main() -> Result<()> {
     // Copy the /res/ folder to the output directory.
     let mut copyOptions = CopyOptions::new();
     copyOptions.overwrite = true;
-    let mut pathsToCopy = Vec::new();
-    pathsToCopy.push("res/");
+    let pathsToCopy = vec!["res/"];
     
     // Check if we're in debug or release mode.
     if cfg!(debug_assertions) {

@@ -5,6 +5,7 @@ use tracing::{span, Level};
 use wde_logger::{info, throw, trace, debug};
 use wde_resources::ResourcesManager;
 use wde_wgpu::{ElementState, Event, LoopEvent, PhysicalKey, RenderEvent, RenderInstance, Window, WindowEvent};
+use wde_editor::Editor;
 
 use crate::{Renderer, Scene};
 
@@ -120,6 +121,9 @@ impl App {
 
         // ======== ENGINE INITIALIZATION ========
         let _engine_initialization_span = span!(Level::INFO, "engine_init").entered();
+
+        // Create editor
+        let _editor = Editor::new();
 
         // Create list of input keys
         let mut keys_states: HashMap<PhysicalKey, bool> = HashMap::new();

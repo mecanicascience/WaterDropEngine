@@ -11,7 +11,12 @@ wde_resources = { path = "../resources" }
 wde_wgpu = { path = "../third_party/wgpu" }
 wde_logger = { path = "../wrappers/logger" }
 wde_math = { path = "../wrappers/math" }
+wde_editor = { path = "../core/editor" }
 tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_info"] }
 rand = "0.8"
 tokio = { version = "1.35", features = ["rt", "macros", "sync"] }
 bytemuck = { version = "1.12", features = [ "derive" ] }
+
+[features]
+default = []
+editor = ["wde_editor/editor"]
