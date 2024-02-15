@@ -170,7 +170,7 @@ impl RenderInstance<'_> {
         // Set surface configuration
         trace!(label, "Configuring surface.");
         let surface_config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: window.init_size.0,
             height: window.init_size.1,
@@ -232,23 +232,23 @@ impl RenderInstance<'_> {
                     texture: surface_texture,
                     view: render_view
                 };
-                return RenderEvent::Redraw(cur_render);
+                RenderEvent::Redraw(cur_render)
             }
             // Surface lost or outdated (minimized or moved to another screen)
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 // Resize surface
                 let conf = render_instance.surface_config.as_ref().unwrap().clone();
-                return RenderEvent::Resize(conf.width, conf.height);
+                RenderEvent::Resize(conf.width, conf.height)
             },
             // System out of memory
             Err(wgpu::SurfaceError::OutOfMemory) => {
                 error!(render_instance.label, "System out of memory.");
-                return RenderEvent::Close;
+                RenderEvent::Close
             }
             // Timeout of the surface
             Err(wgpu::SurfaceError::Timeout) => {
                 warn!(render_instance.label, "Timeout of the surface.");
-                return RenderEvent::None;
+                RenderEvent::None
             }
         }
     }
