@@ -37,6 +37,7 @@ impl App {
         let (event_relay_t, mut event_relay_r) = mpsc::unbounded_channel();
         let (input_t, mut input_r) = mpsc::unbounded_channel();
         let (resize_t, mut resize_r) = mpsc::unbounded_channel();
+        let (mouse_t, mut mouse_r) = mpsc::unbounded_channel();
         let window_join = std::thread::spawn(move || {
             // Create event loop
             let event_loop = window.create();
@@ -73,10 +74,7 @@ impl App {
 
                     // Check for input events
                     Event::WindowEvent {
-                        event: WindowEvent::KeyboardInput {
-                            event,
-                            ..
-                        },
+                        event: WindowEvent::KeyboardInput { .. },
                         ..
                     } => {
                         input_t.send(event).unwrap_or_else(|e| {
@@ -107,6 +105,32 @@ impl App {
                         }
                     },
 
+                    // Handle mouse events
+                    Event::WindowEvent {
+                        event: WindowEvent::CursorMoved { .. },
+                        ..
+                    } => {
+                        mouse_t.send(event).unwrap_or_else(|e| {
+                            throw!("Failed to send mouse event : {}.", e);
+                        });
+                    },
+                    Event::WindowEvent {
+                        event: WindowEvent::MouseInput { .. },
+                        ..
+                    } => {
+                        mouse_t.send(event).unwrap_or_else(|e| {
+                            throw!("Failed to send mouse event : {}.", e);
+                        });
+                    },
+                    Event::WindowEvent {
+                        event: WindowEvent::MouseWheel { .. },
+                        ..
+                    } => {
+                        mouse_t.send(event).unwrap_or_else(|e| {
+                            throw!("Failed to send mouse event : {}.", e);
+                        });
+                    },
+
                     // Ignore other events
                     _ => ()
                 }
@@ -122,9 +146,6 @@ impl App {
         // ======== ENGINE INITIALIZATION ========
         let _engine_initialization_span = span!(Level::INFO, "engine_init").entered();
 
-        // Create editor
-        let _editor = Editor::new();
-
         // Create list of input keys
         let mut keys_states: HashMap<PhysicalKey, bool> = HashMap::new();
 
@@ -137,6 +158,9 @@ impl App {
 
         // Create render instance
         let mut render_instance = RenderInstance::new("WaterDropEngine", window).await;
+
+        // Create editor
+        let mut editor = Editor::new(window_size, &render_instance).await;
         drop(_engine_initialization_span);
 
 
@@ -191,6 +215,9 @@ impl App {
                         ev = ev_;
                     }
 
+                    // Send resize event to editor
+                    editor.handle_resize(ev);
+
                     // Resize window
                     let (width, height) = ev;
                     window_size = (width, height);
@@ -203,8 +230,13 @@ impl App {
                     // Resize render
                     renderer.write().unwrap().resize(&render_instance, width, height).await;
                 }
+
+                // Check for mouse events
+                while let Ok(ev) = mouse_r.try_recv() {
+                    editor.handle_mouse_event(&ev);
+                }
                 
-                // Wait for next event
+                // Wait for next render event
                 let ev = event_r.recv().await;
                 if ev.is_none() { break; }
                 match ev.unwrap() {
@@ -223,11 +255,28 @@ impl App {
 
                 // Handle inputs
                 while let Ok(input) = input_r.try_recv() {
-                    let key = input.physical_key;
-                    let pressed = input.state == ElementState::Pressed;
+                    match input {
+                        Event::WindowEvent { event, .. } => {
+                            // Update editor
+                            editor.handle_input_event(&event);
 
-                    // Set key state
-                    keys_states.insert(key, pressed);
+                            // Check if use input
+                            if !editor.captures_event(&event) {
+                                // Handle keyboard input
+                                match event {
+                                    WindowEvent::KeyboardInput { event, .. } => {
+                                        let key = event.physical_key;
+                                        let pressed = event.state == ElementState::Pressed;
+
+                                        // Set key state
+                                        keys_states.insert(key, pressed);
+                                    },
+                                    _ => { }
+                                }
+                            }
+                        },
+                        _ => { }
+                    }
                 }
 
                 // Update resources manager (resources async loading and releasing)
@@ -246,21 +295,50 @@ impl App {
 
             // ====== Render ======
             {
+                // Acquire render texture
                 let mut should_resize = false;
-                match renderer.read().unwrap().render(&render_instance, &scene.world, &res_manager).await {
-                    RenderEvent::Redraw(_) => {},
+                match RenderInstance::get_current_texture(&render_instance) {
+                    RenderEvent::Redraw(render_texture) => {
+                        let mut should_close = false;
+
+                        // Render world
+                        match renderer.read().unwrap().render(&render_instance, &scene.world, &res_manager, &render_texture).await {
+                            RenderEvent::Redraw(_) => {},
+                            RenderEvent::Close => {
+                                should_close = true;
+                            },
+                            RenderEvent::Resize(_, _) => {
+                                should_resize = true;
+                            },
+                            RenderEvent::None => {},
+                        }
+
+                        // Render editor
+                        should_close = editor.render(&render_instance, &render_texture).await || should_close;
+
+                        // Present frame
+                        let _ = render_instance.present(render_texture);
+
+                        // Check if should close
+                        if should_close {
+                            info!("Closing engine.");
+                            break;
+                        }
+                    },
                     RenderEvent::Close => {
                         info!("Closing engine.");
                         break;
                     },
                     RenderEvent::Resize(_, _) => {
-                        trace!("Handling resize event after querying texture.");
                         should_resize = true;
                     },
                     RenderEvent::None => {},
                 }
 
+                // Resize
                 if should_resize {
+                    debug!("Handling resize event due to render event.");
+
                     // Resize render instance
                     render_instance.resize(window_size.0, window_size.1).unwrap_or_else(|e| {
                         throw!("Failed to resize render instance : {:?}.", e);

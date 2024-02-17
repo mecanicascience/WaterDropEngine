@@ -400,15 +400,10 @@ impl Renderer {
     /// * `world` - The world
     /// * `res_manager` - The resources manager
     /// * `editor_handler` - The editor handler
+    /// * `render_texture` - The render texture
     #[tracing::instrument]
-    pub async fn render(&self, render_instance: &RenderInstance<'_>, world: &World, res_manager: &ResourcesManager) -> RenderEvent {
+    pub async fn render(&self, render_instance: &RenderInstance<'_>, world: &World, res_manager: &ResourcesManager, render_texture: &RenderTexture) -> RenderEvent {
         debug!("Starting render.");
-
-        // Acquire render texture
-        let render_texture: RenderTexture = match RenderInstance::get_current_texture(&render_instance) {
-            RenderEvent::Redraw(render_texture) => render_texture,
-            event => return event,
-        };
 
         // Create draw batches
         let mut batch_references: Vec<(ResourceHandle, ResourceHandle)> = Vec::new();
@@ -725,9 +720,6 @@ impl Renderer {
             // Submit command buffer
             command_buffer.submit(&render_instance);
         }
-
-        // Present frame
-        let _ = render_instance.present(render_texture);
 
         // Return
         RenderEvent::None

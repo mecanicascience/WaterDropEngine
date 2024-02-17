@@ -201,4 +201,13 @@ impl CommandBuffer {
             buffer_copy,
             size);
     }
+
+    /// Get the encoder of the command buffer.
+    /// 
+    /// # Returns
+    /// 
+    /// The encoder of the command buffer.
+    pub fn encoder(&mut self) -> &mut wgpu::CommandEncoder {
+        &mut self.encoder
+    }
 }
