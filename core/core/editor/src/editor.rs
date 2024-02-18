@@ -15,6 +15,7 @@ pub struct Editor {
     tree_state: DockState<String>,
 
     render_pass: EditorPass,
+    render_tex: Texture,
     render_to_texture_id: egui::TextureId
 }
 
@@ -33,10 +34,6 @@ impl Editor {
 
         // Create egui plateform
         let plateform = Plateform::new(window_size);
-
-        // Create tree
-        let mut tree = UITree::new();
-        let tree_state = tree.init();
 
         // Create egui render pass
         let egui_shader = std::fs::read_to_string("res/shaders/editor/editor_core.wgsl").unwrap_or_else(|_| {
@@ -57,6 +54,11 @@ impl Editor {
                 &render_tex.view,
                 wgpu::FilterMode::Linear);
 
+        // Create tree
+        let aspect_ratio = window_size.0 as f32 / window_size.1 as f32;
+        let mut tree = UITree::new(render_to_texture_id, aspect_ratio);
+        let tree_state = tree.init();
+
         Editor {
             context,
             plateform,
@@ -64,6 +66,7 @@ impl Editor {
             tree_state,
 
             render_pass,
+            render_tex,
             render_to_texture_id
         }
     }
@@ -154,15 +157,22 @@ impl Editor {
         let full_output = self.context.end_frame();
         let primitives = self.context.tessellate(full_output.shapes, full_output.pixels_per_point);
 
+        // Copy render to texture UI
+        let tex_size = instance.surface_config.as_ref().unwrap();
+        self.render_tex.copy_from_texture(
+            &instance,
+            &texture.texture.texture,
+            (tex_size.width, tex_size.height)).await;
+
         // Render editor
         let tdelta = full_output.textures_delta;
         {
             // Create command buffer
             let mut command = CommandBuffer::new(instance, "Egui Draw").await;
 
-            // Copy Render Texture to UI Render Texture
+            // Update render to texture
             self.render_pass.update_egui_texture_from_wgpu_texture(
-                &instance.device, &texture.view,
+                &instance.device, &self.render_tex.view,
                 wgpu::FilterMode::Linear, self.render_to_texture_id).unwrap();
 
             // Upload all resources for the GPU.
@@ -206,9 +216,21 @@ impl Editor {
     /// 
     /// # Arguments
     /// 
+    /// * `instance` - The render instance.
     /// * `size` - The new size of the window.
-    pub fn handle_resize(&mut self, size: (u32, u32)) {
+    pub async fn handle_resize(&mut self, instance: &RenderInstance<'_>, size: (u32, u32)) {
+        // Update plateform
         self.plateform.handle_resize(size);
+
+        // Recreate render to texture
+        self.render_tex = Texture::new(instance,
+            "Render to Texture UI",
+            (size.0, size.1),
+            Texture::SWAPCHAIN_FORMAT,
+            TextureUsages::TEXTURE_BINDING).await;
+
+        // Update tree aspect ratio
+        self.tree.aspect_ratio = size.0 as f32 / size.1 as f32;
     }
 
     /// Handle a mouse event.

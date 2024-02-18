@@ -165,6 +165,44 @@ impl Texture {
             },
         );
     }
+
+    /// Copy texture to texture.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `instance` - Game instance.
+    /// * `texture` - Texture to copy from.
+    /// * `size` - Size of the texture.
+    pub async fn copy_from_texture(&self, instance: &RenderInstance<'_>, texture: &wgpu::Texture, size: (u32, u32)) {
+        trace!(self.label, "Copying texture to texture.");
+
+        // Create command buffer
+        let mut command = crate::CommandBuffer::new(instance, "Copy Texture").await;
+
+        // Copy texture to texture
+        command.encoder().copy_texture_to_texture(
+            wgpu::ImageCopyTexture {
+                texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyTexture {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        // Submit the commands
+        command.submit(instance);
+    }
 }
 
 impl Drop for Texture {

@@ -216,7 +216,7 @@ impl App {
                     }
 
                     // Send resize event to editor
-                    editor.handle_resize(ev);
+                    editor.handle_resize(&render_instance, ev).await;
 
                     // Resize window
                     let (width, height) = ev;

@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+use egui::Color32;
+use egui::Rect;
+use egui::Sense;
 use egui_dock::DockState;
 use egui_dock::TabViewer;
 use tracing::debug;
@@ -9,11 +12,13 @@ use crate::widgets::Widget;
 use crate::widgets::PropertiesWidget;
 
 pub struct UITree {
+    pub aspect_ratio: f32,
     widgets: Vec<Box<dyn Widget>>,
+    render_texture_id: egui::TextureId,
 }
 
 impl UITree {
-    pub fn new() -> Self {
+    pub fn new(render_texture_id: egui::TextureId, aspect_ratio: f32) -> Self {
         info!("Creating UI tree widgets.");
 
         // Create widgets
@@ -23,6 +28,8 @@ impl UITree {
 
         Self {
             widgets,
+            render_texture_id,
+            aspect_ratio
         }
     }
 
@@ -52,20 +59,26 @@ impl TabViewer for UITree {
         match tab.as_str() {
             "Editor" => {
                 // Show render texture, limited by available size, preserving aspect ratio
-                // let available_size = ui.available_size();
-                // let tex_aspect_ratio = data.surface_config.width as f32 / data.surface_config.height as f32;
-                // let cont_aspect_ratio = available_size.x as f32 / available_size.y as f32;
-                // let (scale_w, scale_h) = if tex_aspect_ratio > cont_aspect_ratio {
-                //     (available_size.x as f32, available_size.x as f32 / tex_aspect_ratio)
-                // }
-                // else {
-                //     (available_size.y as f32 * tex_aspect_ratio, available_size.y as f32)
-                // };
-                // let tex_x = (available_size.x - scale_w) / 2.0;
-                // let tex_y = (available_size.y - scale_h) / 2.0;
+                let available_size = ui.available_size();
+                let cont_aspect_ratio = available_size.x as f32 / available_size.y as f32;
+                let (scale_w, scale_h) = if self.aspect_ratio > cont_aspect_ratio {
+                    (available_size.x as f32, available_size.x as f32 / self.aspect_ratio)
+                }
+                else {
+                    (available_size.y as f32 * self.aspect_ratio, available_size.y as f32)
+                };
+                let tex_x = (available_size.x - scale_w) / 2.0;
+                let tex_y = (available_size.y - scale_h) / 2.0;
 
-                // ui.allocate_space(egui::Vec2::new(tex_x, tex_y));
-                // ui.image(self.render_texture_id, [scale_w, scale_h]);
+                // Draw the render texture
+                let (_res, painter) = ui.allocate_painter(
+                    egui::Vec2::new(tex_x + scale_w, tex_y + scale_h), Sense::hover());
+                painter.image(
+                    self.render_texture_id,
+                    Rect { min: egui::Pos2::new(tex_x, tex_y), max: egui::Pos2::new(tex_x + scale_w, tex_y + scale_h) },
+                    Rect { min: egui::Pos2::ZERO, max: egui::Pos2::new(1.0, 1.0) },
+                    Color32::WHITE
+                );
             },
             "Properties" => {
                 self.widgets[0].ui(ui);
