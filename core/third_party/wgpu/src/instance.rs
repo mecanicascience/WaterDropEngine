@@ -145,7 +145,7 @@ impl RenderInstance<'_> {
 
         // Set limits
         let mut required_limits = Limits::default();
-        required_limits.max_push_constant_size = 256;
+        required_limits.max_push_constant_size = 128;
 
         // Create device instance and queue
         trace!(label, "Requesting device.");

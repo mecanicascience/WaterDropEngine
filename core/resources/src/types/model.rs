@@ -80,9 +80,12 @@ impl Resource for ModelResource {
             let mut indices: Vec<u32> = Vec::new();
 
             // File path
-            let path_f = std::env::current_exe().unwrap().as_path()
-                .parent().unwrap()
-                .join(path_c.clone().replace("/", "\\"));
+            let current_exe = std::env::current_exe().unwrap();
+            let path_f_tmp = current_exe.as_path().parent().unwrap();
+            #[cfg(target_os = "windows")]
+            let path_f = path_f_tmp.join(path_c.clone().replace("/", "\\"));
+            #[cfg(target_os = "linux")]
+            let path_f = path_f_tmp.join(path_c.clone().replace("\\", "/"));
 
             // Open file
             trace!(path_c, "Loading model.");

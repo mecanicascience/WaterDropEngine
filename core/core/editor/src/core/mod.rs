@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 mod editor_pass;
 mod platform;
 mod ui_tree;

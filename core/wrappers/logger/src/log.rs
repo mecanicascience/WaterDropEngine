@@ -143,7 +143,7 @@ where
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         // If message starts with "log", discard it
-        if event.metadata().target().starts_with("log") {
+        if event.metadata().target().starts_with("log") || event.metadata().target().starts_with("polling::epoll") {
             return;
         }
 

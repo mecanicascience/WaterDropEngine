@@ -2,8 +2,12 @@ use wde_logger::{throw, info};
 use wde_math::Pair2u;
 use winit::{
     event_loop::{ControlFlow, EventLoopBuilder},
-    window::WindowBuilder, platform::windows::EventLoopBuilderExtWindows,
+    window::WindowBuilder,
 };
+#[cfg(target_os = "windows")]
+use winit::platform::windows::EventLoopBuilderExtWindows;
+#[cfg(target_os = "linux")]
+use winit::platform::x11::EventLoopBuilderExtX11;
 
 /// Type of an event
 pub type Event = winit::event::Event<()>;
