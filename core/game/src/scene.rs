@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Formatter;
 
-use wde_ecs::{EntityIndex, LabelComponent, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
+use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
 use wde_logger::throw;
 use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
 use wde_resources::{MaterialResource, ModelResource};
@@ -50,6 +50,7 @@ impl Scene {
         world
             .register_component::<LabelComponent>()
             .register_component::<TransformComponent>()
+            .register_component::<CameraComponent>()
             .register_component::<RenderComponent>()
             .register_component::<RenderComponentInstanced>()
             .register_component::<RenderComponentSSBODynamic>()
@@ -170,8 +171,8 @@ impl Scene {
                     position: Vec3f { x: 0.0, y: 0.0, z: 0.5 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.2
                 }).unwrap()
                 .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
-                .add_component(entity, RenderComponentInstanced {
-                    ids: render_index..render_index + 1,
+                .add_component(entity, RenderComponent {
+                    id: render_index,
                     model: res_manager.load::<ModelResource>("models/cube"),
                     material: res_manager.load::<MaterialResource>("materials/unicolor")
                 }).unwrap();
@@ -189,7 +190,8 @@ impl Scene {
             .add_component(camera, LabelComponent { label : "Camera".to_string() }).unwrap()
             .add_component(camera, TransformComponent {
                 position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
-            }).unwrap();
+            }).unwrap()
+            .add_component(camera, CameraComponent { aspect: 1.0, fovy: 60.0, znear: 0.1, zfar: 100.0 }).unwrap();
 
         // Set the camera controller : NOTE: If the active camera is changed, the controller will not work
         let last_camera_time = std::time::Instant::now();

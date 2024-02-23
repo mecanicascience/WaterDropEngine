@@ -735,14 +735,15 @@ impl Renderer {
     /// * `camera_buffer` - The camera buffer
     #[tracing::instrument]
     pub fn update_camera(&mut self, render_instance: &RenderInstance, world: &World, camera: EntityIndex) {
+        // Update camera component
+        let mut camera_component = world.get_component::<CameraComponent>(camera).unwrap().clone();
+        let surface_config = render_instance.surface_config.as_ref().unwrap();
+        camera_component.aspect = surface_config.width as f32 / surface_config.height as f32;
+
         // Create camera uniform
         let mut camera_uniform = CameraUniform::new();
-        let surface_config = render_instance.surface_config.as_ref().unwrap();
         camera_uniform.world_to_screen = CameraUniform::get_world_to_screen(
-            CameraComponent {
-                aspect: surface_config.width as f32 / surface_config.height as f32,
-                fovy: 60.0, znear: 0.1, zfar: 1000.0
-            },
+            camera_component,
             world.get_component::<TransformComponent>(camera).unwrap().clone()
         ).into();
 

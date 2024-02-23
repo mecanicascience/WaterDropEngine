@@ -158,9 +158,6 @@ impl App {
 
         // Create render instance
         let mut render_instance = RenderInstance::new("WaterDropEngine", window).await;
-
-        // Create editor
-        let mut editor = Editor::new(window_size, &render_instance).await;
         drop(_engine_initialization_span);
 
 
@@ -168,6 +165,9 @@ impl App {
         // ======== SCENE INITIALIZATION ========
         let _scene_initialization_span = span!(Level::INFO, "scene_init").entered();
         let mut scene = Scene::new(&mut res_manager);
+
+        // Create editor
+        let mut editor = Editor::new(window_size, &render_instance, &mut scene.world).await;
         drop(_scene_initialization_span);
 
 

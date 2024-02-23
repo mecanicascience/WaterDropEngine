@@ -4,6 +4,7 @@ use egui::{FontFamily, FontId, TextStyle};
 use egui::Context;
 use egui_dock::{DockArea, DockState, Style};
 use tracing::info;
+use wde_ecs::World;
 use wde_wgpu::{CommandBuffer, RenderInstance, RenderTexture, Texture, TextureUsages};
 
 use crate::{EditorPass, Plateform, ScreenDescriptor, UITree};
@@ -26,7 +27,7 @@ impl Editor {
     /// 
     /// * `window_size` - The size of the window.
     /// * `instance` - The render instance.
-    pub async fn new(window_size: (u32, u32), instance: &RenderInstance<'_>) -> Self {
+    pub async fn new(window_size: (u32, u32), instance: &RenderInstance<'_>, world: &mut World) -> Self {
         info!("Creating editor instance.");
 
         // Create egui context
@@ -57,7 +58,7 @@ impl Editor {
         // Create tree
         let aspect_ratio = window_size.0 as f32 / window_size.1 as f32;
         let mut tree = UITree::new(render_to_texture_id, aspect_ratio);
-        let tree_state = tree.init();
+        let tree_state = tree.init(world);
 
         Editor {
             context,

@@ -4,5 +4,6 @@ pub trait Widget {
     /// # Arguments
     /// 
     /// * `ui` - The UI to draw the widget on.
-    fn ui(&mut self, ui: &mut egui::Ui);
+    /// * `world` - The world to draw the widget for.
+    fn ui(&mut self, ui: &mut egui::Ui, world: &mut wde_ecs::World);
 }

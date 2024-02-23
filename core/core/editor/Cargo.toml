@@ -7,6 +7,8 @@ description = "Game engine editor."
 
 [dependencies]
 wde_wgpu = { path = "../../third_party/wgpu" }
+wde_resources = { path = "../../resources" }
+wde_ecs = { path = "../ecs" }
 tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_info"] }
 egui = "0.26"
 egui-winit = "0.26"

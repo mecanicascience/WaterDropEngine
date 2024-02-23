@@ -7,6 +7,7 @@ use egui_dock::DockState;
 use egui_dock::TabViewer;
 use tracing::debug;
 use tracing::info;
+use wde_ecs::World;
 
 use crate::widgets::Widget;
 use crate::widgets::PropertiesWidget;
@@ -15,6 +16,9 @@ pub struct UITree {
     pub aspect_ratio: f32,
     widgets: Vec<Box<dyn Widget>>,
     render_texture_id: egui::TextureId,
+
+    // Pointer to game systems
+    world: *mut World,
 }
 
 impl UITree {
@@ -29,11 +33,12 @@ impl UITree {
         Self {
             widgets,
             render_texture_id,
-            aspect_ratio
+            aspect_ratio,
+            world: std::ptr::null_mut(),
         }
     }
 
-    pub fn init(&mut self) -> DockState<String> {
+    pub fn init(&mut self, world: &mut World) -> DockState<String> {
         let mut dock_state = DockState::new(vec![]);
 
         // Create the tree
@@ -44,7 +49,10 @@ impl UITree {
         // Set active tab
         let active_tab = tree.find_tab(&"Editor".to_string()).unwrap();
         tree.set_active_tab(active_tab.0, active_tab.1);
-
+        
+        // Set the dock state
+        self.world = world;
+        
         dock_state
     }
 }
@@ -81,7 +89,7 @@ impl TabViewer for UITree {
                 );
             },
             "Properties" => {
-                self.widgets[0].ui(ui);
+                self.widgets[0].ui(ui, unsafe { &mut *self.world });
             },
             _ => {
                 ui.label("Unknown UI tab.");
