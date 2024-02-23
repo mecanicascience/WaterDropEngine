@@ -47,6 +47,9 @@ pub struct World {
     // List of managers.
     entity_manager: EntityManager,
     component_manager: ComponentManager,
+
+    // Current render index.
+    render_index: usize,
 }
 
 impl std::fmt::Debug for World {
@@ -67,6 +70,7 @@ impl World {
         Self {
             entity_manager: EntityManager::new(),
             component_manager: ComponentManager::new(),
+            render_index: 0,
         }
     }
 
@@ -239,6 +243,16 @@ impl World {
 
 
     // ======================================
-    // ============== SYSTEMS ===============
+    // =============== OTHERS ===============
     // ======================================
+    /// Gets the current render index and increments it.
+    ///
+    /// # Returns
+    ///
+    /// * `usize` - The current render index.
+    pub fn get_next_render_index(&mut self) -> u32 {
+        let index = self.render_index;
+        self.render_index += 1;
+        index as u32
+    }
 }

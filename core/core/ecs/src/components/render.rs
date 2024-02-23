@@ -8,9 +8,9 @@ pub struct RenderComponent {
     /// Unique identifier of the entity to render in the SSBO.
     pub id: u32,
     /// The model to use for rendering.
-    pub model: ResourceHandle,
+    pub model: Option<ResourceHandle>,
     /// The material to use for rendering.
-    pub material: ResourceHandle
+    pub material: Option<ResourceHandle>
 }
 
 /// Store the rendering properties of a list of entities for instanced rendering.
@@ -20,10 +20,14 @@ pub struct RenderComponentInstanced {
     /// List of unique identifiers of the entities to render in the SSBO.
     pub ids: Range<u32>,
     /// The model to use for rendering.
-    pub model: ResourceHandle,
+    pub model: Option<ResourceHandle>,
     /// The material to use for rendering.
-    pub material: ResourceHandle
+    pub material: Option<ResourceHandle>
 }
+
+/// Store the rendering properties of a child entity.
+#[derive(Debug, Clone)]
+pub struct RenderComponentChild {}
 
 
 

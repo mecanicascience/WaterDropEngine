@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Formatter;
 
-use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, RenderComponent, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
+use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, RenderComponent, RenderComponentChild, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
 use wde_logger::throw;
 use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
 use wde_resources::{MaterialResource, ModelResource};
@@ -52,10 +52,10 @@ impl Scene {
             .register_component::<TransformComponent>()
             .register_component::<CameraComponent>()
             .register_component::<RenderComponent>()
+            .register_component::<RenderComponentChild>()
             .register_component::<RenderComponentInstanced>()
             .register_component::<RenderComponentSSBODynamic>()
             .register_component::<RenderComponentSSBOStatic>();
-        let mut render_index = 0;
 
 
         // // Create big model
@@ -83,6 +83,7 @@ impl Scene {
                 Some(e) => e,
                 None => throw!("Failed to create entity. No more entity slots available."),
             };
+            let render_index = world.get_next_render_index();
             world
                 .add_component(entity, LabelComponent { label : "Cube".to_string() }).unwrap()
                 .add_component(entity, TransformComponent {
@@ -91,10 +92,9 @@ impl Scene {
                 .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
                 .add_component(entity, RenderComponent {
                     id: render_index,
-                    model: res_manager.load::<ModelResource>("models/cube"),
-                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                    model: Some(res_manager.load::<ModelResource>("models/cube")),
+                    material: Some(res_manager.load::<MaterialResource>("materials/unicolor"))
                 }).unwrap();
-            render_index += 1;
         }
 
         // Create cube
@@ -103,6 +103,7 @@ impl Scene {
                 Some(e) => e,
                 None => throw!("Failed to create entity. No more entity slots available."),
             };
+            let render_index = world.get_next_render_index();
             world
                 .add_component(entity, LabelComponent { label : "Cube 2".to_string() }).unwrap()
                 .add_component(entity, TransformComponent {
@@ -111,10 +112,9 @@ impl Scene {
                 .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
                 .add_component(entity, RenderComponent {
                     id: render_index,
-                    model: res_manager.load::<ModelResource>("models/cube"),
-                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                    model: Some(res_manager.load::<ModelResource>("models/cube")),
+                    material: Some(res_manager.load::<MaterialResource>("materials/unicolor"))
                 }).unwrap();
-            render_index += 1;
         }
 
         
@@ -129,14 +129,15 @@ impl Scene {
                 };
 
                 // Create monkey
+                let render_index = world.get_next_render_index();
                 world
                     .add_component(entity, LabelComponent { label : format!("Monkey {}", render_index) }).unwrap()
                     .add_component(entity, TransformComponent {
                         position: Vec3f { x: i as f32 * 1.0 - (n as f32)/2.0, y: 0.0, z: j as f32 * 1.0 - (n as f32)/2.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.3
                     }).unwrap()
+                    .add_component(entity, RenderComponentChild {}).unwrap()
                     .add_component(entity, RenderComponentSSBOStatic { id: render_index }).unwrap();
                 monkey_indices.push(render_index);
-                render_index += 1;
             }
         }
         // Add parent monkey
@@ -152,10 +153,9 @@ impl Scene {
                 }).unwrap()
                 .add_component(entity, RenderComponentInstanced {
                     ids: monkey_indices.clone().into_iter().min().unwrap()..monkey_indices.clone().into_iter().max().unwrap() + 1,
-                    model: res_manager.load::<ModelResource>("models/monkey"),
-                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                    model: Some(res_manager.load::<ModelResource>("models/monkey")),
+                    material: Some(res_manager.load::<MaterialResource>("materials/unicolor"))
                 }).unwrap();
-            render_index += 1;
         }
 
 
@@ -165,6 +165,7 @@ impl Scene {
                 Some(e) => e,
                 None => throw!("Failed to create entity. No more entity slots available."),
             };
+            let render_index = world.get_next_render_index();
             world
                 .add_component(entity, LabelComponent { label : "Cube".to_string() }).unwrap()
                 .add_component(entity, TransformComponent {
@@ -173,12 +174,10 @@ impl Scene {
                 .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
                 .add_component(entity, RenderComponent {
                     id: render_index,
-                    model: res_manager.load::<ModelResource>("models/cube"),
-                    material: res_manager.load::<MaterialResource>("materials/unicolor")
+                    model: Some(res_manager.load::<ModelResource>("models/cube")),
+                    material: Some(res_manager.load::<MaterialResource>("materials/unicolor"))
                 }).unwrap();
-            // render_index += 1;
         }
-
 
 
         // Create camera
@@ -191,12 +190,13 @@ impl Scene {
             .add_component(camera, TransformComponent {
                 position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
             }).unwrap()
-            .add_component(camera, CameraComponent { aspect: 1.0, fovy: 60.0, znear: 0.1, zfar: 100.0 }).unwrap();
+            .add_component(camera, CameraComponent { aspect: 1.0, fovy: 60.0, znear: 0.1, zfar: 1000.0 }).unwrap();
 
         // Set the camera controller : NOTE: If the active camera is changed, the controller will not work
         let last_camera_time = std::time::Instant::now();
         let camera_rotation = Vec2f { x: 0.0, y: 0.0 };
         let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
+
 
         // Return the scene
         Scene {

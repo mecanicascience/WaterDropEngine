@@ -129,7 +129,7 @@ impl Editor {
 
                         // Show tabs
                         ui.menu_button("  Window  ", |ui| {
-                            for name in ["Properties"] {
+                            for name in ["Editor", "Properties"] {
                                 if ui.button(format!("  \"{}\" menu ", name)).clicked() {
                                     let t = self.tree_state.find_tab(&name.to_owned());
                                     match t {

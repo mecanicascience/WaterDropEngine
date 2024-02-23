@@ -278,30 +278,34 @@ impl Renderer {
             // Get render component
             if let Some(render_component) = world.get_component::<RenderComponent>(*entity) {
                 // Check if pipeline is initialized
-                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
-                    if material.data.as_ref().unwrap().pipeline.is_initialized() {
-                        continue;
+                if let Some(material) = &render_component.material {
+                    if let Some(material) = res_manager.get_mut::<MaterialResource>(&material) {
+                        if material.data.as_ref().unwrap().pipeline.is_initialized() {
+                            continue;
+                        }
                     }
                 }
 
                 // Initialize pipeline
-                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
-                    // Create layouts
-                    let mut camera_buffer_bg_build = BindGroupBuilder::new("Camera buffer");
-                    camera_buffer_bg_build
-                        .add_buffer(0, &self.camera_buffer, ShaderStages::VERTEX, BufferBindingType::Uniform);
+                if let Some(material) = &render_component.material {
+                    if let Some(material) = res_manager.get_mut::<MaterialResource>(&material) {
+                        // Create layouts
+                        let mut camera_buffer_bg_build = BindGroupBuilder::new("Camera buffer");
+                        camera_buffer_bg_build
+                            .add_buffer(0, &self.camera_buffer, ShaderStages::VERTEX, BufferBindingType::Uniform);
 
-                    let mut objects_bind_group_layout = BindGroupBuilder::new("Objects matrices SSBO");
-                    objects_bind_group_layout
-                        .add_buffer(0, &self.objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
+                        let mut objects_bind_group_layout = BindGroupBuilder::new("Objects matrices SSBO");
+                        objects_bind_group_layout
+                            .add_buffer(0, &self.objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
 
-                    material.data.as_mut().unwrap().pipeline
-                        .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bg_build.clone()).layout)
-                        .add_bind_group(BindGroup::new(&render_instance, objects_bind_group_layout.clone()).layout)
-                        .init(&render_instance).await
-                        .unwrap_or_else(|_| {
-                            error!("Failed to initialize pipeline for material {}.", material.label);
-                        });
+                        material.data.as_mut().unwrap().pipeline
+                            .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bg_build.clone()).layout)
+                            .add_bind_group(BindGroup::new(&render_instance, objects_bind_group_layout.clone()).layout)
+                            .init(&render_instance).await
+                            .unwrap_or_else(|_| {
+                                error!("Failed to initialize pipeline for material {}.", material.label);
+                            });
+                    }
                 }
             }
         }
@@ -311,30 +315,34 @@ impl Renderer {
             // Get render component instanced
             if let Some(render_component) = world.get_component::<RenderComponentInstanced>(*entity) {
                 // Check if pipeline is initialized
-                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
-                    if material.data.as_ref().unwrap().pipeline.is_initialized() {
-                        continue;
+                if let Some(material) = &render_component.material {
+                    if let Some(material) = res_manager.get_mut::<MaterialResource>(&material) {
+                        if material.data.as_ref().unwrap().pipeline.is_initialized() {
+                            continue;
+                        }
                     }
                 }
 
                 // Initialize pipeline
-                if let Some(material) = res_manager.get_mut::<MaterialResource>(&render_component.material) {
-                    // Create layouts
-                    let mut camera_buffer_bg_build = BindGroupBuilder::new("Camera buffer");
-                    camera_buffer_bg_build
-                        .add_buffer(0, &self.camera_buffer, ShaderStages::VERTEX, BufferBindingType::Uniform);
+                if let Some(material) = &render_component.material {
+                    if let Some(material) = res_manager.get_mut::<MaterialResource>(&material) {
+                        // Create layouts
+                        let mut camera_buffer_bg_build = BindGroupBuilder::new("Camera buffer");
+                        camera_buffer_bg_build
+                            .add_buffer(0, &self.camera_buffer, ShaderStages::VERTEX, BufferBindingType::Uniform);
 
-                    let mut objects_bind_group_layout = BindGroupBuilder::new("Objects matrices SSBO");
-                    objects_bind_group_layout
-                        .add_buffer(0, &self.objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
+                        let mut objects_bind_group_layout = BindGroupBuilder::new("Objects matrices SSBO");
+                        objects_bind_group_layout
+                            .add_buffer(0, &self.objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
 
-                    material.data.as_mut().unwrap().pipeline
-                        .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bg_build.clone()).layout)
-                        .add_bind_group(BindGroup::new(&render_instance, objects_bind_group_layout.clone()).layout)
-                        .init(&render_instance).await
-                        .unwrap_or_else(|_| {
-                            error!("Failed to initialize pipeline for material {}.", material.label);
-                        });
+                        material.data.as_mut().unwrap().pipeline
+                            .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bg_build.clone()).layout)
+                            .add_bind_group(BindGroup::new(&render_instance, objects_bind_group_layout.clone()).layout)
+                            .init(&render_instance).await
+                            .unwrap_or_else(|_| {
+                                error!("Failed to initialize pipeline for material {}.", material.label);
+                            });
+                    }
                 }
             }
         }
@@ -420,14 +428,22 @@ impl Renderer {
                 }
                 None => return RenderEvent::None,
             };
+            let first_material = match &first_entity.material {
+                Some(material) => material,
+                None => return RenderEvent::None,
+            };
+            let first_model = match &first_entity.model {
+                Some(model) => model,
+                None => return RenderEvent::None,
+            };
             draws_batches.push(IndirectBatch {
                 first: first_entity.id,
                 count: 1,
                 batch_index: 0,
-                index_count: res_manager.get::<ModelResource>(&first_entity.model).unwrap().data.as_ref().unwrap().index_count as u32
+                index_count: res_manager.get::<ModelResource>(&first_model).unwrap().data.as_ref().unwrap().index_count as u32
             });
-            batch_indices.push((first_entity.model.index as u32, first_entity.material.index as u32));
-            batch_references.push((first_entity.model.clone(), first_entity.material.clone()));
+            batch_indices.push((first_model.index as u32, first_material.index as u32));
+            batch_references.push((first_model.clone(), first_material.clone()));
 
 
             // Create draw batches for entities with render component
@@ -441,11 +457,19 @@ impl Renderer {
 
                 // Compare model and material with the last draw
                 let entity_render = world.get_component::<RenderComponent>(*entity).unwrap();
-                let entity_batch_index = match batch_indices.iter().position(|&pair| pair == (entity_render.model.index as u32, entity_render.material.index as u32)) {
+                let model = match &entity_render.model {
+                    Some(model) => model,
+                    None => continue,
+                };
+                let material = match &entity_render.material {
+                    Some(material) => material,
+                    None => continue,
+                };
+                let entity_batch_index = match batch_indices.iter().position(|&pair| pair == (model.index as u32, material.index as u32)) {
                     Some(index) => index,
                     None => {
-                        batch_indices.push((entity_render.model.index as u32, entity_render.material.index as u32));
-                        batch_references.push((entity_render.model.clone(), entity_render.material.clone()));
+                        batch_indices.push((model.index as u32, material.index as u32));
+                        batch_references.push((model.clone(), material.clone()));
                         batch_indices.len() - 1
                     }
                 };
@@ -464,7 +488,7 @@ impl Renderer {
                         first: entity_render.id,
                         count: 1,
                         batch_index: entity_batch_index as u32,
-                        index_count: res_manager.get::<ModelResource>(&entity_render.model).unwrap().data.as_ref().unwrap().index_count as u32
+                        index_count: res_manager.get::<ModelResource>(&model).unwrap().data.as_ref().unwrap().index_count as u32
                     };
                     draws_batches.push(new_draw);
                 }
@@ -474,11 +498,19 @@ impl Renderer {
             for entity in world.get_entities_with_component::<RenderComponentInstanced>().iter() {
                 // Compare model and material with the last draw
                 let entity_render = world.get_component::<RenderComponentInstanced>(*entity).unwrap();
-                let entity_batch_index = match batch_indices.iter().position(|&pair| pair == (entity_render.model.index as u32, entity_render.material.index as u32)) {
+                let model = match &entity_render.model {
+                    Some(model) => model,
+                    None => continue,
+                };
+                let material = match &entity_render.material {
+                    Some(material) => material,
+                    None => continue,
+                };
+                let entity_batch_index = match batch_indices.iter().position(|&pair| pair == (model.index as u32, material.index as u32)) {
                     Some(index) => index,
                     None => {
-                        batch_indices.push((entity_render.model.index as u32, entity_render.material.index as u32));
-                        batch_references.push((entity_render.model.clone(), entity_render.material.clone()));
+                        batch_indices.push((model.index as u32, material.index as u32));
+                        batch_references.push((model.clone(), material.clone()));
                         batch_indices.len() - 1
                     }
                 };
@@ -497,7 +529,7 @@ impl Renderer {
                         first: entity_render.ids.start,
                         count: entity_render.ids.end - entity_render.ids.start,
                         batch_index: entity_batch_index as u32,
-                        index_count: res_manager.get::<ModelResource>(&entity_render.model).unwrap().data.as_ref().unwrap().index_count as u32
+                        index_count: res_manager.get::<ModelResource>(&model).unwrap().data.as_ref().unwrap().index_count as u32
                     };
                     draws_batches.push(new_draw);
                 }
