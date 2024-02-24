@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc};
 use tracing::{span, Level};
 use wde_logger::{info, throw, trace, debug};
 use wde_resources::ResourcesManager;
@@ -189,21 +189,43 @@ impl App {
             
 
         // ======== MAIN LOOP ========
-        let mut last_time = std::time::Instant::now();
-        let mut fps_frames = vec![0.0; 20];
+        let mut last_fps_time = std::time::Instant::now();
+        let mut last_update_time = std::time::Instant::now();
+        let mut fps_frames = vec![0.0; 40];
         let mut fps_frames_index = 0;
         let mut fps_avg = 0.0;
+        let update_fps = 120.0;
         
         // Run main loop
         loop {
             let _next_frame_span = span!(Level::INFO, "next_frame").entered();
             debug!("\n\n\n======== Next frame ========");
             
-            // ====== Wait for next render event ======
+            // ====== Handle window events ======
+            let mut should_render = false;
             {
                 let _next_frame_wait_span = span!(Level::INFO, "next_frame_wait").entered();
-                trace!("Waiting for next frame.");
+                trace!("Handling window events.");
                 let _ = event_relay_t.send(());
+
+                // Check for next render event
+                if let Ok(ev) = event_r.try_recv() {
+                    match ev {
+                        LoopEvent::Close => { break; },
+                        LoopEvent::Redraw => { should_render = true; },
+                        _ => { }
+                    }
+                }
+
+                // Wait for at least target update fps
+                if !should_render {
+                    let elapsed_time = last_update_time.elapsed().as_nanos();
+                    let target_time = (1_000_000_000.0 / update_fps) as u128;
+                    if elapsed_time < target_time {
+                        continue;
+                    }
+                }
+                last_update_time = std::time::Instant::now();
 
                 // Check if should resize
                 if let Ok(ev) = resize_r.try_recv() {
@@ -235,23 +257,13 @@ impl App {
                 while let Ok(ev) = mouse_r.try_recv() {
                     editor.handle_mouse_event(&ev);
                 }
-                
-                // Wait for next render event
-                let ev = event_r.recv().await;
-                if ev.is_none() { break; }
-                match ev.unwrap() {
-                    LoopEvent::Close => { break; },
-                    LoopEvent::Redraw => { },
-                    _ => { }
-                }
-
-                trace!("Handling next frame.");
             }
 
 
             // ====== Update world ======
             {
                 let _world_update_span = span!(Level::INFO, "world_update").entered();
+                trace!("Updating world.");
 
                 // Handle inputs
                 while let Ok(input) = input_r.try_recv() {
@@ -288,13 +300,18 @@ impl App {
 
                 // Update render
                 renderer.write().unwrap().init_pipelines(&render_instance, &scene.world, &res_manager).await;
-                renderer.write().unwrap().update_ssbo(&render_instance, &scene.world, false);
-                renderer.write().unwrap().update_camera(&render_instance, &scene.world, scene.active_camera);
+                if should_render {
+                    renderer.write().unwrap().update_ssbo(&render_instance, &scene.world, false);
+                    renderer.write().unwrap().update_camera(&render_instance, &scene.world, scene.active_camera);
+                }
             }
 
 
             // ====== Render ======
-            {
+            if should_render {
+                let _render_span = span!(Level::INFO, "render").entered();
+                trace!("Rendering.");
+
                 // Acquire render texture
                 let mut should_resize = false;
                 match RenderInstance::get_current_texture(&render_instance) {
@@ -349,7 +366,7 @@ impl App {
                 }
             }
 
-            // Clear the receiver channel
+            // Clear the render receiver channel
             {
                 let _clear_receiver_span = span!(Level::INFO, "clear_receiver").entered();
                 while let Ok(_) = event_r.try_recv() {}
@@ -357,7 +374,7 @@ impl App {
 
             {
                 // Calculate fps
-                let fps = 1.0 / ((last_time.elapsed().as_nanos() as f64 / 1_000_000_000.0) as f32);
+                let fps = 1.0 / ((last_fps_time.elapsed().as_nanos() as f64 / 1_000_000_000.0) as f32);
                 fps_frames[fps_frames_index] = fps;
                 fps_frames_index = fps_frames_index + 1;
                 if fps_frames_index >= fps_frames.len() {
@@ -371,7 +388,7 @@ impl App {
                 }
 
                 // Set the last time
-                last_time = std::time::Instant::now();
+                last_fps_time = std::time::Instant::now();
 
                 // Print fps every time in debug mode
                 if cfg!(debug_assertions) {
