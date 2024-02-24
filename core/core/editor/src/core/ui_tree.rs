@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![cfg(feature = "editor")]
 
 use egui::Color32;
 use egui::Rect;

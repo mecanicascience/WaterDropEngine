@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+#![cfg(feature = "editor")]
 
 mod editor_pass;
 mod platform;

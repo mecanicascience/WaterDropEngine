@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![cfg(feature = "editor")]
 
 use egui::{CollapsingHeader, CollapsingResponse, Color32, RichText, ScrollArea, TextEdit, TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};

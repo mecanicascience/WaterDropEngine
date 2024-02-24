@@ -3,7 +3,7 @@
 //!
 //! You need to create a [`RenderPass`] and feed it with the output data provided by egui.
 //! A basic usage example can be found [here](https://github.com/hasenbanck/egui_example).
-#![allow(dead_code)]
+#![cfg(feature = "editor")]
 
 use std::{
     borrow::Cow,
