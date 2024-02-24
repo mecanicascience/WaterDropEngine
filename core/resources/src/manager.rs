@@ -551,6 +551,27 @@ impl ResourcesManager {
             resource_as_dyn.sync_load(render_instance, &self);
         }
     }
+
+    /// Get all of the resources of a given type.
+    pub fn get_res<T: Resource>(&self) -> Vec<Option<&T>> {
+        // Get resource
+        let res_type = T::resource_type();
+        let ins = self.instance.try_read().unwrap();
+        let resources_arr = ins.resources.get(&res_type).unwrap();
+        resources_arr.iter().map(|r| {
+            if r.is_none() {
+                None
+            } else {
+                let resource_as_dyn = r.as_ref().unwrap().try_read().unwrap();
+                let resource_as_t = resource_as_dyn.as_any().downcast_ref::<T>().unwrap();
+                if !resource_as_t.loaded() {
+                    None
+                } else {
+                    Some(unsafe { std::mem::transmute::<&T, &T>(resource_as_t) })
+                }
+            }
+        }).collect::<Vec<_>>()
+    }
 }
 
 impl Drop for ResourcesManager {

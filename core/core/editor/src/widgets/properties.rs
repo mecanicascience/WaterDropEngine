@@ -4,6 +4,7 @@ use egui::{CollapsingHeader, CollapsingResponse, Color32, RichText, ScrollArea, 
 use egui_extras::{Column, TableBuilder};
 use tracing::{debug, error};
 use wde_math::{Euler, Quatf, Rad, ONE_VEC3F, QUATF_IDENTITY, ZERO_VEC3F};
+use wde_resources::ResourcesManager;
 
 use crate::{widgets::Widget, WidgetUtils};
 use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, RenderComponent, RenderComponentChild, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
@@ -287,7 +288,7 @@ impl PropertiesWidget {
 
 impl Widget for PropertiesWidget {
     #[tracing::instrument(skip(ui))]
-    fn ui(&mut self, ui: &mut egui::Ui, world: &mut World) {
+    fn ui(&mut self, ui: &mut egui::Ui, world: &mut World, _res_manager: &mut ResourcesManager) {
         debug!("Rendering UI for properties widget.");
 
         // Get the entity list

@@ -8,9 +8,11 @@ use egui_dock::TabViewer;
 use tracing::debug;
 use tracing::info;
 use wde_ecs::World;
+use wde_resources::ResourcesManager;
 
 use crate::widgets::Widget;
 use crate::widgets::PropertiesWidget;
+use crate::ResourcesWidget;
 
 pub struct UITree {
     pub aspect_ratio: f32,
@@ -19,6 +21,7 @@ pub struct UITree {
 
     // Pointer to game systems
     world: *mut World,
+    res_manager: *mut ResourcesManager,
 }
 
 impl UITree {
@@ -28,6 +31,7 @@ impl UITree {
         // Create widgets
         let widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(PropertiesWidget::new()),
+            Box::new(ResourcesWidget::new()),
         ];
 
         Self {
@@ -35,16 +39,18 @@ impl UITree {
             render_texture_id,
             aspect_ratio,
             world: std::ptr::null_mut(),
+            res_manager: std::ptr::null_mut(),
         }
     }
 
-    pub fn init(&mut self, world: &mut World) -> DockState<String> {
+    pub fn init(&mut self, world: &mut World, res_manager: &mut ResourcesManager) -> DockState<String> {
         let mut dock_state = DockState::new(vec![]);
 
         // Create the tree
         let tree = dock_state.main_surface_mut();
         tree.push_to_first_leaf("Editor".to_string());
         tree.split_right(tree.find_tab(&"Editor".to_string()).unwrap().0, 0.8, vec!["Properties".to_string()]);
+        tree.push_to_first_leaf("Resources".to_string());
 
         // Set active tab
         let active_tab = tree.find_tab(&"Editor".to_string()).unwrap();
@@ -52,6 +58,7 @@ impl UITree {
         
         // Set the dock state
         self.world = world;
+        self.res_manager = res_manager;
         
         dock_state
     }
@@ -89,7 +96,10 @@ impl TabViewer for UITree {
                 );
             },
             "Properties" => {
-                self.widgets[0].ui(ui, unsafe { &mut *self.world });
+                self.widgets[0].ui(ui, unsafe { &mut *self.world }, unsafe { &mut *self.res_manager });
+            },
+            "Resources" => {
+                self.widgets[1].ui(ui, unsafe { &mut *self.world }, unsafe { &mut *self.res_manager });
             },
             _ => {
                 ui.label("Unknown UI tab.");

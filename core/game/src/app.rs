@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use tokio::{sync::mpsc};
+use tokio::sync::mpsc;
 use tracing::{span, Level};
 use wde_logger::{info, throw, trace, debug};
 use wde_resources::ResourcesManager;
@@ -167,7 +167,7 @@ impl App {
         let mut scene = Scene::new(&mut res_manager);
 
         // Create editor
-        let mut editor = Editor::new(window_size, &render_instance, &mut scene.world).await;
+        let mut editor = Editor::new(window_size, &render_instance, &mut scene.world, &mut res_manager).await;
         drop(_scene_initialization_span);
 
 

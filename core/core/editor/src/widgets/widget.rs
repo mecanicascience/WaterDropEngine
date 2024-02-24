@@ -3,6 +3,7 @@
 use egui::{Color32, DragValue, Label, RichText};
 use egui_extras::{Size, StripBuilder, TableRow};
 use wde_math::{Euler, Quatf, Rad, Vec3f};
+use wde_resources::ResourcesManager;
 
 pub trait Widget {
     /// Draw the widget.
@@ -11,7 +12,8 @@ pub trait Widget {
     /// 
     /// * `ui` - The UI to draw the widget on.
     /// * `world` - The world to draw the widget for.
-    fn ui(&mut self, ui: &mut egui::Ui, world: &mut wde_ecs::World);
+    /// * `res_manager` - The resources manager to draw the widget for.
+    fn ui(&mut self, ui: &mut egui::Ui, world: &mut wde_ecs::World, res_manager: &mut ResourcesManager);
 }
 
 

@@ -5,6 +5,7 @@ use egui::Context;
 use egui_dock::{DockArea, DockState, Style};
 use tracing::info;
 use wde_ecs::World;
+use wde_resources::ResourcesManager;
 use wde_wgpu::{CommandBuffer, RenderInstance, RenderTexture, Texture, TextureUsages};
 
 use crate::{EditorPass, Plateform, ScreenDescriptor, UITree};
@@ -27,7 +28,9 @@ impl Editor {
     /// 
     /// * `window_size` - The size of the window.
     /// * `instance` - The render instance.
-    pub async fn new(window_size: (u32, u32), instance: &RenderInstance<'_>, world: &mut World) -> Self {
+    /// * `world` - The world.
+    /// * `res_manager` - The resources manager.
+    pub async fn new(window_size: (u32, u32), instance: &RenderInstance<'_>, world: &mut World, res_manager: &mut ResourcesManager) -> Self {
         info!("Creating editor instance.");
 
         // Create egui context
@@ -58,7 +61,7 @@ impl Editor {
         // Create tree
         let aspect_ratio = window_size.0 as f32 / window_size.1 as f32;
         let mut tree = UITree::new(render_to_texture_id, aspect_ratio);
-        let tree_state = tree.init(world);
+        let tree_state = tree.init(world, res_manager);
 
         Editor {
             context,
@@ -129,7 +132,7 @@ impl Editor {
 
                         // Show tabs
                         ui.menu_button("  Window  ", |ui| {
-                            for name in ["Editor", "Properties"] {
+                            for name in ["Editor", "Properties", "Resources"] {
                                 if ui.button(format!("  \"{}\" menu ", name)).clicked() {
                                     let t = self.tree_state.find_tab(&name.to_owned());
                                     match t {
