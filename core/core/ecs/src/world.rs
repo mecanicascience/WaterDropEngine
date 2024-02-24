@@ -45,8 +45,8 @@ pub const MAX_COMPONENTS: usize = 32;
 /// ```
 pub struct World {
     // List of managers.
-    entity_manager: EntityManager,
-    component_manager: ComponentManager,
+    pub entity_manager: EntityManager,
+    pub component_manager: ComponentManager,
 
     // Current render index.
     render_index: usize,
@@ -118,9 +118,10 @@ impl World {
     /// # Returns
     /// 
     /// * `&mut Self` - The world.
+    /// * `None` - If the component type is already registered.
     #[tracing::instrument]
-    pub fn register_component<T: 'static>(&mut self) -> &mut Self {
-        self.component_manager.register_component::<T>();
+    pub fn register_component<T: 'static>(&mut self, name: &str) -> &mut Self {
+        self.component_manager.register_component::<T>(name);
         self
     }
 

@@ -48,14 +48,14 @@ impl Scene {
         // Create world
         let mut world = World::new();
         world
-            .register_component::<LabelComponent>()
-            .register_component::<TransformComponent>()
-            .register_component::<CameraComponent>()
-            .register_component::<RenderComponent>()
-            .register_component::<RenderComponentChild>()
-            .register_component::<RenderComponentInstanced>()
-            .register_component::<RenderComponentSSBODynamic>()
-            .register_component::<RenderComponentSSBOStatic>();
+            .register_component::<LabelComponent>("LabelComponent")
+            .register_component::<TransformComponent>("TransformComponent")
+            .register_component::<CameraComponent>("CameraComponent")
+            .register_component::<RenderComponent>("RenderComponent")
+            .register_component::<RenderComponentChild>("RenderComponentChild")
+            .register_component::<RenderComponentInstanced>("RenderComponentInstanced")
+            .register_component::<RenderComponentSSBODynamic>("RenderComponentSSBODynamic")
+            .register_component::<RenderComponentSSBOStatic>("RenderComponentSSBOStatic");
 
 
         // // Create big model

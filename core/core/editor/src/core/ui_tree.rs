@@ -13,6 +13,7 @@ use wde_resources::ResourcesManager;
 use crate::widgets::Widget;
 use crate::widgets::PropertiesWidget;
 use crate::ResourcesWidget;
+use crate::WorldWidget;
 
 pub struct UITree {
     pub aspect_ratio: f32,
@@ -32,6 +33,7 @@ impl UITree {
         let widgets: Vec<Box<dyn Widget>> = vec![
             Box::new(PropertiesWidget::new()),
             Box::new(ResourcesWidget::new()),
+            Box::new(WorldWidget::new()),
         ];
 
         Self {
@@ -51,6 +53,7 @@ impl UITree {
         tree.push_to_first_leaf("Editor".to_string());
         tree.split_right(tree.find_tab(&"Editor".to_string()).unwrap().0, 0.8, vec!["Properties".to_string()]);
         tree.push_to_first_leaf("Resources".to_string());
+        tree.push_to_first_leaf("World".to_string());
 
         // Set active tab
         let active_tab = tree.find_tab(&"Editor".to_string()).unwrap();
@@ -100,6 +103,9 @@ impl TabViewer for UITree {
             },
             "Resources" => {
                 self.widgets[1].ui(ui, unsafe { &mut *self.world }, unsafe { &mut *self.res_manager });
+            },
+            "World" => {
+                self.widgets[2].ui(ui, unsafe { &mut *self.world }, unsafe { &mut *self.res_manager });
             },
             _ => {
                 ui.label("Unknown UI tab.");

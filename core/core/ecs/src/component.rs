@@ -184,6 +184,8 @@ pub struct ComponentManager {
     pub component_type_count: ComponentIndex,
     /// Map of component types id to their corresponding component indices.
     pub component_types: HashMap<TypeId, ComponentIndex>,
+    /// Name of the component types.
+    pub component_names: Vec<String>,
 
     /// Map of component types id to their corresponding component arrays.
     /// This is used to store multiple components of different types in a single list.
@@ -214,17 +216,19 @@ impl ComponentManager {
             component_types_list: Vec::new(),
             component_type_count: 0,
             component_types: HashMap::new(),
+            component_names: Vec::new(),
             components: HashMap::new()
         }
     }
 
     /// Registers a new component type with the component manager.
-    pub fn register_component<T: 'static>(&mut self) {
+    pub fn register_component<T: 'static>(&mut self, name: &str) {
         info!(component_type=std::any::type_name::<T>(), "Registering new component.");
 
         self.component_types_list.push(TypeId::of::<T>());
         self.component_types.insert(TypeId::of::<T>(), self.component_type_count);
         self.components.insert(TypeId::of::<T>(), Box::new(ComponentArray::<T>::new()));
+        self.component_names.push(name.to_string());
         self.component_type_count += 1;
     }
 
