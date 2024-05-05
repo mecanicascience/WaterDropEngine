@@ -30,7 +30,7 @@ impl Editor {
     /// * `instance` - The render instance.
     /// * `world` - The world.
     /// * `res_manager` - The resources manager.
-    pub async fn new(window_size: (u32, u32), instance: &RenderInstance<'_>, world: &mut World, res_manager: &mut ResourcesManager) -> Self {
+    pub fn new(window_size: (u32, u32), instance: &RenderInstance<'_>, world: &mut World, res_manager: &mut ResourcesManager) -> Self {
         info!("Creating editor instance.");
 
         // Create egui context
@@ -52,7 +52,7 @@ impl Editor {
             "Render to Texture UI",
             (instance.surface_config.as_ref().unwrap().width, instance.surface_config.as_ref().unwrap().height),
             Texture::SWAPCHAIN_FORMAT,
-            TextureUsages::TEXTURE_BINDING).await;
+            TextureUsages::TEXTURE_BINDING);
         let render_to_texture_id = render_pass.egui_texture_from_wgpu_texture(
                 &instance.device,
                 &render_tex.view,
@@ -222,7 +222,7 @@ impl Editor {
     /// 
     /// * `instance` - The render instance.
     /// * `size` - The new size of the window.
-    pub async fn handle_resize(&mut self, instance: &RenderInstance<'_>, size: (u32, u32)) {
+    pub fn handle_resize(&mut self, instance: &RenderInstance<'_>, size: (u32, u32)) {
         // Update plateform
         self.plateform.handle_resize(size);
 
@@ -231,7 +231,7 @@ impl Editor {
             "Render to Texture UI",
             (size.0, size.1),
             Texture::SWAPCHAIN_FORMAT,
-            TextureUsages::TEXTURE_BINDING).await;
+            TextureUsages::TEXTURE_BINDING);
 
         // Update tree aspect ratio
         self.tree.aspect_ratio = size.0 as f32 / size.1 as f32;

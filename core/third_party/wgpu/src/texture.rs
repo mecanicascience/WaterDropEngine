@@ -8,15 +8,8 @@ pub type TextureView = wgpu::TextureView;
 /// Texture usages.
 pub type TextureUsages = wgpu::TextureUsages;
 
-// Texture format.
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum TextureFormat {
-    Rgba8Unorm,
-    Rgba8UnormSrgb,
-    Bgra8Unorm,
-    Bgra8UnormSrgb,
-    Depth32Float,
-}
+/// Texture format.
+pub type TextureFormat = wgpu::TextureFormat;
 
 /// Texture struct.
 pub struct Texture {
@@ -53,17 +46,10 @@ impl Texture {
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
     #[tracing::instrument]
-    pub async fn new(instance: &RenderInstance<'_>, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsages) -> Self {
+    pub fn new(instance: &RenderInstance<'_>, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsages) -> Self {
         info!(label, "Creating texture.");
         
         // Create texture
-        let f = match format {
-            TextureFormat::Rgba8Unorm => wgpu::TextureFormat::Rgba8Unorm,
-            TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
-            TextureFormat::Bgra8Unorm => wgpu::TextureFormat::Bgra8Unorm,
-            TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8UnormSrgb,
-            TextureFormat::Depth32Float => wgpu::TextureFormat::Depth32Float,
-        };
         let texture = instance.device.create_texture(&wgpu::TextureDescriptor {
             label: Some(format!("'{}' Texture", label).as_str()),
             size: wgpu::Extent3d {
@@ -74,9 +60,9 @@ impl Texture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: f,
+            format,
             usage: usage | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[f]
+            view_formats: &[format]
         });
 
         // Create texture view
@@ -85,7 +71,7 @@ impl Texture {
             format: if format == Self::DEPTH_FORMAT {
                 None
             } else {
-                Some(f)
+                Some(format)
             },
             dimension: if format == Self::DEPTH_FORMAT {
                 None
@@ -164,8 +150,8 @@ impl Texture {
                 depth_or_array_layers: 1,
             },
         );
-    }
-
+    } 
+    
     /// Copy texture to texture.
     /// 
     /// # Arguments

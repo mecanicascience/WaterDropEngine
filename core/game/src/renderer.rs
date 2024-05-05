@@ -229,7 +229,7 @@ impl Renderer {
             "Depth texture",
             (render_instance.surface_config.as_ref().unwrap().width, render_instance.surface_config.as_ref().unwrap().height),
             Texture::DEPTH_FORMAT,
-            TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING).await;
+            TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING);
 
 
         // Create instance
@@ -786,13 +786,13 @@ impl Renderer {
 
 
     #[tracing::instrument]
-    pub async fn resize(&mut self, render_instance: &RenderInstance<'_>, width: u32, height: u32) {
+    pub fn resize(&mut self, render_instance: &RenderInstance<'_>, width: u32, height: u32) {
         // Recreate depth texture
         self.depth_texture = Texture::new(
             render_instance,
             "Depth texture",
             (width, height),
             Texture::DEPTH_FORMAT,
-            TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING).await;
+            TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING);
     }
 }

@@ -1,0 +1,12 @@
+{
+    "label": "Terrain Heightmap",
+    "metadata": {
+        "type": "TEXTURE",
+        "source": "texture/terrain_heightmap.png",
+        "dependencies": []
+    },
+    "data": {
+        "format": "Rgba32Float",
+        "usage": ["TEXTURE_BINDING"]
+    }
+}

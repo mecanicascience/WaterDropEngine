@@ -4,6 +4,5 @@
         "type": "MODEL",
         "source": "models/monkey.obj",
         "dependencies": []
-    },
-    "data": {}
+    }
 }

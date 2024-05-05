@@ -167,7 +167,7 @@ impl App {
         let mut scene = Scene::new(&mut res_manager);
 
         // Create editor
-        let mut editor = Editor::new(window_size, &render_instance, &mut scene.world, &mut res_manager).await;
+        let mut editor = Editor::new(window_size, &render_instance, &mut scene.world, &mut res_manager);
         drop(_scene_initialization_span);
 
 
@@ -238,7 +238,7 @@ impl App {
                     }
 
                     // Send resize event to editor
-                    editor.handle_resize(&render_instance, ev).await;
+                    editor.handle_resize(&render_instance, ev);
 
                     // Resize window
                     let (width, height) = ev;
@@ -250,7 +250,7 @@ impl App {
                     });
 
                     // Resize render
-                    renderer.write().unwrap().resize(&render_instance, width, height).await;
+                    renderer.write().unwrap().resize(&render_instance, width, height);
                 }
 
                 // Check for mouse events
@@ -362,7 +362,7 @@ impl App {
                     });
 
                     // Resize render
-                    renderer.write().unwrap().resize(&render_instance, window_size.0, window_size.1).await;
+                    renderer.write().unwrap().resize(&render_instance, window_size.0, window_size.1);
                 }
             }
 

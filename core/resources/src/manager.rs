@@ -402,6 +402,7 @@ impl ResourcesManager {
                 resource_type: d.resource_type,
                 source: d.source.clone(),
                 dependencies: vec![],
+                data: d.data.clone(),
             };
 
             // Setup dependencies
@@ -417,6 +418,7 @@ impl ResourcesManager {
                     resource_type: d2.resource_type,
                     source: d2.source.clone(),
                     dependencies: vec![],
+                    data: d2.data.clone(),
                 };
 
                 // Create resource

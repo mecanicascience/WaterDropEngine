@@ -4,6 +4,5 @@
         "type": "MODEL",
         "source": "models/cube.obj",
         "dependencies": []
-    },
-    "data": {}
+    }
 }
