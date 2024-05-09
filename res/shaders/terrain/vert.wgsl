@@ -26,7 +26,6 @@ var<uniform> in_model: ObjectToWorld;
 // Heightmap
 @group(2) @binding(0) var heightmap: texture_2d<f32>;
 
-
 @vertex
 fn main(
     @builtin(instance_index) instance: u32,
@@ -35,13 +34,12 @@ fn main(
     var out: VertexOutput;
 
     // Sample heightmap
+    var height_amount = 10.0;
     var pos = model.position;
     var heightmap_size = textureDimensions(heightmap);
-    var heightmap_pixel = textureLoad(heightmap, vec2<i32>(
-        i32(model.tex_coord.x * f32(heightmap_size.x)), i32(model.tex_coord.y * f32(heightmap_size.y))), 0);
-    var height = f32(heightmap_pixel.r);
-    pos.y = pos.y + height * 5.0;
-    
+    var height = textureLoad(heightmap, vec2<i32>(i32(model.tex_coord.x * f32(heightmap_size.x)), i32(model.tex_coord.y * f32(heightmap_size.y))), 0).r;
+    pos.y = pos.y + height * height_amount;
+
     // Set vertex data
     out.clip_position = in_camera.world_to_screen
         * in_model.obj_to_world

@@ -19,8 +19,9 @@ pub struct TerrainRenderer {
     _terrain_transform: Buffer,
     terrain_buffer_bg: BindGroup,
 
-    // Terrain heightmap data
+    // Terrain images data
     terrain_heightmap_bg: BindGroup,
+    terrain_texture_bg: BindGroup,
 }
 
 impl TerrainRenderer {
@@ -63,11 +64,22 @@ impl TerrainRenderer {
         let terrain_heightmap = res_manager.load::<TextureResource>("texture/terrain_heightmap");
         res_manager.wait_for(&terrain_heightmap, render_instance).await;
 
+        // Load terrain texture
+        let terrain_texture = res_manager.load::<TextureResource>("texture/terrain_texture");
+        res_manager.wait_for(&terrain_texture, render_instance).await;
+
+
         // Create heightmap description bind group
         let mut terrain_heightmap_bg_build = BindGroupBuilder::new("Terrain heightmap");
         terrain_heightmap_bg_build.add_texture(
             0, &res_manager.get::<TextureResource>(&terrain_heightmap).unwrap().data.as_ref().unwrap().texture, ShaderStages::VERTEX | ShaderStages::FRAGMENT);
         let terrain_heightmap_bg = BindGroup::new(&render_instance, terrain_heightmap_bg_build.clone());
+
+        // Create texture description bind group
+        let mut terrain_texture_bg_build = BindGroupBuilder::new("Terrain texture");
+        terrain_texture_bg_build.add_texture(
+            0, &res_manager.get::<TextureResource>(&terrain_texture).unwrap().data.as_ref().unwrap().texture, ShaderStages::FRAGMENT);
+        let terrain_texture_bg = BindGroup::new(&render_instance, terrain_texture_bg_build.clone());
         
 
         // Create terrain pipeline
@@ -79,6 +91,7 @@ impl TerrainRenderer {
             .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bg_build.clone()).layout)
             .add_bind_group(BindGroup::new(&render_instance, terrain_buffer_bg_build).layout)
             .add_bind_group(BindGroup::new(&render_instance, terrain_heightmap_bg_build).layout)
+            .add_bind_group(BindGroup::new(&render_instance, terrain_texture_bg_build).layout)
             .init(&render_instance).await
             .unwrap_or_else(|_| {
                 error!("Failed to initialize terrain pipeline.");
@@ -93,7 +106,8 @@ impl TerrainRenderer {
             _terrain_transform: terrain_transform,
             terrain_buffer_bg,
 
-            terrain_heightmap_bg
+            terrain_heightmap_bg,
+            terrain_texture_bg,
         }
     }
 
@@ -181,6 +195,7 @@ impl GameRenderPass for TerrainRenderer {
         render_pass.set_bind_group(0, &camera_buffer_bg);
         render_pass.set_bind_group(1, &self.terrain_buffer_bg);
         render_pass.set_bind_group(2, &self.terrain_heightmap_bg);
+        render_pass.set_bind_group(3, &self.terrain_texture_bg);
 
         // Get terrain component
         render_pass.set_vertex_buffer(0, &self.terrain_vertices);

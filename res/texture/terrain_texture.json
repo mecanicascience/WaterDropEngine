@@ -1,0 +1,14 @@
+{
+    "label": "Terrain Texture",
+    "metadata": {
+        "type": "TEXTURE",
+        "source": "texture/terrain_texture.png",
+        "dependencies": []
+    },
+    "data": {
+        "format": "Rgba8Unorm",
+        "usage": [
+            "TEXTURE_BINDING"
+        ]
+    }
+}
