@@ -1,6 +1,6 @@
 use std::{any::Any, sync::{Arc, Mutex}};
 
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use wde_wgpu::{RenderInstance, Texture};
 
 use crate::{LoadedFlag, Resource, ResourceDescription, ResourceType, ResourcesManager};
@@ -230,9 +230,9 @@ impl Resource for TextureResource {
 
         // Write texture data
         if let Some(data_u8) = temp_data.data_u8 {
-            texture.copy_from_buffer(&instance, &data_u8);
+            texture.copy_from_buffer(&instance, &data_u8, false);
         } else if let Some(data_f32) = temp_data.data_f32 {
-            texture.copy_from_buffer(&instance, &bytemuck::cast_slice(data_f32.as_slice()));
+            texture.copy_from_buffer(&instance, &bytemuck::cast_slice(data_f32.as_slice()), true);
         }
 
         // Set data

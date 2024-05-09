@@ -127,7 +127,8 @@ impl Texture {
     /// 
     /// * `instance` - Game instance.
     /// * `buffer` - Image buffer.
-    pub fn copy_from_buffer(&self, instance: &RenderInstance, buffer: &[u8]) {
+    /// * `float_format` - Whether the format is float (true for f32, false for u8)
+    pub fn copy_from_buffer(&self, instance: &RenderInstance, buffer: &[u8], float_format: bool) {
         trace!(self.label, "Copying buffer to texture.");
 
         // Copy buffer to texture
@@ -141,8 +142,8 @@ impl Texture {
             &buffer,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * self.size.0),
-                rows_per_image: None,
+                bytes_per_row: if float_format { Some(16 * self.size.0) } else { Some(4 * self.size.0) },
+                rows_per_image: Some(self.size.1),
             },
             wgpu::Extent3d {
                 width: self.size.0,

@@ -6,6 +6,12 @@ struct VertexOutput {
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Return a color based on the normal of the vertex.
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    let height = in.tex_coord.y;
+    let normal = in.normal;
+
+    let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.0));
+    let light_intensity = max(dot(normal, light_dir), 0.0);
+
+    let color = vec4<f32>(vec3<f32>(height), 1.0) * light_intensity;
+    return color;
 }

@@ -1,6 +1,6 @@
 use std::{any::Any, sync::{Arc, Mutex, RwLock}};
 
-use tracing::error;
+use tracing::{error, warn};
 use wde_logger::throw;
 use wde_wgpu::RenderInstance;
 
@@ -153,7 +153,7 @@ pub fn get_resource_description(path: &str, resource_json: &serde_json::Value) -
     };
 
     // Get metadata
-    let (resource_type, source, data) = match resource_json.get("metadata") {
+    let (resource_type, source) = match resource_json.get("metadata") {
         Some(metadata) => {
             // Get resource type
             let resource_type = match metadata.get("type") {
@@ -193,22 +193,22 @@ pub fn get_resource_description(path: &str, resource_json: &serde_json::Value) -
                 }
             };
 
-            // Get optional data
-            let data = match metadata.get("data") {
-                Some(data) => {
-                    Some(data.clone())
-                },
-                None => {
-                    None
-                }
-            };
-
             // Return metadata
-            (resource_type, source, data)
+            (resource_type, source)
         },
         None => {
             error!(path, "Failed to get resource metadata while parsing.");
             return None;
+        }
+    };
+
+    // Get optional data
+    let data = match resource_json.get("data") {
+        Some(data) => {
+            Some(data.clone())
+        },
+        None => {
+            None
         }
     };
 

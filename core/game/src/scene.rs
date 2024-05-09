@@ -49,16 +49,10 @@ impl Scene {
         let mut world = World::new();
         world
             .register_component::<LabelComponent>("LabelComponent")
-            .register_component::<MapComponent>("MapComponent")
-            .register_component::<TerrainComponent>("TerrainComponent")
             .register_component::<TransformComponent>("TransformComponent")
-            .register_component::<CameraComponent>("CameraComponent");
-        //     .register_component::<RenderComponent>("RenderComponent")
-        //     .register_component::<RenderComponentChild>("RenderComponentChild")
-        //     .register_component::<RenderComponentInstanced>("RenderComponentInstanced")
-        //     .register_component::<RenderComponentSSBODynamic>("RenderComponentSSBODynamic")
-        //     .register_component::<RenderComponentSSBOStatic>("RenderComponentSSBOStatic");
-
+            .register_component::<CameraComponent>("CameraComponent")
+            .register_component::<MapComponent>("MapComponent")
+            .register_component::<TerrainComponent>("TerrainComponent");
 
         // Create world map
         let world_map = match world.create_entity() {
@@ -67,31 +61,14 @@ impl Scene {
         };
         world
             .add_component(world_map, LabelComponent { label : "World Terrain".to_string() }).unwrap()
+            .add_component(world_map, TransformComponent {
+                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
+            }).unwrap()
             .add_component(world_map, TerrainComponent {
                 heightmap: res_manager.load::<TextureResource>("texture/terrain_heightmap")
             }).unwrap()
             .add_component(world_map, MapComponent {
             }).unwrap();
-
-        // // Create cube
-        // {
-        //     let entity = match world.create_entity() {
-        //         Some(e) => e,
-        //         None => throw!("Failed to create entity. No more entity slots available."),
-        //     };
-        //     let render_index = world.get_next_render_index();
-        //     world
-        //         .add_component(entity, LabelComponent { label : "Cube 2".to_string() }).unwrap()
-        //         .add_component(entity, TransformComponent {
-        //             position: Vec3f { x: -2.5, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F * 0.4
-        //         }).unwrap()
-        //         .add_component(entity, RenderComponentSSBODynamic { id: render_index }).unwrap()
-        //         .add_component(entity, RenderComponent {
-        //             id: render_index,
-        //             model: Some(res_manager.load::<ModelResource>("models/cube")),
-        //             material: Some(res_manager.load::<MaterialResource>("materials/unicolor"))
-        //         }).unwrap();
-        // }
         
         // Create camera
         let camera = match world.create_entity() {
@@ -101,7 +78,7 @@ impl Scene {
         world
             .add_component(camera, LabelComponent { label : "Camera".to_string() }).unwrap()
             .add_component(camera, TransformComponent {
-                position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
+                position: Vec3f { x: 0.0, y: 2.0, z: 5.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
             }).unwrap()
             .add_component(camera, CameraComponent { aspect: 1.0, fovy: 60.0, znear: 0.1, zfar: 1000.0 }).unwrap();
 

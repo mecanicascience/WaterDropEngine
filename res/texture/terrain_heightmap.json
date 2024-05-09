@@ -6,7 +6,7 @@
         "dependencies": []
     },
     "data": {
-        "format": "Rgba32Float",
+        "format": "Rgba8Unorm",
         "usage": ["TEXTURE_BINDING"]
     }
 }

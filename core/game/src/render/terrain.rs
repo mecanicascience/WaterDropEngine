@@ -1,40 +1,74 @@
 use tracing::error;
 
-use wde_resources::{ResourcesManager, ShaderResource};
-use wde_wgpu::{BindGroup, BindGroupBuilder, Buffer, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderInstance, RenderPipeline, RenderTexture, ShaderType, StoreOp, Texture, Vertex};
+use wde_ecs::{TerrainComponent, TransformComponent, TransformUniform, World};
+use wde_resources::{ResourcesManager, ShaderResource, TextureResource};
+use wde_wgpu::{BindGroup, BindGroupBuilder, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderInstance, RenderPipeline, RenderTexture, ShaderStages, ShaderType, StoreOp, Texture, Vertex};
 
 use crate::{GameRenderPass, Scene};
 
 /// The terrain renderer.
 #[derive(Debug)]
 pub struct TerrainRenderer {
-    // Terrain data
+    // Terrain render data
     terrain_vertices: Buffer,
     terrain_indices: Buffer,
     terrain_indices_count: u32,
     terrain_pipeline: RenderPipeline,
+
+    // Terrain position data
+    _terrain_transform: Buffer,
+    terrain_buffer_bg: BindGroup,
+
+    // Terrain heightmap data
+    terrain_heightmap_bg: BindGroup,
 }
 
 impl TerrainRenderer {
     #[tracing::instrument(skip(camera_buffer_bg_build))]
-    pub async fn new(camera_buffer_bg_build: BindGroupBuilder<'_>, render_instance: &RenderInstance<'_>, scene: &Scene, res_manager: &mut ResourcesManager) -> TerrainRenderer {
+    pub async fn new(camera_buffer_bg_build: BindGroupBuilder<'_>, render_instance: &RenderInstance<'_>, world: &World, res_manager: &mut ResourcesManager) -> TerrainRenderer {
         // Terrain configuration
         const SUBDIVISION_COUNT: u32 = 128;
         let (terrain_width, terrain_height) = (10.0, 10.0);
-        
+
+
         // Create terrain mesh
         let (terrain_vertices, terrain_indices, terrain_indices_count) = Self::create_terrain_mesh(
             render_instance, SUBDIVISION_COUNT, terrain_width, terrain_height);
+        
+        // Create terrain transform buffer
+        let terrain_entity_index = world.get_entities_with_component::<TerrainComponent>().first().unwrap().clone();
+        let terrain_transform = Buffer::new(
+            render_instance,
+            "Terrain transform",
+            std::mem::size_of::<TransformUniform>(),
+            BufferUsage::UNIFORM,
+            Some(bytemuck::cast_slice(
+                &[TransformUniform::new(&world.get_component::<TransformComponent>(terrain_entity_index).unwrap())])
+            ));
+
+        // Create terrain description bind group
+        let mut terrain_buffer_bg_build = BindGroupBuilder::new("Terrain position");
+        terrain_buffer_bg_build.add_buffer(0, &terrain_transform, ShaderStages::VERTEX, BufferBindingType::Uniform);
+        let terrain_buffer_bg = BindGroup::new(&render_instance, terrain_buffer_bg_build.clone());
+
 
         // Load terrain shaders
         let terrain_shader_vert = res_manager.load::<ShaderResource>("shaders/terrain/vert");
         res_manager.wait_for(&terrain_shader_vert, render_instance).await;
         let terrain_shader_frag = res_manager.load::<ShaderResource>("shaders/terrain/frag");
         res_manager.wait_for(&terrain_shader_frag, render_instance).await;
+        
 
-        // Create terrain description bind group
-        // let mut objects_bind_group_layout = BindGroupBuilder::new("Objects matrices SSBO");
-        // objects_bind_group_layout.add_buffer(0, &self.objects, ShaderStages::VERTEX, BufferBindingType::Storage { read_only: true });
+        // Load terrain heightmap
+        let terrain_heightmap = res_manager.load::<TextureResource>("texture/terrain_heightmap");
+        res_manager.wait_for(&terrain_heightmap, render_instance).await;
+
+        // Create heightmap description bind group
+        let mut terrain_heightmap_bg_build = BindGroupBuilder::new("Terrain heightmap");
+        terrain_heightmap_bg_build.add_texture(
+            0, &res_manager.get::<TextureResource>(&terrain_heightmap).unwrap().data.as_ref().unwrap().texture, ShaderStages::VERTEX | ShaderStages::FRAGMENT);
+        let terrain_heightmap_bg = BindGroup::new(&render_instance, terrain_heightmap_bg_build.clone());
+        
 
         // Create terrain pipeline
         let mut terrain_pipeline = RenderPipeline::new("Terrain");
@@ -43,7 +77,8 @@ impl TerrainRenderer {
             .set_shader(&res_manager.get::<ShaderResource>(&terrain_shader_frag).unwrap().data.as_ref().unwrap().module, ShaderType::Fragment)
             .set_depth_stencil()
             .add_bind_group(BindGroup::new(&render_instance, camera_buffer_bg_build.clone()).layout)
-            // .add_bind_group(BindGroup::new(&render_instance, objects_bind_group_layout.clone()).layout)
+            .add_bind_group(BindGroup::new(&render_instance, terrain_buffer_bg_build).layout)
+            .add_bind_group(BindGroup::new(&render_instance, terrain_heightmap_bg_build).layout)
             .init(&render_instance).await
             .unwrap_or_else(|_| {
                 error!("Failed to initialize terrain pipeline.");
@@ -53,7 +88,12 @@ impl TerrainRenderer {
             terrain_vertices,
             terrain_indices,
             terrain_indices_count,
-            terrain_pipeline
+            terrain_pipeline,
+
+            _terrain_transform: terrain_transform,
+            terrain_buffer_bg,
+
+            terrain_heightmap_bg
         }
     }
 
@@ -73,8 +113,8 @@ impl TerrainRenderer {
         // Create vertices
         for i in 0..subdivisions {
             for j in 0..subdivisions {
-                let x = i as f32 / subdivisions as f32 * width;
-                let z = j as f32 / subdivisions as f32 * height;
+                let x = i as f32 / subdivisions as f32 * width - width / 2.0;
+                let z = j as f32 / subdivisions as f32 * height - height / 2.0;
                 let y = 0.0;
 
                 vertices.push(Vertex {
@@ -124,7 +164,7 @@ impl TerrainRenderer {
 }
 
 impl GameRenderPass for TerrainRenderer {
-    // #[tracing::instrument]
+    #[tracing::instrument]
     fn render(&self, command_buffer: &mut CommandBuffer, render_texture: &RenderTexture, depth_texture: &Texture, camera_buffer_bg: &BindGroup, _scene: &Scene, _res_manager: &mut ResourcesManager) {
         // Create render pass
         let mut render_pass = command_buffer.create_render_pass(
@@ -139,7 +179,8 @@ impl GameRenderPass for TerrainRenderer {
 
         // Set bind groups
         render_pass.set_bind_group(0, &camera_buffer_bg);
-        // render_pass.set_bind_group(1, &self.terrain_bind_group);
+        render_pass.set_bind_group(1, &self.terrain_buffer_bg);
+        render_pass.set_bind_group(2, &self.terrain_heightmap_bg);
 
         // Get terrain component
         render_pass.set_vertex_buffer(0, &self.terrain_vertices);

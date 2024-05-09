@@ -52,7 +52,7 @@ impl Renderer {
         // Create list of passes (Note : The passes are loaded in order of rendering)
         let mut passes: Vec<Box<dyn GameRenderPass>> = Vec::new();
         // First pass : Terrain
-        passes.push(Box::new(TerrainRenderer::new(camera_buffer_bg_build.clone(), render_instance, scene, res_manager).await));
+        passes.push(Box::new(TerrainRenderer::new(camera_buffer_bg_build.clone(), render_instance, &scene.world, res_manager).await));
 
         // Create depth texture
         let depth_texture = Texture::new(
