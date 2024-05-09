@@ -215,7 +215,7 @@ impl RenderInstance<'_> {
                 // Create render view
                 trace!(render_instance.label, "Creating render view.");
                 let render_view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor {
-                    label: Some("Render Texture"),
+                    label: Some("Main render texture"),
                     format: match render_instance.surface_config.as_ref().unwrap().format {
                         wgpu::TextureFormat::Bgra8UnormSrgb => Some(wgpu::TextureFormat::Bgra8UnormSrgb),
                         wgpu::TextureFormat::Rgba8UnormSrgb => Some(wgpu::TextureFormat::Rgba8UnormSrgb),

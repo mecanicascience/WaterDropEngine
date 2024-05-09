@@ -1,0 +1,8 @@
+{
+    "label": "Terrain Fragment",
+    "metadata": {
+        "type": "SHADER",
+        "source": "shaders/terrain/frag.wgsl",
+        "dependencies": []
+    }
+}

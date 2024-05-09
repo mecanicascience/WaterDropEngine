@@ -397,43 +397,12 @@ impl ResourcesManager {
         if desc.as_ref().is_some() {
             // Create resource description
             let d = desc.as_ref().unwrap();
-            let mut res_desc = ResourceDescription {
+            let res_desc = ResourceDescription {
                 label: d.label.clone(),
                 resource_type: d.resource_type,
                 source: d.source.clone(),
-                dependencies: vec![],
                 data: d.data.clone(),
             };
-
-            // Setup dependencies
-            for dep in d.dependencies.iter() {
-                // Acquire dependency
-                let (dep_index, dep_desc_un) = self.instance.try_write().unwrap()
-                    .acquire(dep.as_ref().unwrap());
-                
-                // Create dependency description
-                let d2 = dep_desc_un.as_ref().unwrap();
-                let dep_desc = ResourceDescription {
-                    label: d2.label.clone(),
-                    resource_type: d2.resource_type,
-                    source: d2.source.clone(),
-                    dependencies: vec![],
-                    data: d2.data.clone(),
-                };
-
-                // Create resource
-                let d_resource = create_resource_instance(&d2.resource_type, dep_desc);
-
-                // Load dependency
-                self.instance.try_write().unwrap().load(dep_index, d2.resource_type, d_resource);
-
-                // Create dependency handle
-                let dep_handle = ResourceHandle::new(
-                    dep.as_ref().unwrap(), d2.resource_type, dep_index, self.instance.clone());
-
-                // Add dependency to resource description
-                res_desc.dependencies.push(dep_handle);
-            }
 
             // Create resource
             let resource = create_resource_instance(&res_type, res_desc);
@@ -523,6 +492,11 @@ impl ResourcesManager {
     #[tracing::instrument]
     pub async fn wait_for(&mut self, handle: &ResourceHandle, render_instance: &RenderInstance<'_>) {
         debug!(handle.index, "Waiting synchronously for resource to be loaded.");
+
+        // Want for instance to be unlocked
+        while self.instance.try_read().is_err() {
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+        }
 
         // Check if handle is valid
         if !self.instance.try_read().unwrap().handle_to_res.contains_key(&handle.index) {

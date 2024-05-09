@@ -4,7 +4,7 @@ use tracing::error;
 use wde_logger::throw;
 use wde_wgpu::RenderInstance;
 
-use crate::{MaterialResource, ModelResource, ResourceHandle, ResourcesManager, ShaderResource, TextureResource};
+use crate::{ModelResource, ResourcesManager, ShaderResource, TextureResource};
 
 // Struct to hold the resource loading flag
 #[derive(Debug)]
@@ -19,8 +19,6 @@ pub enum ResourceType {
     Model,
     /// Shader resource.
     Shader,
-    /// Material resource.
-    Material,
     /// Texture resource.
     Texture
 }
@@ -31,7 +29,6 @@ impl From<&str> for ResourceType {
         match s {
             "MODEL" => ResourceType::Model,
             "SHADER" => ResourceType::Shader,
-            "MATERIAL" => ResourceType::Material,
             "TEXTURE" => ResourceType::Texture,
             _ => throw!("Unknown resource type: {}", s)
         }
@@ -48,7 +45,6 @@ pub fn create_resource_instance(res_type: &ResourceType, desc: ResourceDescripti
     match res_type {
         ResourceType::Model => Arc::new(RwLock::new(ModelResource::new(desc))),
         ResourceType::Shader => Arc::new(RwLock::new(ShaderResource::new(desc))),
-        ResourceType::Material => Arc::new(RwLock::new(MaterialResource::new(desc))),
         ResourceType::Texture => Arc::new(RwLock::new(TextureResource::new(desc))),
     }
 }
@@ -62,8 +58,6 @@ pub struct ResourceDescription {
     pub resource_type: ResourceType,
     /// The source of the resource.
     pub source: String,
-    /// List of dependencies.
-    pub dependencies: Vec<ResourceHandle>,
     /// Optional data.
     pub data: Option<serde_json::Value>,
 }
@@ -78,8 +72,6 @@ pub struct ResourceDescriptionUnresolved {
     pub resource_type: ResourceType,
     /// The source of the resource.
     pub source: String,
-    /// List of dependencies.
-    pub dependencies: Vec<Option<String>>,
     /// Optional data.
     pub data: Option<serde_json::Value>,
 }
@@ -161,7 +153,7 @@ pub fn get_resource_description(path: &str, resource_json: &serde_json::Value) -
     };
 
     // Get metadata
-    let (resource_type, source, dependencies, data) = match resource_json.get("metadata") {
+    let (resource_type, source, data) = match resource_json.get("metadata") {
         Some(metadata) => {
             // Get resource type
             let resource_type = match metadata.get("type") {
@@ -201,36 +193,6 @@ pub fn get_resource_description(path: &str, resource_json: &serde_json::Value) -
                 }
             };
 
-            // Get dependencies paths
-            let dependencies: Vec<Option<String>> = match metadata.get("dependencies") {
-                Some(dependencies) => {
-                    match dependencies.as_array() {
-                        Some(dependencies) => {
-                            let mut vec: Vec<Option<String>> = vec![None; dependencies.len()];
-                            for (i, d) in dependencies.iter().enumerate() {
-                                match d.get("path") {
-                                    Some(d_path) => {
-                                        match d_path.as_str() {
-                                            Some(d_path) => {
-                                                vec[i] = Some(d_path.to_string());
-                                            }
-                                            None => {
-                                                error!(path, "Failed to get resource dependencies path while parsing.");
-                                                return None;
-                                            }
-                                        };
-                                    },
-                                    None => { error!(path, "Failed to get resource dependencies name."); }
-                                };
-                            }
-                            vec
-                        },
-                        None => { error!(path, "Failed to get resource dependencies while parsing."); Vec::new() }
-                    }
-                },
-                None => { error!(path, "Resource has no dependencies."); Vec::new() }
-            };
-
             // Get optional data
             let data = match metadata.get("data") {
                 Some(data) => {
@@ -242,7 +204,7 @@ pub fn get_resource_description(path: &str, resource_json: &serde_json::Value) -
             };
 
             // Return metadata
-            (resource_type, source, dependencies, data)
+            (resource_type, source, data)
         },
         None => {
             error!(path, "Failed to get resource metadata while parsing.");
@@ -255,7 +217,6 @@ pub fn get_resource_description(path: &str, resource_json: &serde_json::Value) -
         label,
         resource_type,
         source,
-        dependencies,
         data
     })
 }

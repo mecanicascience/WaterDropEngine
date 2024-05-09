@@ -4,7 +4,7 @@ use egui::{CollapsingHeader, TextStyle};
 use egui_extras::{Column, TableBuilder};
 use tracing::debug;
 use wde_ecs::World;
-use wde_resources::{MaterialResource, ModelResource, ResourcesManager, ShaderResource, TextureResource};
+use wde_resources::{ModelResource, ResourcesManager, ShaderResource, TextureResource};
 
 use crate::Widget;
 
@@ -91,27 +91,6 @@ impl Widget for ResourcesWidget {
                                     row.col(|ui| {
                                         ui.add_space(5.0);
                                         ui.label(format!("{}", res.path));
-                                    });
-                                });
-                            }
-                        });
-                    });
-            });
-        });
-
-        // Materials resources
-        CollapsingHeader::new("🧱 Materials").default_open(true).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                TableBuilder::new(ui)
-                    .column(Column::auto().resizable(true).at_least(width).clip(true))
-                    .column(Column::remainder())
-                    .body(|mut body| {
-                        res_manager.get_res::<MaterialResource>().iter().for_each(|res| {
-                            if let Some(res) = res {
-                                body.row(height, |mut row| {
-                                    row.col(|ui| {
-                                        ui.add_space(5.0);
-                                        ui.label(format!("{}", res.label));
                                     });
                                 });
                             }

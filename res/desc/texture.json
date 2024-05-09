@@ -2,8 +2,7 @@
     "label": "Texture label",
     "metadata": {
         "type": "TEXTURE",
-        "source": "texture/[...].png",
-        "dependencies": []
+        "source": "texture/[...].png"
     },
     "data": {}
 }

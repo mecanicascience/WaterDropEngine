@@ -1,26 +1,26 @@
 #![cfg(feature = "editor")]
 
-use egui::{CollapsingHeader, CollapsingResponse, Color32, RichText, ScrollArea, TextEdit, TextStyle, Ui};
+use egui::{CollapsingHeader, CollapsingResponse, Color32, RichText, TextEdit, TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
 use tracing::{debug, error};
 use wde_math::{Euler, Quatf, Rad, ONE_VEC3F, QUATF_IDENTITY, ZERO_VEC3F};
 use wde_resources::ResourcesManager;
 
 use crate::{widgets::Widget, WidgetUtils};
-use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, RenderComponent, RenderComponentChild, RenderComponentInstanced, RenderComponentSSBODynamic, RenderComponentSSBOStatic, TransformComponent, World};
+use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, RenderComponent, RenderComponentChild, RenderComponentInstanced, TransformComponent, World};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RenderEntityType {
-    Static,
-    Dynamic
-}
+// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// enum RenderEntityType {
+//     Static,
+//     Dynamic
+// }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ModuleNames {
     None,
     Camera,
-    Render,
-    RenderInstanced
+    // Render,
+    // RenderInstanced
 }
 
 #[derive(Debug)]
@@ -145,145 +145,145 @@ impl PropertiesWidget {
     }
 
 
-    /// Show the camera Component of a entity.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `ui` - Egui context.
-    /// * `entity` - Entity to show the camera of.
-    /// * `world` - World to get the camera from.
-    fn show_camera(&mut self, ui: &mut Ui, entity: EntityIndex, world: &mut World) -> Option<CollapsingResponse<()>> {
-        let mut camera = match world.get_component::<CameraComponent>(entity) {
-            Some(camera) => camera.clone(),
-            None => return None
-        };
+    // /// Show the camera Component of a entity.
+    // /// 
+    // /// # Arguments
+    // /// 
+    // /// * `ui` - Egui context.
+    // /// * `entity` - Entity to show the camera of.
+    // /// * `world` - World to get the camera from.
+    // fn show_camera(&mut self, ui: &mut Ui, entity: EntityIndex, world: &mut World) -> Option<CollapsingResponse<()>> {
+    //     let mut camera = match world.get_component::<CameraComponent>(entity) {
+    //         Some(camera) => camera.clone(),
+    //         None => return None
+    //     };
 
-        let height = ui.text_style_height(&TextStyle::Body);
-        let width = "Near plane".len() as f32 * 7.0 + 5.0; // Longest label + padding
-        let c = Color32::from_rgb(150, 150, 150);
-        let header = Some(CollapsingHeader::new(RichText::new("📷 Camera").color(Color32::WHITE))
-            .default_open(true)
-            .show_background(true)
-            .show(ui, |ui| {
-                TableBuilder::new(ui)
-                    .column(Column::auto().resizable(true).at_least(width).clip(true))
-                    .column(Column::remainder())
-                    .body(|mut body| {
-                        body.row(height, |mut row| {
-                            row.col(|ui| {
-                                ui.label("Near plane");
-                            });
-                            row.col(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.add_space(10.0);
-                                    WidgetUtils::drag_value(ui, &mut camera.znear, Some(0.1), Some(c), Some((0.01, 100000.0)));
-                                });
-                            });
-                        });
-                        body.row(height, |mut row| {
-                            row.col(|ui| {
-                                ui.label("Far plane");
-                            });
-                            row.col(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.add_space(10.0);
-                                    WidgetUtils::drag_value(ui, &mut camera.zfar, Some(0.1), Some(c), Some((0.01, 100000.0)));
-                                });
-                            });
-                        });
-                        body.row(height, |mut row| {
-                            row.col(|ui| {
-                                ui.label("FOV");
-                            });
-                            row.col(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.add_space(10.0);
-                                    WidgetUtils::drag_value(ui, &mut camera.fovy, Some(0.1), Some(c), None);
-                                });
-                            });
-                        });
-                    });
-            }));
+    //     let height = ui.text_style_height(&TextStyle::Body);
+    //     let width = "Near plane".len() as f32 * 7.0 + 5.0; // Longest label + padding
+    //     let c = Color32::from_rgb(150, 150, 150);
+    //     let header = Some(CollapsingHeader::new(RichText::new("📷 Camera").color(Color32::WHITE))
+    //         .default_open(true)
+    //         .show_background(true)
+    //         .show(ui, |ui| {
+    //             TableBuilder::new(ui)
+    //                 .column(Column::auto().resizable(true).at_least(width).clip(true))
+    //                 .column(Column::remainder())
+    //                 .body(|mut body| {
+    //                     body.row(height, |mut row| {
+    //                         row.col(|ui| {
+    //                             ui.label("Near plane");
+    //                         });
+    //                         row.col(|ui| {
+    //                             ui.horizontal(|ui| {
+    //                                 ui.add_space(10.0);
+    //                                 WidgetUtils::drag_value(ui, &mut camera.znear, Some(0.1), Some(c), Some((0.01, 100000.0)));
+    //                             });
+    //                         });
+    //                     });
+    //                     body.row(height, |mut row| {
+    //                         row.col(|ui| {
+    //                             ui.label("Far plane");
+    //                         });
+    //                         row.col(|ui| {
+    //                             ui.horizontal(|ui| {
+    //                                 ui.add_space(10.0);
+    //                                 WidgetUtils::drag_value(ui, &mut camera.zfar, Some(0.1), Some(c), Some((0.01, 100000.0)));
+    //                             });
+    //                         });
+    //                     });
+    //                     body.row(height, |mut row| {
+    //                         row.col(|ui| {
+    //                             ui.label("FOV");
+    //                         });
+    //                         row.col(|ui| {
+    //                             ui.horizontal(|ui| {
+    //                                 ui.add_space(10.0);
+    //                                 WidgetUtils::drag_value(ui, &mut camera.fovy, Some(0.1), Some(c), None);
+    //                             });
+    //                         });
+    //                     });
+    //                 });
+    //         }));
 
-        // Update the camera
-        world.set_component::<CameraComponent>(entity, camera);
+    //     // Update the camera
+    //     world.set_component::<CameraComponent>(entity, camera);
 
-        return header;
-    }
+    //     return header;
+    // }
 
-    /// Show the render Component of a entity.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `ui` - Egui context.
-    /// * `entity` - Entity to show the render of.
-    /// * `world` - World to get the render from.
-    /// * `resourcesManager` - Resources manager to get the resources from.
-    /// * `messages` - Messages to send to the engine.
-    fn show_render(&mut self, ui: &mut Ui, entity: EntityIndex, world: &mut World) -> Option<CollapsingResponse<()>> {
-        let is_instanced = world.get_component::<RenderComponentInstanced>(entity).is_some();
-        let is_not_instanced = world.get_component::<RenderComponent>(entity).is_some();
-        let render_comp = if is_instanced {
-            let c = world.get_component::<RenderComponentInstanced>(entity).unwrap();
-            (c.model.clone(), c.material.clone())
-        } else if is_not_instanced {
-            let c = world.get_component::<RenderComponent>(entity).unwrap();
-            (c.model.clone(), c.material.clone())
-        } else {
-            return None;
-        };
+    // /// Show the render Component of a entity.
+    // /// 
+    // /// # Arguments
+    // /// 
+    // /// * `ui` - Egui context.
+    // /// * `entity` - Entity to show the render of.
+    // /// * `world` - World to get the render from.
+    // /// * `resourcesManager` - Resources manager to get the resources from.
+    // /// * `messages` - Messages to send to the engine.
+    // fn show_render(&mut self, ui: &mut Ui, entity: EntityIndex, world: &mut World) -> Option<CollapsingResponse<()>> {
+    //     let is_instanced = world.get_component::<RenderComponentInstanced>(entity).is_some();
+    //     let is_not_instanced = world.get_component::<RenderComponent>(entity).is_some();
+    //     let render_comp = if is_instanced {
+    //         let c = world.get_component::<RenderComponentInstanced>(entity).unwrap();
+    //         (c.model.clone(), c.material.clone())
+    //     } else if is_not_instanced {
+    //         let c = world.get_component::<RenderComponent>(entity).unwrap();
+    //         (c.model.clone(), c.material.clone())
+    //     } else {
+    //         return None;
+    //     };
         
-        let header = Some(CollapsingHeader::new(RichText::new("🎨 Render").color(Color32::WHITE))
-            .default_open(true)
-            .show_background(true)
-            .show(ui, |ui| {
-                let height = ui.text_style_height(&TextStyle::Body);
-                let width = "Model ".len() as f32 * 7.0 + 9.0; // Longest label + padding
-                ui.vertical(|ui| {
-                    TableBuilder::new(ui)
-                        .column(Column::auto().resizable(true).at_least(width).clip(true))
-                        .column(Column::remainder())
-                        .body(|mut body| {
-                            body.row(height, |mut row| {
-                                row.col(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.add_space(5.0);
-                                        ui.label("Model ");
-                                    });
-                                });
-                                row.col(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.add_space(5.0);
-                                        ui.label(match render_comp.0 {
-                                            Some(model) => model.label.clone(),
-                                            None => "None".to_string()
-                                        });
-                                    });
-                                });
-                            });
+    //     let header = Some(CollapsingHeader::new(RichText::new("🎨 Render").color(Color32::WHITE))
+    //         .default_open(true)
+    //         .show_background(true)
+    //         .show(ui, |ui| {
+    //             let height = ui.text_style_height(&TextStyle::Body);
+    //             let width = "Model ".len() as f32 * 7.0 + 9.0; // Longest label + padding
+    //             ui.vertical(|ui| {
+    //                 TableBuilder::new(ui)
+    //                     .column(Column::auto().resizable(true).at_least(width).clip(true))
+    //                     .column(Column::remainder())
+    //                     .body(|mut body| {
+    //                         body.row(height, |mut row| {
+    //                             row.col(|ui| {
+    //                                 ui.horizontal(|ui| {
+    //                                     ui.add_space(5.0);
+    //                                     ui.label("Model ");
+    //                                 });
+    //                             });
+    //                             row.col(|ui| {
+    //                                 ui.horizontal(|ui| {
+    //                                     ui.add_space(5.0);
+    //                                     ui.label(match render_comp.0 {
+    //                                         Some(model) => model.label.clone(),
+    //                                         None => "None".to_string()
+    //                                     });
+    //                                 });
+    //                             });
+    //                         });
 
-                            body.row(height, |mut row| {
-                                row.col(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.add_space(5.0);
-                                        ui.label("Material ");
-                                    });
-                                });
-                                row.col(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.add_space(5.0);
-                                        ui.label(match render_comp.1 {
-                                            Some(material) => material.label.clone(),
-                                            None => "None".to_string()
-                                        });
-                                    });
-                                });
-                            });
-                        });
-                });
-            }));
-        return header;
-    }
+    //                         body.row(height, |mut row| {
+    //                             row.col(|ui| {
+    //                                 ui.horizontal(|ui| {
+    //                                     ui.add_space(5.0);
+    //                                     ui.label("Material ");
+    //                                 });
+    //                             });
+    //                             row.col(|ui| {
+    //                                 ui.horizontal(|ui| {
+    //                                     ui.add_space(5.0);
+    //                                     ui.label(match render_comp.1 {
+    //                                         Some(material) => material.label.clone(),
+    //                                         None => "None".to_string()
+    //                                     });
+    //                                 });
+    //                             });
+    //                         });
+    //                     });
+    //             });
+    //         }));
+    //     return header;
+    // }
 }
 
 impl Widget for PropertiesWidget {
@@ -292,34 +292,34 @@ impl Widget for PropertiesWidget {
         debug!("Rendering UI for properties widget.");
 
         // Get the entity list
-        let mut entity_list = world.get_entities_with_component::<RenderComponentInstanced>().clone();
-        entity_list = entity_list.iter().chain(world.get_entities_with_component::<RenderComponent>().clone().iter()).cloned().collect::<Vec<EntityIndex>>();
-        entity_list = entity_list.iter().chain(world.get_entities_with_component::<CameraComponent>().clone().iter()).cloned().collect::<Vec<EntityIndex>>();
-        entity_list.sort();
+        // let mut entity_list = world.get_entities_with_component::<RenderComponentInstanced>().clone();
+        // entity_list = entity_list.iter().chain(world.get_entities_with_component::<RenderComponent>().clone().iter()).cloned().collect::<Vec<EntityIndex>>();
+        // entity_list = entity_list.iter().chain(world.get_entities_with_component::<CameraComponent>().clone().iter()).cloned().collect::<Vec<EntityIndex>>();
+        // entity_list.sort();
 
         // Show the entity hierarchy
-        let text_style = TextStyle::Body;
-        let row_height = ui.text_style_height(&text_style);
-        ScrollArea::vertical().max_height(ui.available_height()*0.3).auto_shrink([false, false]).show_rows(ui,
-            row_height,
-            entity_list.len(),
-            |ui, row_range| {
-                for i in row_range {
-                    let index = entity_list[i];
-                    match PropertiesWidget::format_entity_label(index, world) {
-                        Some(prop) => {
-                            ui.horizontal(|ui| {
-                                ui.add_space(10.0);
-                                ui.selectable_value(
-                                    &mut self.selected_entity,
-                                    Some(index),
-                                    RichText::new(prop).color(Color32::WHITE));
-                            });
-                        },
-                        None => {}
-                    }
-                }
-            });
+        // let text_style = TextStyle::Body;
+        // let row_height = ui.text_style_height(&text_style);
+        // ScrollArea::vertical().max_height(ui.available_height()*0.3).auto_shrink([false, false]).show_rows(ui,
+        //     row_height,
+        //     entity_list.len(),
+        //     |ui, row_range| {
+        //         for i in row_range {
+        //             let index = entity_list[i];
+        //             match PropertiesWidget::format_entity_label(index, world) {
+        //                 Some(prop) => {
+        //                     ui.horizontal(|ui| {
+        //                         ui.add_space(10.0);
+        //                         ui.selectable_value(
+        //                             &mut self.selected_entity,
+        //                             Some(index),
+        //                             RichText::new(prop).color(Color32::WHITE));
+        //                     });
+        //                 },
+        //                 None => {}
+        //             }
+        //         }
+        //     });
 
         ui.separator();
 
@@ -356,41 +356,41 @@ impl Widget for PropertiesWidget {
                 }
             });
 
-            // Static or dynamic
-            ui.add_space(5.0);
-            ui.horizontal(|ui| {
-                let mut no_component = false;
-                let mut old_static = if world.get_component::<RenderComponentSSBODynamic>(entity).is_some() {
-                    RenderEntityType::Dynamic
-                } else if world.get_component::<RenderComponentSSBOStatic>(entity).is_some() {
-                    RenderEntityType::Static
-                } else {
-                    no_component = true;
-                    RenderEntityType::Dynamic
-                };
-                if !no_component {
-                    let object_type = old_static;
-                    ui.add_space(ui.available_width() / 2.0 - 10.0 -" Dynamic ".len() as f32 * 7.0 - 5.0);
-                    ui.selectable_value(&mut old_static, RenderEntityType::Dynamic, " Dynamic ");
-                    ui.add_space(10.0);
-                    ui.selectable_value(&mut old_static, RenderEntityType::Static, " Static ");
-                    if old_static != object_type {
-                        match old_static {
-                            RenderEntityType::Dynamic => {
-                                let c = world.get_component::<RenderComponentSSBOStatic>(entity).unwrap().clone();
-                                world.remove_component::<RenderComponentSSBOStatic>(entity);
-                                world.add_component::<RenderComponentSSBODynamic>(entity, RenderComponentSSBODynamic { id: c.id });
-                            },
-                            RenderEntityType::Static => {
-                                let c = world.get_component::<RenderComponentSSBODynamic>(entity).unwrap().clone();
-                                world.remove_component::<RenderComponentSSBODynamic>(entity);
-                                world.add_component::<RenderComponentSSBOStatic>(entity, RenderComponentSSBOStatic { id: c.id });
-                            }
-                        }
-                    }
-                }
-            });
-            ui.add_space(5.0);
+            // // Static or dynamic
+            // ui.add_space(5.0);
+            // ui.horizontal(|ui| {
+            //     let mut no_component = false;
+            //     let mut old_static = if world.get_component::<RenderComponentSSBODynamic>(entity).is_some() {
+            //         RenderEntityType::Dynamic
+            //     } else if world.get_component::<RenderComponentSSBOStatic>(entity).is_some() {
+            //         RenderEntityType::Static
+            //     } else {
+            //         no_component = true;
+            //         RenderEntityType::Dynamic
+            //     };
+            //     if !no_component {
+            //         let object_type = old_static;
+            //         ui.add_space(ui.available_width() / 2.0 - 10.0 -" Dynamic ".len() as f32 * 7.0 - 5.0);
+            //         ui.selectable_value(&mut old_static, RenderEntityType::Dynamic, " Dynamic ");
+            //         ui.add_space(10.0);
+            //         ui.selectable_value(&mut old_static, RenderEntityType::Static, " Static ");
+            //         if old_static != object_type {
+            //             match old_static {
+            //                 RenderEntityType::Dynamic => {
+            //                     let c = world.get_component::<RenderComponentSSBOStatic>(entity).unwrap().clone();
+            //                     world.remove_component::<RenderComponentSSBOStatic>(entity);
+            //                     world.add_component::<RenderComponentSSBODynamic>(entity, RenderComponentSSBODynamic { id: c.id });
+            //                 },
+            //                 RenderEntityType::Static => {
+            //                     let c = world.get_component::<RenderComponentSSBODynamic>(entity).unwrap().clone();
+            //                     world.remove_component::<RenderComponentSSBODynamic>(entity);
+            //                     world.add_component::<RenderComponentSSBOStatic>(entity, RenderComponentSSBOStatic { id: c.id });
+            //                 }
+            //             }
+            //         }
+            //     }
+            // });
+            // ui.add_space(5.0);
 
             // Update properties
             if self.selected_entity != self.last_selected_entity {
@@ -405,40 +405,40 @@ impl Widget for PropertiesWidget {
             }
 
             // Handle Component click
-            let module_click = |res: Option<CollapsingResponse<()>>, name, world: &mut World| {
-                let res = match res {
-                    Some(res) => res,
-                    None => return
-                };
+            // let module_click = |res: Option<CollapsingResponse<()>>, name, world: &mut World| {
+                // let res = match res {
+                //     Some(res) => res,
+                //     None => return
+                // };
 
-                // On right click
-                res.header_response.context_menu(|ui| {
-                    if ui.button("Remove Component").clicked() {
-                        match name {
-                            "Render" => {
-                                if world.get_component::<RenderComponent>(entity).is_some() {
-                                    world.remove_component::<RenderComponent>(entity);
-                                }
-                                if world.get_component::<RenderComponentSSBOStatic>(entity).is_some() {
-                                    world.remove_component::<RenderComponentSSBOStatic>(entity);
-                                }
-                                if world.get_component::<RenderComponentSSBODynamic>(entity).is_some() {
-                                    world.remove_component::<RenderComponentSSBODynamic>(entity);
-                                }
-                                if world.get_component::<RenderComponentInstanced>(entity).is_some() {
-                                    world.remove_component::<RenderComponentInstanced>(entity);
-                                }
-                                if world.get_component::<RenderComponentChild>(entity).is_some() {
-                                    world.remove_component::<RenderComponentChild>(entity);
-                                }
-                            },
-                            "Camera" => { world.remove_component::<CameraComponent>(entity); },
-                            _ => {}
-                        };
-                        ui.close_menu();
-                    }
-                });
-            };
+                // // On right click
+                // res.header_response.context_menu(|ui| {
+                //     if ui.button("Remove Component").clicked() {
+                //         match name {
+                //             "Render" => {
+                //                 if world.get_component::<RenderComponent>(entity).is_some() {
+                //                     world.remove_component::<RenderComponent>(entity);
+                //                 }
+                //                 if world.get_component::<RenderComponentSSBOStatic>(entity).is_some() {
+                //                     world.remove_component::<RenderComponentSSBOStatic>(entity);
+                //                 }
+                //                 if world.get_component::<RenderComponentSSBODynamic>(entity).is_some() {
+                //                     world.remove_component::<RenderComponentSSBODynamic>(entity);
+                //                 }
+                //                 if world.get_component::<RenderComponentInstanced>(entity).is_some() {
+                //                     world.remove_component::<RenderComponentInstanced>(entity);
+                //                 }
+                //                 if world.get_component::<RenderComponentChild>(entity).is_some() {
+                //                     world.remove_component::<RenderComponentChild>(entity);
+                //                 }
+                //             },
+                //             "Camera" => { world.remove_component::<CameraComponent>(entity); },
+                //             _ => {}
+                //         };
+                //         ui.close_menu();
+                //     }
+                // });
+            // };
 
 
             // Transform Component
@@ -447,9 +447,9 @@ impl Widget for PropertiesWidget {
 
             // Other modules
             ui.add_space(5.0);
-            module_click(self.show_camera(ui, entity, world), "Camera", world);
+            // module_click(self.show_camera(ui, entity, world), "Camera", world);
             ui.add_space(5.0);
-            module_click(self.show_render(ui, entity, world), "Render", world);
+            // module_click(self.show_render(ui, entity, world), "Render", world);
 
             // Add Component
             ui.add_space(5.0);
@@ -464,12 +464,12 @@ impl Widget for PropertiesWidget {
                         if !world.get_component::<CameraComponent>(entity).is_some() {
                             ui.selectable_value(&mut self.selected_module, ModuleNames::Camera, "Camera");
                         }
-                        if !world.get_component::<RenderComponent>(entity).is_some() {
-                            ui.selectable_value(&mut self.selected_module, ModuleNames::Render, "Render");
-                        }
-                        if !world.get_component::<RenderComponentInstanced>(entity).is_some() {
-                            ui.selectable_value(&mut self.selected_module, ModuleNames::RenderInstanced, "Render Instanced");
-                        }
+                        // if !world.get_component::<RenderComponent>(entity).is_some() {
+                        //     ui.selectable_value(&mut self.selected_module, ModuleNames::Render, "Render");
+                        // }
+                        // if !world.get_component::<RenderComponentInstanced>(entity).is_some() {
+                        //     ui.selectable_value(&mut self.selected_module, ModuleNames::RenderInstanced, "Render Instanced");
+                        // }
                     }
                 );
                 if ui.button("Add to entity").clicked() {
@@ -477,14 +477,14 @@ impl Widget for PropertiesWidget {
                         ModuleNames::Camera => {
                             world.add_component(entity, CameraComponent { znear: 0.1, zfar: 1000.0, fovy: 60.0, aspect: 1.0 });
                         },
-                        ModuleNames::Render => {
-                            let render_index = world.get_next_render_index();
-                            world.add_component(entity, RenderComponentSSBODynamic { id: render_index });
-                            world.add_component(entity, RenderComponent { id: render_index, model: None, material: None });
-                        },
-                        ModuleNames::RenderInstanced => {
-                            world.add_component(entity, RenderComponentInstanced { ids: 0..0, model: None, material: None });
-                        },
+                        // ModuleNames::Render => {
+                        //     let render_index = world.get_next_render_index();
+                        //     world.add_component(entity, RenderComponentSSBODynamic { id: render_index });
+                        //     world.add_component(entity, RenderComponent { id: render_index, model: None, material: None });
+                        // },
+                        // ModuleNames::RenderInstanced => {
+                        //     world.add_component(entity, RenderComponentInstanced { ids: 0..0, model: None, material: None });
+                        // },
                         _ => {}
                     }
                 }

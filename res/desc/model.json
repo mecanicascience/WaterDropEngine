@@ -2,7 +2,6 @@
     "label": "Model label",
     "metadata": {
         "type": "MODEL",
-        "source": "models/[...].obj",
-        "dependencies": []
+        "source": "models/[...].obj"
     }
 }

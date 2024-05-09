@@ -177,11 +177,8 @@ impl App {
 
         // Create renderer
         let renderer = Arc::new(RwLock::new(Renderer::new(
-            &render_instance, &mut scene.world, &mut res_manager
+            &render_instance, &mut scene, &mut res_manager
         ).await));
-
-        // Update SSBO for static resources
-        renderer.write().unwrap().update_ssbo(&render_instance, &scene.world, true);
 
         // End of renderer initialization
         drop(_renderer_initialization_span);
@@ -299,11 +296,7 @@ impl App {
                 scene.update();
 
                 // Update render
-                renderer.write().unwrap().init_pipelines(&render_instance, &scene.world, &res_manager).await;
-                if should_render {
-                    renderer.write().unwrap().update_ssbo(&render_instance, &scene.world, false);
-                    renderer.write().unwrap().update_camera(&render_instance, &scene.world, scene.active_camera);
-                }
+                renderer.write().unwrap().update(&render_instance, &scene, &res_manager);
             }
 
 
@@ -319,7 +312,7 @@ impl App {
                         let mut should_close = false;
 
                         // Render world
-                        match renderer.read().unwrap().render(&render_instance, &scene.world, &res_manager, &render_texture).await {
+                        match renderer.read().unwrap().render(&render_instance, &scene, &mut res_manager, &render_texture).await {
                             RenderEvent::Redraw(_) => {},
                             RenderEvent::Close => {
                                 should_close = true;
