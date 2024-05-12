@@ -270,9 +270,13 @@ async fn run() {
                     editor.handle_input_event(&event);
 
                     // Check if use input
+                    let mut editor_capture_event = false;
                     #[cfg(feature = "editor")]
-                    if !editor.captures_event(&event) {
-                        // Handle keyboard input
+                    if editor.captures_event(&event) {
+                        editor_capture_event = true;
+                    }
+                    // Handle keyboard input
+                    if !editor_capture_event {
                         if let WindowEvent::KeyboardInput { event, .. } = event {
                             let key = event.physical_key;
                             let pressed = event.state == ElementState::Pressed;
