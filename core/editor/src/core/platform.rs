@@ -1,5 +1,3 @@
-#![cfg(feature = "editor")]
-
 use egui::{pos2, vec2, Pos2};
 use winit::keyboard::{KeyCode, ModifiersState, PhysicalKey};
 use winit::event::WindowEvent::*;

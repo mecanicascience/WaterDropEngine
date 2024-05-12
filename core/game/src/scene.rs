@@ -1,12 +1,19 @@
 use std::collections::HashMap;
 use std::fmt::Formatter;
 
-use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, MapComponent, TerrainComponent, TransformComponent, World};
+use wde_ecs::EntityIndex;
+use wde_ecs::World;
 use wde_logger::throw;
 use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
 use wde_resources::TextureResource;
 use wde_resources::ResourcesManager;
 use wde_wgpu::{KeyCode, PhysicalKey};
+
+use crate::CameraComponent;
+use crate::LabelComponent;
+use crate::MapComponent;
+use crate::TerrainComponent;
+use crate::TransformComponent;
 
 /// Describes a scene in the game.
 pub struct Scene {
@@ -54,7 +61,12 @@ impl Scene {
             .register_component::<MapComponent>("MapComponent")
             .register_component::<TerrainComponent>("TerrainComponent");
 
+        // Create physics collider set
+        // let mut collider_set = ColliderSet::new();
+
         // Create world map
+        let terrain_scale = (10.0, 10.0);
+        let terrain_subdivision = 128;
         let world_map = match world.create_entity() {
             Some(e) => e,
             None => throw!("Failed to create entity. No more entity slots available."),
@@ -65,10 +77,18 @@ impl Scene {
                 position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
             }).unwrap()
             .add_component(world_map, TerrainComponent {
-                heightmap: res_manager.load::<TextureResource>("texture/terrain_heightmap")
+                heightmap: res_manager.load::<TextureResource>("texture/terrain_heightmap"),
+                scale: terrain_scale,
+                subdivision: terrain_subdivision,
             }).unwrap()
             .add_component(world_map, MapComponent {
             }).unwrap();
+        
+        // // Set the world map collider
+        // let heights = vec![0.0; terrain_subdivision as usize * terrain_subdivision as usize];
+        // let collider = ColliderBuilder::heightfield(heights, nalgebra::vector![terrain_scale.0 / terrain_subdivision as f32, 1.0, terrain_scale.1 / terrain_subdivision as f32])
+        //     .translation(nalgebra::Vector3::new(0.0, 0.0, 0.0))
+        //     .build();
         
         // Create camera
         let camera = match world.create_entity() {

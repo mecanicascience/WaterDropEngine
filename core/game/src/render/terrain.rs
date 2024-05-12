@@ -1,10 +1,10 @@
 use tracing::error;
 
-use wde_ecs::{TerrainComponent, TransformComponent, TransformUniform, World};
+use wde_ecs::World;
 use wde_resources::{ResourcesManager, ShaderResource, TextureResource};
 use wde_wgpu::{BindGroup, BindGroupBuilder, Buffer, BufferBindingType, BufferUsage, Color, CommandBuffer, LoadOp, Operations, RenderInstance, RenderPipeline, RenderTexture, ShaderStages, ShaderType, StoreOp, Texture, Vertex};
 
-use crate::{GameRenderPass, Scene};
+use crate::{GameRenderPass, Scene, TerrainComponent, TransformComponent, TransformUniform};
 
 /// The terrain renderer.
 #[derive(Debug)]
@@ -92,7 +92,7 @@ impl TerrainRenderer {
             .add_bind_group(BindGroup::new(&render_instance, terrain_buffer_bg_build).layout)
             .add_bind_group(BindGroup::new(&render_instance, terrain_heightmap_bg_build).layout)
             .add_bind_group(BindGroup::new(&render_instance, terrain_texture_bg_build).layout)
-            .init(&render_instance).await
+            .init(&render_instance)
             .unwrap_or_else(|_| {
                 error!("Failed to initialize terrain pipeline.");
             });

@@ -1,5 +1,3 @@
-#![cfg(feature = "editor")]
-
 use egui::{Color32, DragValue, Label, RichText};
 use egui_extras::{Size, StripBuilder, TableRow};
 use wde_math::{Euler, Quatf, Rad, Vec3f};

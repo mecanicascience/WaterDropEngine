@@ -1,5 +1,3 @@
-#![cfg(feature = "editor")]
-
 use egui::{CollapsingHeader, TextStyle};
 use egui_extras::{Column, TableBuilder};
 use tracing::debug;

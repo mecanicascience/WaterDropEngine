@@ -1,5 +1,3 @@
-#![cfg(feature = "editor")]
-
 mod editor_pass;
 mod platform;
 mod ui_tree;

@@ -25,8 +25,10 @@ Once all of these is done, you are ready to start using WaterDropEngine!
 If you use `Visual Studio Code`, you can open the current repository by running `code .` in the terminal in the root of the project. Then 4 different running configurations are available:
 - `Trace editor` to run the editor in debug mode with tracing enabled.
 - `Debug editor` to run the editor in debug mode without tracing.
-- `Release game` to release the editor in release mode.
-- `Release game` to release the game in release mode without the editor.
+- `Release editor` to run the editor in release mode.
+- `Trace game` to run the game in debug mode with tracing enabled.
+- `Debug game` to run the game in debug mode without tracing.
+- `Release game` to run the game in release mode.
 
 
 <br />
@@ -36,12 +38,14 @@ The engine is divided into several crates in a top-to-bottom layer format. Each 
 
 ```
 core/
+├───────────────── Editor ───────────────────
+|   └── editor/
+|
 ├────────────────── Game ───────────────────
 |   └── game/
 |
 ├────────────────── Core ───────────────────
 |   └── core/
-|      ├── editor/
 |      └── ecs/
 |
 ├──────────────── Resources ────────────────

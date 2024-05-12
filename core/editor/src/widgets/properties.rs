@@ -1,13 +1,12 @@
-#![cfg(feature = "editor")]
-
 use egui::{CollapsingHeader, CollapsingResponse, Color32, RichText, TextEdit, TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
 use tracing::{debug, error};
+use wde_ecs::{EntityIndex, World};
+use wde_game::{CameraComponent, LabelComponent, RenderComponent, RenderComponentChild, RenderComponentInstanced, TransformComponent};
 use wde_math::{Euler, Quatf, Rad, ONE_VEC3F, QUATF_IDENTITY, ZERO_VEC3F};
 use wde_resources::ResourcesManager;
 
 use crate::{widgets::Widget, WidgetUtils};
-use wde_ecs::{CameraComponent, EntityIndex, LabelComponent, RenderComponent, RenderComponentChild, RenderComponentInstanced, TransformComponent, World};
 
 // #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 // enum RenderEntityType {

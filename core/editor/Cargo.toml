@@ -6,10 +6,10 @@ edition = "2021"
 description = "Game engine editor."
 
 [dependencies]
-wde_wgpu = { path = "../../third_party/wgpu" }
-wde_resources = { path = "../../resources" }
-wde_ecs = { path = "../ecs" }
-wde_math = { path = "../../wrappers/math" }
+wde_wgpu = { path = "../third_party/wgpu" }
+wde_resources = { path = "../resources" }
+wde_ecs = { path = "../core/ecs" }
+wde_math = { path = "../wrappers/math" }
 tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_info"] }
 egui = "0.26"
 egui-winit = "0.26"
@@ -18,7 +18,4 @@ egui_extras = "0.26"
 winit = "0.29"
 wgpu = "0.19.1"
 bytemuck = { version = "1.12", features = [ "derive" ] }
-
-[features]
-default = []
-editor = []
+wde_game = { path = "../game" }

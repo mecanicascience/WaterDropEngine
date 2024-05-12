@@ -1,8 +1,8 @@
-use wde_ecs::{CameraComponent, CameraUniform, EntityIndex, TransformComponent, World};
+use wde_ecs::{EntityIndex, World};
 use wde_resources::ResourcesManager;
-use wde_wgpu::{BindGroup, BindGroupBuilder, Buffer, BufferBindingType, CommandBuffer, RenderEvent, RenderInstance, RenderTexture, ShaderStages, Texture, TextureUsages};
+use wde_wgpu::{BindGroup, BindGroupBuilder, Buffer, BufferBindingType, CommandBuffer, RenderInstance, RenderTexture, ShaderStages, Texture, TextureUsages};
 
-use crate::{GameRenderPass, Scene, TerrainRenderer};
+use crate::{CameraComponent, CameraUniform, GameRenderPass, Scene, TerrainRenderer, TransformComponent};
 
 
 pub struct Renderer {
@@ -93,10 +93,10 @@ impl Renderer {
     /// * `res_manager` - The resources manager
     /// * `render_texture` - The render texture to render to
     #[tracing::instrument]
-    pub async fn render(&self, render_instance: &RenderInstance<'_>, scene: &Scene, res_manager: &mut ResourcesManager, render_texture: &RenderTexture) -> RenderEvent {
+    pub fn render(&self, render_instance: &RenderInstance<'_>, scene: &Scene, res_manager: &mut ResourcesManager, render_texture: &RenderTexture) {
         // Create command buffer
         let mut command_buffer = CommandBuffer::new(
-                &render_instance, "Render").await;
+                &render_instance, "Render");
 
         for i in 0..self.passes.len() {
             let pass = &self.passes[i];
@@ -107,9 +107,6 @@ impl Renderer {
 
         // Submit command buffer
         command_buffer.submit(&render_instance);
-
-        // Return
-        RenderEvent::None
     }
 
 

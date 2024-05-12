@@ -1,9 +1,9 @@
-mod app;
 mod renderer;
 mod scene;
 mod render;
+mod components;
 
-pub use app::*;
 pub use renderer::*;
 pub use scene::*;
 pub use render::*;
+pub use components::*;

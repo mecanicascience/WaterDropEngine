@@ -1,5 +1,3 @@
-#![cfg(feature = "editor")]
-
 use egui::{FontFamily, FontId, TextStyle};
 use egui::Context;
 use egui_dock::{DockArea, DockState, Style};
@@ -85,7 +83,7 @@ impl Editor {
     /// # Returns
     /// 
     /// True if the editor should close.
-    pub async fn render(&mut self, instance: &RenderInstance<'_>, texture: &RenderTexture) -> bool {
+    pub fn render(&mut self, instance: &RenderInstance<'_>, texture: &RenderTexture) -> bool {
         let mut should_close = false;
         
         // Begin frame
@@ -166,13 +164,13 @@ impl Editor {
         self.render_tex.copy_from_texture(
             &instance,
             &texture.texture.texture,
-            (tex_size.width, tex_size.height)).await;
+            (tex_size.width, tex_size.height));
 
         // Render editor
         let tdelta = full_output.textures_delta;
         {
             // Create command buffer
-            let mut command = CommandBuffer::new(instance, "Egui Draw").await;
+            let mut command = CommandBuffer::new(instance, "Egui Draw");
 
             // Update render to texture
             self.render_pass.update_egui_texture_from_wgpu_texture(

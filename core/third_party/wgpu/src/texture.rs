@@ -160,11 +160,11 @@ impl Texture {
     /// * `instance` - Game instance.
     /// * `texture` - Texture to copy from.
     /// * `size` - Size of the texture.
-    pub async fn copy_from_texture(&self, instance: &RenderInstance<'_>, texture: &wgpu::Texture, size: (u32, u32)) {
+    pub fn copy_from_texture(&self, instance: &RenderInstance<'_>, texture: &wgpu::Texture, size: (u32, u32)) {
         trace!(self.label, "Copying texture to texture.");
 
         // Create command buffer
-        let mut command = crate::CommandBuffer::new(instance, "Copy Texture").await;
+        let mut command = crate::CommandBuffer::new(instance, "Copy Texture");
 
         // Copy texture to texture
         command.encoder().copy_texture_to_texture(

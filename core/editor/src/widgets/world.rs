@@ -1,9 +1,8 @@
-#![cfg(feature = "editor")]
-
 use egui::{CollapsingHeader, Color32, RichText, TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
 use tracing::debug;
-use wde_ecs::{empty_signature, LabelComponent, World};
+use wde_ecs::{empty_signature, World};
+use wde_game::LabelComponent;
 use wde_resources::ResourcesManager;
 
 use crate::Widget;

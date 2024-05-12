@@ -1,5 +1,3 @@
-#![cfg(feature = "editor")]
-
 mod widget;
 mod properties;
 mod resources;

@@ -1,5 +1,3 @@
-#![cfg(feature = "editor")]
-
 use egui::Color32;
 use egui::Rect;
 use egui::Sense;

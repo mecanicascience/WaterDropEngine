@@ -106,11 +106,11 @@ impl Buffer {
     /// 
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
-    pub async fn copy_from_buffer(&mut self, instance: &RenderInstance<'_>, buffer: &Buffer) {
+    pub fn copy_from_buffer(&mut self, instance: &RenderInstance<'_>, buffer: &Buffer) {
         // Create command encoder
         let mut command_buffer = CommandBuffer::new(
             instance,
-            &format!("Copy from '{}' to '{}' Buffer", buffer.label, self.label)).await;
+            &format!("Copy from '{}' to '{}' Buffer", buffer.label, self.label));
 
         // Copy buffer
         command_buffer.copy_buffer_to_buffer(&buffer, &self);
@@ -125,11 +125,11 @@ impl Buffer {
     /// 
     /// * `instance` - The render instance.
     /// * `texture` - The texture to copy from.
-    pub async fn copy_from_texture(&mut self, instance: &RenderInstance<'_>, texture: &wgpu::Texture) {
+    pub fn copy_from_texture(&mut self, instance: &RenderInstance<'_>, texture: &wgpu::Texture) {
         // Create command encoder
         let mut command_buffer = CommandBuffer::new(
             instance,
-            &format!("Copy texture to '{}' Buffer", self.label)).await;
+            &format!("Copy texture to '{}' Buffer", self.label));
 
         // Copy texture
         command_buffer.copy_texture_to_buffer(&texture, &self, texture.size());
