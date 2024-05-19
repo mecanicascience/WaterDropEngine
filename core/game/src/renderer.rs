@@ -2,7 +2,7 @@ use wde_ecs::{EntityIndex, World};
 use wde_resources::ResourcesManager;
 use wde_wgpu::{BindGroup, BindGroupBuilder, Buffer, BufferBindingType, CommandBuffer, RenderInstance, RenderTexture, ShaderStages, Texture, TextureUsages};
 
-use crate::{CameraComponent, CameraUniform, GameRenderPass, Scene, TerrainRenderer, TransformComponent};
+use crate::{CameraComponent, CameraUniform, GameRenderPass, Scene, TerrainRenderPass, TransformComponent};
 
 
 pub struct Renderer {
@@ -52,7 +52,7 @@ impl Renderer {
         // Create list of passes (Note : The passes are loaded in order of rendering)
         let mut passes: Vec<Box<dyn GameRenderPass>> = Vec::new();
         // First pass : Terrain
-        passes.push(Box::new(TerrainRenderer::new(camera_buffer_bg_build.clone(), render_instance, &scene.world, res_manager).await));
+        passes.push(Box::new(TerrainRenderPass::new(camera_buffer_bg_build.clone(), render_instance, &scene.world, res_manager).await));
 
         // Create depth texture
         let depth_texture = Texture::new(
@@ -93,16 +93,16 @@ impl Renderer {
     /// * `res_manager` - The resources manager
     /// * `render_texture` - The render texture to render to
     #[tracing::instrument]
-    pub fn render(&self, render_instance: &RenderInstance<'_>, scene: &Scene, res_manager: &mut ResourcesManager, render_texture: &RenderTexture) {
+    pub fn render(&mut self, render_instance: &RenderInstance<'_>, scene: &Scene, res_manager: &mut ResourcesManager, render_texture: &RenderTexture) {
         // Create command buffer
         let mut command_buffer = CommandBuffer::new(
                 &render_instance, "Render");
 
         for i in 0..self.passes.len() {
-            let pass = &self.passes[i];
+            let pass = &mut self.passes[i];
 
             // Render pass
-            pass.render(&mut command_buffer, &render_texture, &self.depth_texture, &self.camera_buffer_bg, &scene, res_manager);
+            pass.render(render_instance, &mut command_buffer, &render_texture, &self.depth_texture, &self.camera_buffer_bg, &scene, res_manager);
         }
 
         // Submit command buffer

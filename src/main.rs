@@ -312,7 +312,7 @@ async fn run() {
                     let mut should_close = false;
 
                     // Render world
-                    renderer.read().unwrap().render(&render_instance, &scene, &mut res_manager, &render_texture);
+                    renderer.write().unwrap().render(&render_instance, &scene, &mut res_manager, &render_texture);
 
                     // Render editor
                     #[cfg(feature = "editor")]

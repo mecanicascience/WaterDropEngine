@@ -135,6 +135,41 @@ impl WidgetUtils {
             ui.add_space(5.0);
         });
     }
+
+    /// Draw a custom drag value with a colored label.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ui` - Egui ui.
+    /// * `value` - Value of the drag value.
+    /// * `speed` - Speed of the drag value (default: 1)
+    /// * `color` - Color of the label (default: white)
+    pub fn drag_value_32(ui: &mut egui::Ui, value: &mut u32, speed: Option<u32>, color: Option<egui::Color32>, range: Option<(u32, u32)>) {
+        let s = speed.unwrap_or(1);
+        let c = color.unwrap_or(Color32::WHITE);
+
+        ui.horizontal(|ui| {
+            StripBuilder::new(ui)
+                .size(Size::exact(0.05))
+                .size(Size::exact(1.0))
+                .horizontal(|mut strip| {
+                    strip.cell(|ui| {
+                        ui.add(Label::new(
+                            RichText::new(" ").background_color(c)
+                        ));
+                    });
+                    strip.cell(|ui| {
+                        let mut dv = DragValue::new(value).speed(s);
+                        if let Some(r) = range {
+                            dv = dv.clamp_range(r.0..=r.1);
+                        }
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.add(dv);
+                    });
+                });
+            ui.add_space(5.0);
+        });
+    }
     
 
     /// Draw a text edit singleline with a label.

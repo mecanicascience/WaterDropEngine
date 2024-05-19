@@ -5,7 +5,7 @@ use wde_math::{Mat4f, Quatf, SquareMatrix, Vec3f};
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TransformUniform {
     /// From object to world space.
-    object_to_world: [[f32; 4]; 4]
+    pub object_to_world: [[f32; 4]; 4]
 }
 
 impl TransformUniform {

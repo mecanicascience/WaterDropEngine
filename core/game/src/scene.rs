@@ -3,8 +3,8 @@ use std::fmt::Formatter;
 
 use wde_ecs::EntityIndex;
 use wde_ecs::World;
-use wde_logger::throw;
 use wde_math::{Quatf, Rad, Rotation3, Vec2f, Vec3f, Vector3, ONE_VEC3F, QUATF_IDENTITY};
+use wde_resources::ModelResource;
 use wde_resources::TextureResource;
 use wde_resources::ResourcesManager;
 use wde_wgpu::{KeyCode, PhysicalKey};
@@ -65,21 +65,16 @@ impl Scene {
         // let mut collider_set = ColliderSet::new();
 
         // Create world map
-        let terrain_scale = (10.0, 10.0);
-        let terrain_subdivision = 128;
-        let world_map = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
+        let world_map = world.create_entity().unwrap();
         world
-            .add_component(world_map, LabelComponent { label : "World Terrain".to_string() }).unwrap()
+            .add_component(world_map, LabelComponent { label : "Terrain".to_string() }).unwrap()
             .add_component(world_map, TransformComponent {
                 position: Vec3f { x: 0.0, y: 0.0, z: 0.0 }, rotation: QUATF_IDENTITY, scale: ONE_VEC3F
             }).unwrap()
             .add_component(world_map, TerrainComponent {
                 heightmap: res_manager.load::<TextureResource>("texture/terrain_heightmap"),
-                scale: terrain_scale,
-                subdivision: terrain_subdivision,
+                chunks: (10, 10),
+                height: 10.0
             }).unwrap()
             .add_component(world_map, MapComponent {
             }).unwrap();
@@ -91,10 +86,7 @@ impl Scene {
         //     .build();
         
         // Create camera
-        let camera = match world.create_entity() {
-            Some(e) => e,
-            None => throw!("Failed to create entity. No more entity slots available."),
-        };
+        let camera = world.create_entity().unwrap();
         world
             .add_component(camera, LabelComponent { label : "Camera".to_string() }).unwrap()
             .add_component(camera, TransformComponent {
@@ -107,6 +99,9 @@ impl Scene {
         let camera_rotation = Vec2f { x: 0.0, y: 0.0 };
         let camera_initial_rot = world.get_component::<TransformComponent>(camera).unwrap().rotation.clone();
 
+
+        // Load dummy model
+        res_manager.load::<ModelResource>("models/cube");
 
         // Return the scene
         Scene {

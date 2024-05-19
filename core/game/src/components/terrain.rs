@@ -5,8 +5,8 @@ use wde_resources::ResourceHandle;
 pub struct TerrainComponent {
     /// Heightmap of the terrain.
     pub heightmap: ResourceHandle,
-    /// World scale of the terrain.
-    pub scale: (f32, f32),
-    /// Subdivision count of the terrain.
-    pub subdivision: u32,
+    /// Number of chunks of the terrain.
+    pub chunks: (u32, u32),
+    /// Height of the terrain.
+    pub height: f32,
 }

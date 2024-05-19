@@ -1,8 +1,8 @@
-use egui::{CollapsingHeader, CollapsingResponse, Color32, RichText, TextEdit, TextStyle, Ui};
+use egui::{CollapsingHeader, CollapsingResponse, Color32, RichText, ScrollArea, TextEdit, TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
 use tracing::{debug, error};
 use wde_ecs::{EntityIndex, World};
-use wde_game::{CameraComponent, LabelComponent, RenderComponent, RenderComponentChild, RenderComponentInstanced, TransformComponent};
+use wde_game::{CameraComponent, LabelComponent, TerrainComponent, TransformComponent};
 use wde_math::{Euler, Quatf, Rad, ONE_VEC3F, QUATF_IDENTITY, ZERO_VEC3F};
 use wde_resources::ResourcesManager;
 
@@ -18,6 +18,7 @@ use crate::{widgets::Widget, WidgetUtils};
 enum ModuleNames {
     None,
     Camera,
+    Terrain
     // Render,
     // RenderInstanced
 }
@@ -56,17 +57,20 @@ impl PropertiesWidget {
     pub fn format_entity_label(entity: EntityIndex, world: &World) -> Option<String> {
         // Get the icon
         let mut icon = String::new();
-        if world.get_component::<RenderComponent>(entity).is_some() {
-            icon += "🎨";
-        }
-        if world.get_component::<RenderComponentInstanced>(entity).is_some() {
-            icon += "🎨🔢";
-        }
+        // if world.get_component::<RenderComponent>(entity).is_some() {
+        //     icon += "🎨";
+        // }
+        // if world.get_component::<RenderComponentInstanced>(entity).is_some() {
+        //     icon += "🎨🔢";
+        // }
         if world.get_component::<CameraComponent>(entity).is_some() {
             icon += "📷";
         }
-        if world.get_component::<RenderComponentChild>(entity).is_some() {
-            return None;
+        // if world.get_component::<RenderComponentChild>(entity).is_some() {
+        //     return None;
+        // }
+        if world.get_component::<TerrainComponent>(entity).is_some() {
+            icon += "🏞️";
         }
         
         if icon.is_empty() {
@@ -144,71 +148,135 @@ impl PropertiesWidget {
     }
 
 
-    // /// Show the camera Component of a entity.
-    // /// 
-    // /// # Arguments
-    // /// 
-    // /// * `ui` - Egui context.
-    // /// * `entity` - Entity to show the camera of.
-    // /// * `world` - World to get the camera from.
-    // fn show_camera(&mut self, ui: &mut Ui, entity: EntityIndex, world: &mut World) -> Option<CollapsingResponse<()>> {
-    //     let mut camera = match world.get_component::<CameraComponent>(entity) {
-    //         Some(camera) => camera.clone(),
-    //         None => return None
-    //     };
+    /// Show the camera Component of a entity.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ui` - Egui context.
+    /// * `entity` - Entity to show the camera of.
+    /// * `world` - World to get the camera from.
+    fn show_camera(&mut self, ui: &mut Ui, entity: EntityIndex, world: &mut World) -> Option<CollapsingResponse<()>> {
+        let mut camera = match world.get_component::<CameraComponent>(entity) {
+            Some(camera) => camera.clone(),
+            None => return None
+        };
 
-    //     let height = ui.text_style_height(&TextStyle::Body);
-    //     let width = "Near plane".len() as f32 * 7.0 + 5.0; // Longest label + padding
-    //     let c = Color32::from_rgb(150, 150, 150);
-    //     let header = Some(CollapsingHeader::new(RichText::new("📷 Camera").color(Color32::WHITE))
-    //         .default_open(true)
-    //         .show_background(true)
-    //         .show(ui, |ui| {
-    //             TableBuilder::new(ui)
-    //                 .column(Column::auto().resizable(true).at_least(width).clip(true))
-    //                 .column(Column::remainder())
-    //                 .body(|mut body| {
-    //                     body.row(height, |mut row| {
-    //                         row.col(|ui| {
-    //                             ui.label("Near plane");
-    //                         });
-    //                         row.col(|ui| {
-    //                             ui.horizontal(|ui| {
-    //                                 ui.add_space(10.0);
-    //                                 WidgetUtils::drag_value(ui, &mut camera.znear, Some(0.1), Some(c), Some((0.01, 100000.0)));
-    //                             });
-    //                         });
-    //                     });
-    //                     body.row(height, |mut row| {
-    //                         row.col(|ui| {
-    //                             ui.label("Far plane");
-    //                         });
-    //                         row.col(|ui| {
-    //                             ui.horizontal(|ui| {
-    //                                 ui.add_space(10.0);
-    //                                 WidgetUtils::drag_value(ui, &mut camera.zfar, Some(0.1), Some(c), Some((0.01, 100000.0)));
-    //                             });
-    //                         });
-    //                     });
-    //                     body.row(height, |mut row| {
-    //                         row.col(|ui| {
-    //                             ui.label("FOV");
-    //                         });
-    //                         row.col(|ui| {
-    //                             ui.horizontal(|ui| {
-    //                                 ui.add_space(10.0);
-    //                                 WidgetUtils::drag_value(ui, &mut camera.fovy, Some(0.1), Some(c), None);
-    //                             });
-    //                         });
-    //                     });
-    //                 });
-    //         }));
+        let height = ui.text_style_height(&TextStyle::Body);
+        let width = "Near plane".len() as f32 * 7.0 + 5.0; // Longest label + padding
+        let c = Color32::from_rgb(150, 150, 150);
+        let header = Some(CollapsingHeader::new(RichText::new("📷 Camera").color(Color32::WHITE))
+            .default_open(true)
+            .show_background(true)
+            .show(ui, |ui| {
+                TableBuilder::new(ui)
+                    .column(Column::auto().resizable(true).at_least(width).clip(true))
+                    .column(Column::remainder())
+                    .body(|mut body| {
+                        body.row(height, |mut row| {
+                            row.col(|ui| {
+                                ui.label("Near plane");
+                            });
+                            row.col(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(10.0);
+                                    WidgetUtils::drag_value(ui, &mut camera.znear, Some(0.1), Some(c), Some((0.01, 100000.0)));
+                                });
+                            });
+                        });
+                        body.row(height, |mut row| {
+                            row.col(|ui| {
+                                ui.label("Far plane");
+                            });
+                            row.col(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(10.0);
+                                    WidgetUtils::drag_value(ui, &mut camera.zfar, Some(0.1), Some(c), Some((0.01, 100000.0)));
+                                });
+                            });
+                        });
+                        body.row(height, |mut row| {
+                            row.col(|ui| {
+                                ui.label("FOV");
+                            });
+                            row.col(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(10.0);
+                                    WidgetUtils::drag_value(ui, &mut camera.fovy, Some(0.1), Some(c), None);
+                                });
+                            });
+                        });
+                    });
+            }));
 
-    //     // Update the camera
-    //     world.set_component::<CameraComponent>(entity, camera);
+        // Update the camera
+        world.set_component::<CameraComponent>(entity, camera);
 
-    //     return header;
-    // }
+        return header;
+    }
+
+    /// Show the terrain Component of a entity.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ui` - Egui context.
+    /// * `entity` - Entity to show the terrain of.
+    /// * `world` - World to get the terrain from.
+    fn show_terrain(&mut self, ui: &mut Ui, entity: EntityIndex, world: &mut World) -> Option<CollapsingResponse<()>> {
+        let terrain = match world.get_component::<TerrainComponent>(entity) {
+            Some(terrain) => terrain.clone(),
+            None => return None
+        };
+
+        let height = ui.text_style_height(&TextStyle::Body);
+        let width = "Heightmap".len() as f32 * 7.0 + 5.0; // Longest label + padding
+        let header = Some(CollapsingHeader::new(RichText::new("🏞️ Terrain").color(Color32::WHITE))
+            .default_open(true)
+            .show_background(true)
+            .show(ui, |ui| {
+                TableBuilder::new(ui)
+                    .column(Column::auto().resizable(true).at_least(width).clip(true))
+                    .column(Column::remainder())
+                    .body(|mut body| {
+                        body.row(height, |mut row| {
+                            row.col(|ui| {
+                                ui.label("Chunks");
+                            });
+                            row.col(|ui| {
+                                let mut chunks_cp = terrain.chunks.clone();
+                                ui.horizontal(|ui| {
+                                    ui.add_space(10.0);
+                                    WidgetUtils::drag_value_32(ui, &mut chunks_cp.0, Some(1), Some(Color32::DARK_RED), Some((1, 100)));
+                                    ui.add_space(5.0);
+                                    WidgetUtils::drag_value_32(ui, &mut chunks_cp.1, Some(1), Some(Color32::DARK_BLUE), Some((1, 100)));
+                                });
+                                if chunks_cp != terrain.chunks {
+                                    let terrain = world.get_component::<TerrainComponent>(entity).unwrap().clone();
+                                    world.set_component::<TerrainComponent>(entity, TerrainComponent { chunks: chunks_cp, ..terrain });
+                                }
+                            });
+                        });
+
+                        body.row(height, |mut row| {
+                            row.col(|ui| {
+                                ui.label("Height");
+                            });
+                            row.col(|ui| {
+                                let mut height_cp = terrain.height;
+                                ui.horizontal(|ui| {
+                                    ui.add_space(10.0);
+                                    WidgetUtils::drag_value(ui, &mut height_cp, Some(0.1), Some(Color32::DARK_GREEN), Some((0.01, 100000.0)));
+                                });
+                                if height_cp != terrain.height {
+                                    let terrain = world.get_component::<TerrainComponent>(entity).unwrap().clone();
+                                    world.set_component::<TerrainComponent>(entity, TerrainComponent { height: height_cp, ..terrain });
+                                }
+                            });
+                        });
+                    });
+            }));
+
+        return header;
+    }
 
     // /// Show the render Component of a entity.
     // /// 
@@ -291,34 +359,36 @@ impl Widget for PropertiesWidget {
         debug!("Rendering UI for properties widget.");
 
         // Get the entity list
-        // let mut entity_list = world.get_entities_with_component::<RenderComponentInstanced>().clone();
-        // entity_list = entity_list.iter().chain(world.get_entities_with_component::<RenderComponent>().clone().iter()).cloned().collect::<Vec<EntityIndex>>();
-        // entity_list = entity_list.iter().chain(world.get_entities_with_component::<CameraComponent>().clone().iter()).cloned().collect::<Vec<EntityIndex>>();
-        // entity_list.sort();
+        let mut entity_list = world.get_entities_with_component::<CameraComponent>().clone();
+        entity_list.extend(world.get_entities_with_component::<TransformComponent>().clone());
+        entity_list.sort();
+
+        // Remove duplicates
+        entity_list.dedup();
 
         // Show the entity hierarchy
-        // let text_style = TextStyle::Body;
-        // let row_height = ui.text_style_height(&text_style);
-        // ScrollArea::vertical().max_height(ui.available_height()*0.3).auto_shrink([false, false]).show_rows(ui,
-        //     row_height,
-        //     entity_list.len(),
-        //     |ui, row_range| {
-        //         for i in row_range {
-        //             let index = entity_list[i];
-        //             match PropertiesWidget::format_entity_label(index, world) {
-        //                 Some(prop) => {
-        //                     ui.horizontal(|ui| {
-        //                         ui.add_space(10.0);
-        //                         ui.selectable_value(
-        //                             &mut self.selected_entity,
-        //                             Some(index),
-        //                             RichText::new(prop).color(Color32::WHITE));
-        //                     });
-        //                 },
-        //                 None => {}
-        //             }
-        //         }
-        //     });
+        let text_style = TextStyle::Body;
+        let row_height = ui.text_style_height(&text_style);
+        ScrollArea::vertical().max_height(ui.available_height()*0.3).auto_shrink([false, false]).show_rows(ui,
+            row_height,
+            entity_list.len(),
+            |ui, row_range| {
+                for i in row_range {
+                    let index = entity_list[i];
+                    match PropertiesWidget::format_entity_label(index, world) {
+                        Some(prop) => {
+                            ui.horizontal(|ui| {
+                                ui.add_space(10.0);
+                                ui.selectable_value(
+                                    &mut self.selected_entity,
+                                    Some(index),
+                                    RichText::new(prop).color(Color32::WHITE));
+                            });
+                        },
+                        None => {}
+                    }
+                }
+            });
 
         ui.separator();
 
@@ -404,40 +474,41 @@ impl Widget for PropertiesWidget {
             }
 
             // Handle Component click
-            // let module_click = |res: Option<CollapsingResponse<()>>, name, world: &mut World| {
-                // let res = match res {
-                //     Some(res) => res,
-                //     None => return
-                // };
+            let module_click = |res: Option<CollapsingResponse<()>>, name, world: &mut World| {
+                let res = match res {
+                    Some(res) => res,
+                    None => return
+                };
 
-                // // On right click
-                // res.header_response.context_menu(|ui| {
-                //     if ui.button("Remove Component").clicked() {
-                //         match name {
-                //             "Render" => {
-                //                 if world.get_component::<RenderComponent>(entity).is_some() {
-                //                     world.remove_component::<RenderComponent>(entity);
-                //                 }
-                //                 if world.get_component::<RenderComponentSSBOStatic>(entity).is_some() {
-                //                     world.remove_component::<RenderComponentSSBOStatic>(entity);
-                //                 }
-                //                 if world.get_component::<RenderComponentSSBODynamic>(entity).is_some() {
-                //                     world.remove_component::<RenderComponentSSBODynamic>(entity);
-                //                 }
-                //                 if world.get_component::<RenderComponentInstanced>(entity).is_some() {
-                //                     world.remove_component::<RenderComponentInstanced>(entity);
-                //                 }
-                //                 if world.get_component::<RenderComponentChild>(entity).is_some() {
-                //                     world.remove_component::<RenderComponentChild>(entity);
-                //                 }
-                //             },
-                //             "Camera" => { world.remove_component::<CameraComponent>(entity); },
-                //             _ => {}
-                //         };
-                //         ui.close_menu();
-                //     }
-                // });
-            // };
+                // On right click
+                res.header_response.context_menu(|ui| {
+                    if ui.button("Remove Component").clicked() {
+                        match name {
+                            // "Render" => {
+                            //     if world.get_component::<RenderComponent>(entity).is_some() {
+                            //         world.remove_component::<RenderComponent>(entity);
+                            //     }
+                            //     if world.get_component::<RenderComponentSSBOStatic>(entity).is_some() {
+                            //         world.remove_component::<RenderComponentSSBOStatic>(entity);
+                            //     }
+                            //     if world.get_component::<RenderComponentSSBODynamic>(entity).is_some() {
+                            //         world.remove_component::<RenderComponentSSBODynamic>(entity);
+                            //     }
+                            //     if world.get_component::<RenderComponentInstanced>(entity).is_some() {
+                            //         world.remove_component::<RenderComponentInstanced>(entity);
+                            //     }
+                            //     if world.get_component::<RenderComponentChild>(entity).is_some() {
+                            //         world.remove_component::<RenderComponentChild>(entity);
+                            //     }
+                            // },
+                            "Terrain" => { world.remove_component::<TerrainComponent>(entity); },
+                            "Camera" => { world.remove_component::<CameraComponent>(entity); },
+                            _ => {}
+                        };
+                        ui.close_menu();
+                    }
+                });
+            };
 
 
             // Transform Component
@@ -446,9 +517,9 @@ impl Widget for PropertiesWidget {
 
             // Other modules
             ui.add_space(5.0);
-            // module_click(self.show_camera(ui, entity, world), "Camera", world);
+            module_click(self.show_camera(ui, entity, world), "Camera", world);
             ui.add_space(5.0);
-            // module_click(self.show_render(ui, entity, world), "Render", world);
+            module_click(self.show_terrain(ui, entity, world), "Terrain", world);
 
             // Add Component
             ui.add_space(5.0);
@@ -462,6 +533,9 @@ impl Widget for PropertiesWidget {
                         ui.selectable_value(&mut self.selected_module, ModuleNames::None, "None     ");
                         if !world.get_component::<CameraComponent>(entity).is_some() {
                             ui.selectable_value(&mut self.selected_module, ModuleNames::Camera, "Camera");
+                        }
+                        if !world.get_component::<TerrainComponent>(entity).is_some() {
+                            ui.selectable_value(&mut self.selected_module, ModuleNames::Terrain, "Terrain");
                         }
                         // if !world.get_component::<RenderComponent>(entity).is_some() {
                         //     ui.selectable_value(&mut self.selected_module, ModuleNames::Render, "Render");

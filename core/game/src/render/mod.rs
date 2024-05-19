@@ -1,5 +1,5 @@
 mod game_render_pass;
-mod terrain;
+mod terrain_render_pass;
 
 pub use game_render_pass::GameRenderPass;
-pub use terrain::TerrainRenderer;
+pub use terrain_render_pass::TerrainRenderPass;
