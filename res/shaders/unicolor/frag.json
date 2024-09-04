@@ -1,8 +1,0 @@
-{
-    "label": "Unicolor Fragment",
-    "metadata": {
-        "type": "SHADER",
-        "source": "shaders/unicolor/frag.wgsl",
-        "dependencies": []
-    }
-}

@@ -1,8 +1,0 @@
-{
-    "label": "Record Draw Commands Compute",
-    "metadata": {
-        "type": "SHADER",
-        "source": "compute/record_draw_commands.comp.wgsl",
-        "dependencies": []
-    }
-}

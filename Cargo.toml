@@ -1,27 +1,6 @@
-[package]
-name = "wde-engine"
-version = "0.1.0"
-authors = ["MecanicaScience"]
-edition = "2021"
-description = "A data-driven game engine"
-readme = "README.md"
-license = "GNU Lesser General Public License v3.0"
-keywords = ["game", "engine", "data-driven", "simulation", "rendering", "graphics"]
-categories = ["game-engines", "graphics", "rendering", "simulation"]
-
-[build-dependencies]
-anyhow = "1.0"
-fs_extra = "1.2"
-
-[dependencies]
-wde_game = { path = "./core/game" }
-wde_resources = { path = "./core/resources" }
-wde_logger = { path = "./core/wrappers/logger" }
-wde_wgpu = { path = "./core/third_party/wgpu" }
-wde_editor = { path = "./core/editor", optional = true }
-tokio = { version = "1.35", features = ["rt", "macros", "rt-multi-thread", "sync"] }
-
-[features]
-default = []
-tracing = ["wde_logger/tracing"]
-editor = ["wde_editor"]
+[workspace]
+members = [
+    "src",
+    "crates/core/*"
+]
+resolver = "2"

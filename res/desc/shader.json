@@ -1,7 +1,0 @@
-{
-    "label": "Shader label",
-    "metadata": {
-        "type": "SHADER",
-        "source": "shaders/[...].wgsl"
-    }
-}

@@ -1,0 +1,17 @@
+[package]
+name = "wde-engine"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+wde-game = { path = "../crates/core/game" }
+
+[build-dependencies]
+anyhow = "1.0"
+fs_extra = "1.2"
+
+[features]
+default = []
+watch = ["wde-game/watch"]
+trace = ["wde-game/trace"]

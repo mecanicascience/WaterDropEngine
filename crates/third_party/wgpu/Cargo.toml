@@ -1,0 +1,30 @@
+[package]
+name = "wde-wgpu"
+version = "0.1.0"
+authors = ["MecanicaScience"]
+edition = "2021"
+description = "Provides an interface with the rendering wgpu backend"
+
+[profile.dev]
+opt-level = 0
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+incremental = false
+debug = false
+
+[dependencies]
+wgpu = { version = "22.1", features = [ "serde" ] }
+bytemuck = { version = "1.12", features = [ "derive" ] }
+
+[dependencies.bevy]
+version = "0.14"
+default-features = false
+features = [
+    "multi_threaded"
+]

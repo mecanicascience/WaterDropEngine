@@ -1,20 +1,17 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Trace editor",
+            "name": "Trace",
             "cargo": {
                 "args": [
                     "build",
                     "--bin=wde-engine",
                     "--package=wde-engine",
-                    "--features=tracing,editor",
-                    "--target-dir=target/editor-trace"
+                    "--target-dir=target",
+                    "--features=trace,watch"
                 ],
                 "filter": {
                     "name": "wde-engine",
@@ -22,19 +19,22 @@
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+            }
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug editor",
+            "name": "Debug",
             "cargo": {
                 "args": [
                     "build",
                     "--bin=wde-engine",
                     "--package=wde-engine",
-                    "--features=editor",
-                    "--target-dir=target/editor"
+                    "--target-dir=target",
+                    "--features=watch"
                 ],
                 "filter": {
                     "name": "wde-engine",
@@ -42,20 +42,22 @@
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+            }
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Release editor",
+            "name": "Release",
             "cargo": {
                 "args": [
                     "build",
                     "--release",
                     "--bin=wde-engine",
                     "--package=wde-engine",
-                    "--features=editor",
-                    "--target-dir=target/editor"
+                    "--target-dir=target"
                 ],
                 "filter": {
                     "name": "wde-engine",
@@ -63,63 +65,23 @@
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+            }
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Trace engine",
+            "name": "Generate docs",
             "cargo": {
                 "args": [
-                    "build",
-                    "--bin=wde-engine",
-                    "--package=wde-engine",
-                    "--features=tracing",
-                    "--target-dir=target/engine-trace"
-                ],
-                "filter": {
-                    "name": "wde-engine",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug engine",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=wde-engine",
-                    "--package=wde-engine",
-                    "--target-dir=target/engine"
-                ],
-                "filter": {
-                    "name": "wde-engine",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Release engine",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--release",
-                    "--bin=wde-engine",
-                    "--package=wde-engine",
-                    "--target-dir=target/engine"
-                ],
-                "filter": {
-                    "name": "wde-engine",
-                    "kind": "bin"
-                }
+                    "doc",
+                    "--open",
+                    "--all-features",
+                    "--no-deps",
+                    "--document-private-items"
+                ]
             },
             "args": [],
             "cwd": "${workspaceFolder}"

@@ -1,8 +1,0 @@
-{
-    "label": "Cube",
-    "metadata": {
-        "type": "MODEL",
-        "source": "models/cube.obj",
-        "dependencies": []
-    }
-}

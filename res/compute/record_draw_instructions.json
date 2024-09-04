@@ -1,8 +1,0 @@
-{
-    "label": "Record Draw Instructions",
-    "metadata": {
-        "type": "SHADER",
-        "source": "compute/record_draw_instructions.comp.wgsl",
-        "dependencies": []
-    }
-}

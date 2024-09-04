@@ -1,10 +1,16 @@
-/target
-core/*/target
+# Rust
 **/*.rs.bk
+target/
+
+# Cargo
 Cargo.lock
 .cargo/config
 .cargo/config.toml
+
+# Editor
 /.idea
 /.vscode/settings.json
-log.txt
-trace.json
+
+# Custom
+tracy/
+

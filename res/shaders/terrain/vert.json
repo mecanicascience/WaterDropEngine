@@ -1,8 +1,0 @@
-{
-    "label": "Terrain Vertex",
-    "metadata": {
-        "type": "SHADER",
-        "source": "shaders/terrain/vert.wgsl",
-        "dependencies": []
-    }
-}

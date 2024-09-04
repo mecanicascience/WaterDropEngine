@@ -1,8 +1,0 @@
-{
-    "label": "Lost Empire",
-    "metadata": {
-        "type": "MODEL",
-        "source": "models/lost_empire.obj",
-        "dependencies": []
-    }
-}

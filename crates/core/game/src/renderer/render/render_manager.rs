@@ -1,0 +1,100 @@
+//! Rendering system for the WDE renderer. Handle the initialization and presentation of the wgpu renderer.
+
+use bevy::{prelude::*, window::{PrimaryWindow, RawHandleWrapperHolder}};
+use wde_wgpu::instance::{self, setup_surface, WRenderEvent, WRenderInstance};
+
+use crate::renderer::SwapchainFrame;
+
+use crate::renderer::{extract_macros::ExtractWorld, EmptyWorld};
+
+
+/// Initialize the main world empty resource.
+pub(crate) fn init_main_world(mut commands: Commands) {
+    // Initialize the empty world resource
+    commands.init_resource::<EmptyWorld>();
+}
+
+/// Initialize the wgpu surface.
+pub(crate) fn init_surface(mut commands: Commands, mut render_instance: ResMut<WRenderInstance<'static>>, primary_window: ExtractWorld<Query<&RawHandleWrapperHolder, With<PrimaryWindow>>>) {
+    trace!("Initializing wgpu surface");
+    
+    // Create the wgpu surface
+    let surface = {
+        // Retrieve window
+        let window_handle = primary_window.single().0.lock().expect(
+            "Couldn't get the window handle in time for surface initialization.",
+        );
+        if let Some(wrapper) = window_handle.as_ref() {
+            let handle = unsafe { wrapper.get_handle() };
+            Some(
+                render_instance.as_ref().data.lock().unwrap().instance
+                    .create_surface(handle)
+                    .expect("Failed to create wgpu surface"),
+            )
+        } else {
+            error!("Failed to get window handle.");
+            None
+        }
+    }.unwrap();
+
+    // Store the surface configuration
+    let surface_config = {
+        let instance_ref = render_instance.as_ref().data.as_ref().lock().unwrap();
+        setup_surface("wde_renderer", (600, 500),
+            &instance_ref.device, &surface, &instance_ref.adapter)
+    };
+    let mut mut_render_instance = render_instance.as_mut().data.lock().unwrap();
+    mut_render_instance.surface = Some(surface);
+    mut_render_instance.surface_config = Some(surface_config);
+
+    // Insert empty swapchain frame
+    commands.init_resource::<SwapchainFrame>();
+}
+
+/// Extract the window size from the primary window and update the surface configuration.
+pub(crate) fn prepare(mut swapchain_frame: ResMut<SwapchainFrame>, render_instance: Res<WRenderInstance<'static>>) {
+    // Wait for the surface to be initialized
+    if render_instance.data.lock().unwrap().surface.is_none() {
+        debug!("Waiting for surface to be initialized.");
+        return
+    }
+
+    // Retrieve the current texture
+    let render_data = render_instance.data.lock().unwrap();
+    match instance::get_current_texture(
+        render_data.surface.as_ref().unwrap(), 
+        render_data.surface_config.as_ref().unwrap()
+    ) {
+        WRenderEvent::Redraw(render_texture) => {
+            swapchain_frame.data = Some(render_texture);
+        },
+        WRenderEvent::Resize => {
+            debug!("Received resize event from render instance.");
+            instance::resize(&render_data.device, render_data.surface.as_ref().unwrap(),
+                render_data.surface_config.as_ref().unwrap());
+            match instance::get_current_texture(
+                render_data.surface.as_ref().unwrap(),
+                render_data.surface_config.as_ref().unwrap()
+            ) {
+                WRenderEvent::Redraw(render_texture) => {
+                    swapchain_frame.data = Some(render_texture);
+                },
+                _ => {
+                    error!("Failed to get current texture after resize event.");
+                },
+            }
+        },
+        WRenderEvent::None => {},
+    }
+}
+
+/// Present the rendered frame to the screen.
+pub(crate) fn present(mut swapchain_frame: ResMut<SwapchainFrame>) {
+    let _ = instance::present(match swapchain_frame.data.take() {
+        Some(render_texture) => render_texture.texture,
+        None => {
+            error!("Failed to present frame: no render texture found.");
+            return
+        },
+    });
+}
