@@ -5,7 +5,7 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
-wde-game = { path = "../crates/core/game" }
+wde-game = { path = "../crates/game" }
 
 [build-dependencies]
 anyhow = "1.0"

@@ -19,7 +19,7 @@ debug = false
 
 [dependencies]
 thiserror = "1.0"
-wde-wgpu = { path = "../../third_party/wgpu" }
+wde-wgpu = { path = "../wgpu" }
 serde = { version = "1.0", features = ["derive"] }
 stb_image = "0.3"
 bytemuck = { version = "1.14", features = [ "derive" ] }
