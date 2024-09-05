@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::{bind_group::WBindGroup, compute_pipeline::WComputePipeline, instance::WRenderError};
+use crate::{compute_pipeline::WComputePipeline, instance::WRenderError};
 
 
 /// Create a compute pass instance.
@@ -85,14 +85,16 @@ impl<'a> WComputePass<'a> {
         self
     }
 
-    /// Set a bind group of the compute pass at a binding.
+    /// Add a set bind groups of the compute pass at a binding.
     /// 
     /// # Arguments
     /// 
     /// * `binding` - The binding of the bind group.
     /// * `bind_group` - The bind group to set.
-    pub fn set_bind_group(&mut self, binding: u32, bind_group: &'a WBindGroup) -> &mut Self {
-        self.compute_pass.set_bind_group(binding, &bind_group.group, &[]);
+    pub fn set_bind_groups(&mut self, binding: u32, bind_group: &'a Vec<wgpu::BindGroup>) -> &mut Self {
+        for bg in bind_group {
+            self.compute_pass.set_bind_group(binding, bg, &[]);
+        }
         self
     }
 

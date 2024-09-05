@@ -7,7 +7,6 @@ use bevy::log::trace;
 use wgpu::BufferAddress;
 use wgpu::ShaderStages;
 
-use crate::bind_group::WBindGroup;
 use crate::buffer::WBuffer;
 use crate::instance::WRenderError;
 
@@ -171,8 +170,8 @@ impl<'a> WRenderPass<'a> {
     /// 
     /// * `binding` - The binding of the bind group.
     /// * `bind_group` - The bind group to set.
-    pub fn set_bind_group(&mut self, binding: u32, bind_group: &'a WBindGroup) -> &mut Self {
-        self.render_pass.set_bind_group(binding, &bind_group.group, &[]);
+    pub fn set_bind_group(&mut self, binding: u32, bind_group: &'a wgpu::BindGroup) -> &mut Self {
+        self.render_pass.set_bind_group(binding, bind_group, &[]);
         self
     }
 

@@ -1,5 +1,5 @@
 use bevy::{asset::Handle, ecs::prelude::*};
-use wde_wgpu::render_pipeline::{ShaderStages, WTopology};
+use wde_wgpu::{bind_group::BindGroupLayout, render_pipeline::{ShaderStages, WTopology}};
 
 use crate::scene::resources::Shader;
 
@@ -27,7 +27,7 @@ pub struct RenderPipelineDescriptor {
     /// Whether the pipeline should have a depth/stencil attachment (default: false).
     pub depth_stencil: bool,
     /// The bind group layouts that the pipeline will use.
-    pub bind_group_layouts: Vec<u32>,
+    pub bind_group_layouts: Vec<BindGroupLayout>,
     /// The push constants that the pipeline will use.
     pub push_constants: Vec<PushConstantDescriptor>,
     /// The primitive topology that the pipeline will use (default: TriangleList).

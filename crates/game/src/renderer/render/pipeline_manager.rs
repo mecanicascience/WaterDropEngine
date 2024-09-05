@@ -30,6 +30,7 @@ impl Plugin for PipelineManagerPlugin {
 
 
 #[derive(Resource, Default)]
+/// Stores the different pipelines in queue and loaded.
 pub struct PipelineManager {
     pub pipeline_iter: CachedPipelineIndex,
 
@@ -164,6 +165,12 @@ fn load_pipelines(
 
         warn!("Loading pipeline: {}", descriptor.label);
 
+        // Build the layouts
+        let mut bind_group_layouts = Vec::new();
+        for layout in descriptor.bind_group_layouts.iter() {
+            bind_group_layouts.push(layout.build(&render_instance.data.lock().unwrap()));
+        }
+
         // Load the pipeline
         let mut pipeline = WRenderPipeline::new(descriptor.label);
         if let Some(vert_shader) = vert_shader {
@@ -179,9 +186,7 @@ fn load_pipelines(
         for push_constant in descriptor.push_constants.iter() {
             pipeline.add_push_constant(push_constant.stages, push_constant.offset, push_constant.size);
         }
-        for _ in descriptor.bind_group_layouts.iter() {
-            // pipeline.add_bind_group(*bind_group);
-        }
+        pipeline.set_bind_groups(bind_group_layouts);
         match pipeline.init(&render_instance.data.lock().unwrap()) {
             Ok(_) => (),
             Err(e) => {
