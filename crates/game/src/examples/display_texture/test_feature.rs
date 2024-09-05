@@ -118,7 +118,6 @@ fn render_texture(
             None);
 
         if display_texture_holders.texture.is_some() {
-            // Dummy texture display
             if let (
                 CachedPipelineStatus::Ok(pipeline),
                 Some(layout),
