@@ -2,60 +2,67 @@ use bevy::prelude::*;
 use wde_render::{assets::{render_assets::RenderAssets, GpuMesh, GpuTexture, Mesh, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::ShaderStages, vertex::WVertex};
 
-use super::test_component::TestComponent;
+use super::test_component::DisplayTextureComponent;
 
 #[derive(Resource)]
-pub struct TestPipeline {
+pub struct DisplayTexturePipeline {
     pub index: CachedPipelineIndex,
-    pub test_layout: BindGroupLayout,
-    pub test_layout_built: Option<WgpuBindGroupLayout>,
+    pub layout: BindGroupLayout,
+    pub layout_built: Option<WgpuBindGroupLayout>,
 }
-impl TestPipeline {
-    fn build(mut pipeline: ResMut<TestPipeline>, render_instance: Res<WRenderInstance<'static>>) {
-        pipeline.test_layout_built = Some(pipeline.test_layout.build(&render_instance.data.lock().unwrap()));
+impl DisplayTexturePipeline {
+    fn build(mut pipeline: ResMut<DisplayTexturePipeline>, render_instance: Res<WRenderInstance<'static>>) {
+        pipeline.layout_built = Some(pipeline.layout.build(&render_instance.data.lock().unwrap()));
     }
 }
-impl FromWorld for TestPipeline {
+impl FromWorld for DisplayTexturePipeline {
     fn from_world(world: &mut World) -> Self {
-        // Create the test layout
-        let test_layout = BindGroupLayout::new("TestPipeline", |builder| {
-            builder.add_texture(0, ShaderStages::FRAGMENT);
+        // Create the layout of the bind group at binding 0
+        let layout = BindGroupLayout::new("display-texture", |builder| {
+            // Set the texture view and sampler
+            builder.add_texture_view(0, ShaderStages::FRAGMENT);
+            builder.add_texture_sampler(1, ShaderStages::FRAGMENT);
         });
 
         // Create the pipeline
         let pipeline_desc = RenderPipelineDescriptor {
-            label: "TestPipeline",
-            vert: Some(world.load_asset("test/test.vert.wgsl")),
-            frag: Some(world.load_asset("test/test.frag.wgsl")),
+            label: "display-texture",
+            vert: Some(world.load_asset("examples/display_texture/vert.wgsl")),
+            frag: Some(world.load_asset("examples/display_texture/frag.wgsl")),
             depth_stencil: false,
-            bind_group_layouts: vec![test_layout.clone()],
+            bind_group_layouts: vec![layout.clone()],
             ..Default::default()
         };
         let cached_index = world.get_resource_mut::<PipelineManager>().unwrap().create_render_pipeline(pipeline_desc);
-        TestPipeline { index: cached_index, test_layout, test_layout_built: None }
+        DisplayTexturePipeline { index: cached_index, layout, layout_built: None }
     }
 }
 
 
 
 #[derive(Resource, Default)]
-pub struct TestPipelineMesh {
+pub struct DisplayTextureMesh {
     pub mesh: Handle<Mesh>,
 }
 
-pub struct TestFeature;
-impl Plugin for TestFeature {
+#[derive(Resource, Default)]
+pub struct DisplayTextureHolder {
+    pub texture: Option<Handle<Texture>>,
+}
+
+pub struct DisplayTextureFeature;
+impl Plugin for DisplayTextureFeature {
     fn build(&self, app: &mut App) {
         {
             let render_app = app.get_sub_app_mut(RenderApp).unwrap();
             render_app
-                .init_resource::<TestElementsRender>()
-                .add_systems(Extract, extract_render_test)
-                .add_systems(Render, TestPipeline::build.in_set(RenderSet::Prepare).run_if(run_once()))
-                .add_systems(Render, render_test.in_set(RenderSet::Render));
+                .init_resource::<DisplayTextureHolder>()
+                .add_systems(Extract, extract_texture)
+                .add_systems(Render, DisplayTexturePipeline::build.in_set(RenderSet::Prepare).run_if(run_once()))
+                .add_systems(Render, render_texture.in_set(RenderSet::Render));
         }
 
-        // Create the post process mesh
+        // Create the 2d quad mesh
         let post_process_mesh: Handle<Mesh> = app.world_mut().add_asset(Mesh {
             label: "PostProcessQuad".to_string(),
             vertices: vec![
@@ -70,64 +77,58 @@ impl Plugin for TestFeature {
         // Add resources
         let render_app = app.get_sub_app_mut(RenderApp).unwrap();
         render_app
-            .init_resource::<TestPipeline>()
-            .insert_resource(TestPipelineMesh { mesh: post_process_mesh });
+            .init_resource::<DisplayTexturePipeline>()
+            .insert_resource(DisplayTextureMesh { mesh: post_process_mesh });
     }
 }
 
 
 
-
-#[derive(Resource, Default)]
-pub struct TestElementsRender {
-    pub heightmaps: Vec<Handle<Texture>>,
-}
-
-fn extract_render_test(test_elements: ExtractWorld<Query<Ref<TestComponent>>>, mut test_elements_render: ResMut<TestElementsRender>) {
-    test_elements_render.heightmaps.clear();
-    for test_element in test_elements.iter() {
-        // Add the heightmap to the render list
-        test_elements_render.heightmaps.push(test_element.heightmap.clone());
+// Extract the texture handle every frame
+fn extract_texture(display_texture_cpus: ExtractWorld<Query<Ref<DisplayTextureComponent>>>, mut display_texture_holder: ResMut<DisplayTextureHolder>) {
+    display_texture_holder.texture = None;
+    if let Some(display_texture_cpu) = display_texture_cpus.iter().next() {
+        display_texture_holder.texture = Some(display_texture_cpu.texture.clone());
     }
 }
 
-fn render_test(
+fn render_texture(
     (render_instance, swapchain_frame, pipeline_manager): (
         Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
     ),
     (textures, meshes): (
         Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMesh>>
     ),
-    (test_elements, texture_test_pipeline, test_pipeline_mesh): (
-        Res<TestElementsRender>, Res<TestPipeline>, Res<TestPipelineMesh>,
+    (display_texture_holders, texture_test_pipeline, test_pipeline_mesh): (
+        Res<DisplayTextureHolder>, Res<DisplayTexturePipeline>, Res<DisplayTextureMesh>,
     )
 ) {
-    // Render the test elements
+    // Render the texture
     let render_instance = render_instance.data.lock().unwrap();
     let swapchain_frame = swapchain_frame.data.as_ref().unwrap();
-    let mut command_buffer = WCommandBuffer::new(&render_instance, "dummy");
+    let mut command_buffer = WCommandBuffer::new(&render_instance, "display-texture");
 
     {
         let mut render_pass = command_buffer.create_render_pass(
-            "dummy", &swapchain_frame.view,
+            "display-texture", &swapchain_frame.view,
             Some(Operations {
-                load: LoadOp::Clear(Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
+                load: LoadOp::Clear(Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
                 store: StoreOp::Store,
             }),
             None);
 
-        if !test_elements.heightmaps.is_empty() {
+        if display_texture_holders.texture.is_some() {
             // Dummy texture display
             if let (
                 CachedPipelineStatus::Ok(pipeline),
                 Some(layout),
                 Some(mesh),
-                Some(heightmap)
+                Some(texture)
             ) = (
                 pipeline_manager.get_pipeline(texture_test_pipeline.index),
-                &texture_test_pipeline.test_layout_built,
+                &texture_test_pipeline.layout_built,
                 meshes.get(&test_pipeline_mesh.mesh),
-                textures.get(&test_elements.heightmaps[0])
+                textures.get(display_texture_holders.texture.as_ref().unwrap())
             ) {
                 // Set the pipeline
                 if render_pass.set_pipeline(pipeline).is_ok() {
@@ -136,24 +137,25 @@ fn render_test(
                     render_pass.set_index_buffer(&mesh.index_buffer);
 
                     // Set bind group
-                    let bind_group = BindGroup::build("TestPipeline", &render_instance, layout, &vec![
-                        BindGroup::texture_view(0, &heightmap.texture),
-                        BindGroup::texture_sampler(1, &heightmap.texture)
+                    let bind_group = BindGroup::build("display-texture", &render_instance, layout, &vec![
+                        BindGroup::texture_view(0, &texture.texture),
+                        BindGroup::texture_sampler(1, &texture.texture)
                     ]);
                     render_pass.set_bind_group(0, &bind_group);
 
                     match render_pass.draw_indexed(0..mesh.index_count, 0..1) {
                         Ok(_) => {},
                         Err(e) => {
-                            error!("Failed to draw: {:?}", e);
+                            error!("Failed to draw: {:?}.", e);
                         }
                     };
                 } else {
-                    error!("Failed to set pipeline");
+                    error!("Failed to set pipeline.");
                 }
             }
         }
     }
 
+    // Submit the command buffer
     command_buffer.submit(&render_instance);
 }

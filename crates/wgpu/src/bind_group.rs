@@ -40,7 +40,7 @@ impl BindGroupLayoutBuilder {
     /// 
     /// * `binding` - The binding index of the texture. Note that the binding index of the sampler is incremented by 1
     /// * `visibility` - The shader stages that can access the texture.
-    pub fn add_texture(&mut self, binding: u32, visibility: wgpu::ShaderStages) -> &mut Self {
+    pub fn add_texture_view(&mut self, binding: u32, visibility: wgpu::ShaderStages) -> &mut Self {
         // Create bind group layout
         self.layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding,
@@ -52,8 +52,19 @@ impl BindGroupLayoutBuilder {
             },
             count: None
         });
+
+        self
+    }
+
+    /// Add a texture to the bind group.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `binding` - The binding index of the texture. Note that the binding index of the sampler is incremented by 1
+    /// * `visibility` - The shader stages that can access the texture.
+    pub fn add_texture_sampler(&mut self, binding: u32, visibility: wgpu::ShaderStages) -> &mut Self {
         self.layout_entries.push(wgpu::BindGroupLayoutEntry {
-            binding: binding + 1,
+            binding,
             visibility,
             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
             count: None,

@@ -1,10 +1,10 @@
 #![allow(clippy::just_underscores_and_digits)]
 
 use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
-use test_render::{test_component::TestComponentPlugin, test_feature::TestFeature};
+use examples::ExamplesPugin;
 use wde_render::RenderPlugin;
 
-mod test_render;
+mod examples;
 
 pub fn start_game() {
     // Log level
@@ -66,10 +66,8 @@ pub fn start_game() {
     // Add the render plugin
     app.add_plugins(RenderPlugin);
 
-    // Add the game plugin
-    app
-        .add_plugins(TestComponentPlugin)
-        .add_plugins(TestFeature);
+    // Add the examples plugin
+    app.add_plugins(ExamplesPugin);
 
     // Run the app
     info!("Running game engine.");
