@@ -1,6 +1,6 @@
 #![allow(clippy::just_underscores_and_digits)]
 
-use bevy::{input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
+use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
 use test_render::{test_component::TestComponentPlugin, test_feature::TestFeature};
 use wde_render::RenderPlugin;
 
@@ -22,7 +22,33 @@ pub fn start_game() {
 
     // Add default bevy plugins
     let app = app
-        .add_plugins(MinimalPlugins)
+        .add_plugins(MinimalPlugins.set(TaskPoolPlugin {
+            task_pool_options: TaskPoolOptions {
+                min_total_threads: 1,
+                max_total_threads: usize::MAX,
+
+                // Use 25% of cores for IO, at least 1, no more than 4
+                io: TaskPoolThreadAssignmentPolicy {
+                    min_threads: 1,
+                    max_threads: 4,
+                    percent: 0.25,
+                },
+
+                // Do not use async compute
+                async_compute: TaskPoolThreadAssignmentPolicy {
+                    min_threads: 0,
+                    max_threads: 0,
+                    percent: 0.0,
+                },
+
+                // Use all remaining cores for compute (at least 1)
+                compute: TaskPoolThreadAssignmentPolicy {
+                    min_threads: 1,
+                    max_threads: usize::MAX,
+                    percent: 1.0, // This 1.0 here means "whatever is left over"
+                },
+            }
+        }))
         .add_plugins(LogPlugin {
             level,
             filter: "wgpu_hal=warn,wgpu_core=warn,naga=warn".to_string(),

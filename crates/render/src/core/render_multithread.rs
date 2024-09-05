@@ -138,7 +138,8 @@ impl Plugin for PipelinedRenderingPlugin {
             render_to_app_receiver,
         ));
 
-        std::thread::spawn(move || {
+        let render_thread = std::thread::Builder::new().name("Render thread".to_string());
+        render_thread.spawn(move || {
             // Set thread name for debugging
 
             #[cfg(feature = "trace")]
@@ -168,7 +169,7 @@ impl Plugin for PipelinedRenderingPlugin {
             }
 
             tracing::debug!("exiting pipelined rendering thread");
-        });
+        }).expect("Failed to spawn render thread");
     }
 }
 
