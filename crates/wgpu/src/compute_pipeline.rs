@@ -125,21 +125,21 @@ impl WComputePipeline {
         // Load shaders
         trace!(self.label, "Loading shader.");
         let shader_module = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("{}-compute-pipeline-shader", self.label).as_str()),
+            label: Some(format!("{}-compute-pip-shader", self.label).as_str()),
             source: wgpu::ShaderSource::Wgsl(self.config.shader.clone().into())
         });
 
         // Create pipeline layout
         trace!(self.label, "Creating compute pipeline instance.");
         let layout = instance.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some(format!("{}-compute-pipeline-layout", self.label).as_str()),
+            label: Some(format!("{}-compute-pip-layout", self.label).as_str()),
             bind_group_layouts: &d.bind_groups.iter().collect::<Vec<&wgpu::BindGroupLayout>>(),
             push_constant_ranges: &d.push_constants,
         });
 
         // Create a compute pipeline
         let pipeline = instance.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some(format!("{}-compute-pipeline", self.label).as_str()),
+            label: Some(format!("{}-compute-pip", self.label).as_str()),
             layout: Some(&layout),
             module: &shader_module,
             entry_point: "main",

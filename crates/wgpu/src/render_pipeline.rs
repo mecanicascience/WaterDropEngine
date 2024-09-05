@@ -181,18 +181,18 @@ impl WRenderPipeline {
         // Load shaders
         trace!(self.label, "Loading shaders.");
         let shader_module_vert = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("{}-render-pipeline-vertex-shader", self.label).as_str()),
+            label: Some(format!("{}-render-pip-vert", self.label).as_str()),
             source: wgpu::ShaderSource::Wgsl(self.config.vertex_shader.clone().into())
         });
         let shader_module_frag = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("{}-render-pipeline-fragment-shader", self.label).as_str()),
+            label: Some(format!("{}-render-pip-frag", self.label).as_str()),
             source: wgpu::ShaderSource::Wgsl(self.config.fragment_shader.clone().into())
         });
 
         // Create pipeline layout
         trace!(self.label, "Creating render pipeline instance.");
         let layout = instance.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some(format!("{}-render-pipeline-layout", self.label).as_str()),
+            label: Some(format!("{}-render-pip-layout", self.label).as_str()),
             bind_group_layouts: &d.bind_groups.iter().collect::<Vec<&wgpu::BindGroupLayout>>(),
             push_constant_ranges: &d.push_constants,
         });
@@ -200,7 +200,7 @@ impl WRenderPipeline {
         // Create pipeline
         let mut res: Result<(), WRenderError> = Ok(());
         let pipeline = instance.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some(format!("{}-render-pipeline", self.label).as_str()),
+            label: Some(format!("{}-render-pip", self.label).as_str()),
             layout: Some(&layout),
             cache: None,
             vertex: wgpu::VertexState {

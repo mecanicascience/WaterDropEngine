@@ -25,7 +25,7 @@ pub fn start_game() {
         .add_plugins(MinimalPlugins)
         .add_plugins(LogPlugin {
             level,
-            filter: "wgpu_hal=warn,wgpu_core=warn".to_string(),
+            filter: "wgpu_hal=warn,wgpu_core=warn,naga=warn".to_string(),
             custom_layer: |_| None,
         })
         .add_plugins(HierarchyPlugin)
@@ -35,7 +35,7 @@ pub fn start_game() {
             file_path: "res".to_string(),
             ..Default::default()
         });
-    info!("Starting game");
+    info!("Starting game engine.");
 
     // Add the render plugin
     app.add_plugins(RenderPlugin);
@@ -46,6 +46,6 @@ pub fn start_game() {
         .add_plugins(TestFeature);
 
     // Run the app
-    info!("Running game");
+    info!("Running game engine.");
     app.run();
 }

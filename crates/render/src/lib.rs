@@ -27,7 +27,7 @@ impl Plugin for RenderPlugin {
     }
 
     fn finish(&self, _app: &mut App) {
-        info!("Render plugin initialized");
+        info!("Render plugin initialized.");
     }
 }
 

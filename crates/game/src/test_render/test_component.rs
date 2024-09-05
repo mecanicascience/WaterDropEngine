@@ -31,10 +31,10 @@ fn init_test(mut commands: Commands, server: Res<AssetServer>) {
 pub struct Counter(u32);
 
 fn test_kill_entity(mut commands: Commands, test_elements: Query<(Entity, &TestComponent)>, mut counter: ResMut<Counter>) {
-    // if counter.0 == 300 {
-    //     for (entity, _) in test_elements.iter() {
-    //         commands.entity(entity).despawn();
-    //     }
-    // }
+    if counter.0 == 300 {
+        for (entity, _) in test_elements.iter() {
+            commands.entity(entity).despawn();
+        }
+    }
     counter.0 += 1;
 }
