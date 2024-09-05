@@ -1,6 +1,6 @@
 //! Compute pipeline module.
 
-use bevy::{log::trace, prelude::*};
+use bevy::{log::{trace, Level}, prelude::*, utils::tracing::event};
 use wgpu::{BindGroupLayout, ShaderStages};
 
 use crate::instance::{WRenderError, WRenderInstanceData};
@@ -113,7 +113,7 @@ impl WComputePipeline {
     /// 
     /// * `Result<(), RenderError>` - The result of the initialization.
     pub fn init(&mut self, instance: &WRenderInstanceData) -> Result<(), WRenderError> {
-        debug!(self.label, "Creating compute pipeline.");
+        event!(Level::DEBUG, "Creating compute pipeline {}.", self.label);
         let d = &self.config;
 
         // Security checks

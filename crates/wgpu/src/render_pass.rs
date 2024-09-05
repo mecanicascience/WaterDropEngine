@@ -3,7 +3,8 @@
 use std::ops::Range;
 
 use bevy::log::error;
-use bevy::log::trace;
+use bevy::log::Level;
+use bevy::utils::tracing::event;
 use wgpu::BufferAddress;
 use wgpu::ShaderStages;
 
@@ -82,7 +83,7 @@ impl<'a> WRenderPass<'a> {
     /// * `label` - The label of the render pass.
     /// * `render_pass` - The render pass to create.
     pub fn new(label: &str, render_pass: wgpu::RenderPass<'a>) -> Self {
-        trace!(label, "Creating render pass.");
+        event!(Level::TRACE, "Creating a new render pass {}.", label);
 
         Self {
             label: label.to_string(),
@@ -197,6 +198,7 @@ impl<'a> WRenderPass<'a> {
             error!(self.label, "Vertex buffer is not set.");
             return Err(WRenderError::MissingVertexBuffer);
         }
+        event!(Level::TRACE, "Drawing {} vertices and {} instances.", vertices.end - vertices.start, instances.end - instances.start);
         self.render_pass.draw(vertices, instances);
         Ok(())
     }
@@ -226,6 +228,7 @@ impl<'a> WRenderPass<'a> {
             error!(self.label, "Index buffer is not set.");
             return Err(WRenderError::MissingIndexBuffer);
         }
+        event!(Level::TRACE, "Drawing indexed {} indices and {} instances.", indices.end - indices.start, instance_index.end - instance_index.start);
         self.render_pass.draw_indexed(indices, 0, instance_index);
         Ok(())
     }
@@ -254,6 +257,7 @@ impl<'a> WRenderPass<'a> {
             error!(self.label, "Vertex buffer is not set.");
             return Err(WRenderError::MissingVertexBuffer);
         }
+        event!(Level::TRACE, "Drawing {} instances from indirect buffer.", count);
         self.render_pass.multi_draw_indirect(&buffer.buffer, offset, count);
         Ok(())
     }
@@ -285,6 +289,7 @@ impl<'a> WRenderPass<'a> {
             error!(self.label, "Index buffer is not set.");
             return Err(WRenderError::MissingIndexBuffer);
         }
+        event!(Level::TRACE, "Drawing indexed {} instances from indirect buffer.", count);
         self.render_pass.multi_draw_indexed_indirect(&buffer.buffer, offset, count);
         Ok(())
     }

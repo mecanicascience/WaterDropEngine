@@ -51,7 +51,7 @@ impl Plugin for TestFeature {
             render_app
                 .init_resource::<TestElementsRender>()
                 .add_systems(Extract, extract_render_test)
-                .add_systems(Render, TestPipeline::build.in_set(RenderSet::Prepare))
+                .add_systems(Render, TestPipeline::build.in_set(RenderSet::Prepare).run_if(run_once()))
                 .add_systems(Render, render_test.in_set(RenderSet::Render));
         }
 

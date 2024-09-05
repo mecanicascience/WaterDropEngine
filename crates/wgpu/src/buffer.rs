@@ -1,7 +1,7 @@
 //! Contains the buffer struct and its implementations.
 
 use std::fmt::Formatter;
-use bevy::log::{debug, trace};
+use bevy::{log::Level, utils::tracing::event};
 use wgpu::{util::DeviceExt, BufferView};
 
 use crate::{command_buffer::WCommandBuffer, instance::WRenderInstanceData};
@@ -69,7 +69,7 @@ impl WBuffer {
     /// * `usage` - The usage of the buffer (vertex, index, uniform, storage).
     /// * `content` - The content of the buffer.
     pub fn new(instance: &WRenderInstanceData, label: &str, size: usize, usage: BufferUsage, content: Option<&[u8]>) -> Self {
-        debug!(label, "Creating a new buffer.");
+        event!(Level::DEBUG, "Creating new buffer {}.", label);
 
         // In case the content is not provided, create an empty buffer.
         match content {
@@ -116,7 +116,7 @@ impl WBuffer {
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
     pub fn copy_from_buffer(&mut self, instance: &WRenderInstanceData<'_>, buffer: &WBuffer) {
-        trace!(self.label, "Copying data from buffer to buffer.");
+        event!(Level::TRACE, "Copying data from buffer {} to buffer {}.", buffer.label, self.label);
 
         // Create command encoder
         let mut command_buffer = WCommandBuffer::new(
@@ -138,7 +138,7 @@ impl WBuffer {
     /// * `instance` - The render instance.
     /// * `texture` - The texture to copy from.
     pub fn copy_from_texture(&mut self, instance: &WRenderInstanceData<'_>, texture: &wgpu::Texture) {
-        trace!(self.label, "Copying data from texture to buffer.");
+        event!(Level::TRACE, "Copying data from texture to buffer {}.", self.label);
 
         // Create command encoder
         let mut command_buffer = WCommandBuffer::new(
@@ -161,7 +161,7 @@ impl WBuffer {
     /// * `content` - The content to write to the buffer.
     /// * `offset` - The offset to write the content to.
     pub fn write(&mut self, instance: &WRenderInstanceData, content: &[u8], offset: usize) {
-        trace!(self.label, "Writing data to buffer.");
+        event!(Level::TRACE, "Writing data to buffer {}.", self.label);
 
         instance.queue.write_buffer(
             &self.buffer,
@@ -180,7 +180,7 @@ impl WBuffer {
     /// * `callback` - A closure that takes a reference to the buffer.
     ///     The callback takes reference to the buffer.
     pub fn map_read(&self, instance: &WRenderInstanceData, callback: impl FnOnce(BufferView)) {
-        trace!(self.label, "Mapping buffer for reading.");
+        event!(Level::TRACE, "Mapping buffer {} for reading.", self.label);
 
         // Map buffer
         let (sender, receiver) = std::sync::mpsc::channel();
@@ -210,7 +210,7 @@ impl WBuffer {
     /// * `callback` - A closure that takes a mutable reference to the buffer.
     ///     The callback takes a mutable reference to the buffer.
     pub fn map_write(&self, instance: &WRenderInstanceData, callback: impl FnOnce(BufferViewMut)) {
-        trace!(self.label, "Mapping buffer for writing.");
+        event!(Level::TRACE, "Mapping buffer {} for writing.", self.label);
 
         // Map buffer
         let (sender, receiver) = std::sync::mpsc::channel();

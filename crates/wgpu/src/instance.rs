@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use bevy::{ecs::system::SystemState, log::{debug, error, trace, warn, Level}, prelude::*, utils::tracing::span, window::{PrimaryWindow, RawHandleWrapperHolder}};
+use bevy::{ecs::system::SystemState, log::{debug, error, warn, Level}, prelude::*, utils::tracing::{event, span}, window::{PrimaryWindow, RawHandleWrapperHolder}};
 use wgpu::{Device, Limits, Surface, SurfaceConfiguration, SurfaceTexture};
 
 use crate::texture::TextureView;
@@ -197,6 +197,8 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
 /// 
 /// * `SurfaceConfiguration` - Surface configuration of the instance.
 pub fn setup_surface(label: &str, size: (u32, u32), device: &Device, surface: &Surface, adapter: &wgpu::Adapter) -> SurfaceConfiguration {
+    debug!(label, "Configuring surface.");
+
     // Retrieve surface format (sRGB if possible)
     let surface_caps = surface.get_capabilities(adapter);
     let surface_format = surface_caps.formats.iter()
@@ -205,7 +207,6 @@ pub fn setup_surface(label: &str, size: (u32, u32), device: &Device, surface: &S
         .unwrap_or(surface_caps.formats[0]);
 
     // Set surface configuration
-    debug!(label, "Configuring surface.");
     let surface_config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
         format: surface_format,
@@ -232,18 +233,18 @@ pub fn setup_surface(label: &str, size: (u32, u32), device: &Device, surface: &S
 /// 
 /// * `RenderEvent` - Render event.
 pub fn get_current_texture(surface: &Surface, surface_config: &SurfaceConfiguration) -> WRenderEvent {
+    event!(Level::TRACE, "Getting current texture.");
+
     // Get current texture
-    trace!("Getting current texture.");
     let _get_current_texture = span!(Level::INFO, "acquire_texture").entered();
     let render_texture = surface.get_current_texture();
     drop(_get_current_texture);
 
     // Check if texture is acquired
-    trace!("Checking if texture is acquired.");
+    event!(Level::TRACE, "Texture acquired. Creating render view and checking status.");
     match render_texture {
         Ok(surface_texture) => {
             // Create render view
-            trace!("Creating render view.");
             let render_view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor {
                 label: Some("Main render texture"),
                 format: match surface_config.format {
@@ -292,6 +293,7 @@ pub fn get_current_texture(surface: &Surface, surface_config: &SurfaceConfigurat
 /// 
 /// * `RenderError::CannotPresent` - Cannot present render texture.
 pub fn present(surface_texture: SurfaceTexture) -> Result<(), WRenderError> {
+    event!(Level::TRACE, "Presenting render texture.");
     surface_texture.present();
     Ok(())
 }
@@ -309,5 +311,6 @@ pub fn present(surface_texture: SurfaceTexture) -> Result<(), WRenderError> {
 /// 
 /// * `RenderError::CannotResize` - Cannot resize render instance surface.
 pub fn resize(device: &Device, surface: &Surface, surface_config: &SurfaceConfiguration) {
+    event!(Level::DEBUG, "Resizing surface.");
     surface.configure(device, surface_config);
 }

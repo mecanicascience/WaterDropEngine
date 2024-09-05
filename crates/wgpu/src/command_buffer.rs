@@ -1,5 +1,5 @@
 //! Define a command buffer to record commands for the GPU.
-use bevy::log::trace;
+use bevy::{log::Level, utils::tracing::event};
 use wgpu::Texture;
 
 use crate::{buffer::WBuffer, compute_pass::WComputePass, instance::WRenderInstanceData, texture::TextureView};
@@ -67,7 +67,7 @@ impl WCommandBuffer {
     /// * `instance` - The render instance.
     /// * `label` - The label of the command buffer.
     pub fn new(instance: &WRenderInstanceData<'_>, label: &str) -> Self {
-        trace!(label, "Creating a command buffer.");
+        event!(Level::TRACE, "Creating a command buffer {}.", label);
 
         // Create command encoder
         let command_encoder = instance.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -92,7 +92,7 @@ impl WCommandBuffer {
         color_texture: &'pass TextureView,
         color_operations: Option<Operations<Color>>,
         depth_texture: Option<&'pass TextureView>) -> WRenderPass<'pass> {
-        trace!(label, "Creating a render pass.");
+        event!(Level::TRACE, "Creating a render pass {}.", label);
 
         let mut depth_attachment = None;
         if depth_texture.is_some() {
@@ -144,6 +144,7 @@ impl WCommandBuffer {
     /// 
     /// * `label` - The label of the compute pass.
     pub fn create_compute_pass<'pass>(&'pass mut self, label: &str) -> WComputePass<'pass> {
+        event!(Level::TRACE, "Creating a compute pass {}.", label);
         let compute_pass = self.encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(format!("{}-compute-pass", label).as_str()),
             timestamp_writes: None
@@ -158,8 +159,8 @@ impl WCommandBuffer {
     /// 
     /// * `instance` - The render instance.
     pub fn submit(self, instance: &WRenderInstanceData) {
+        event!(Level::TRACE, "Submitted command buffer {}.", self.label);
         instance.queue.submit(std::iter::once(self.encoder.finish()));
-        trace!(self.label, "Submitted the command buffer.");
     }
 
 
@@ -171,7 +172,7 @@ impl WCommandBuffer {
     /// * `source` - The source buffer.
     /// * `destination` - The destination buffer.
     pub fn copy_buffer_to_buffer(&mut self, source: &WBuffer, destination: &WBuffer) {
-        trace!(src=source.label, dest=destination.label, "Copying buffer to buffer.");
+        event!(Level::TRACE, "Copying buffer {} to buffer {}.", source.label, destination.label);
 
         self.encoder.copy_buffer_to_buffer(
             &source.buffer, 0,
@@ -188,7 +189,7 @@ impl WCommandBuffer {
     /// * `destination` - The destination buffer.
     /// * `size` - The size of the texture.
     pub fn copy_texture_to_buffer(&mut self, source: &Texture, destination: &WBuffer, size: wgpu::Extent3d) {
-        trace!(dest=destination.label, "Copying texture to buffer.");
+        event!(Level::TRACE, "Copying texture to buffer {}.", destination.label);
 
         // Create texture copy
         let texture_copy = source.as_image_copy();

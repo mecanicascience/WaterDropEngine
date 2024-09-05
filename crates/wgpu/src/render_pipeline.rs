@@ -1,6 +1,6 @@
 //! Render pipeline module.
 
-use bevy::log::{debug, error, trace};
+use bevy::{log::{error, trace, Level}, utils::tracing::event};
 use wgpu::BindGroupLayout;
 
 use crate::{instance::{WRenderError, WRenderInstanceData}, texture::{WTexture, TextureFormat}, vertex::WVertex};
@@ -169,7 +169,7 @@ impl WRenderPipeline {
     /// 
     /// * `Result<(), RenderError>` - The result of the initialization.
     pub fn init(&mut self, instance: &WRenderInstanceData<'_>) -> Result<(), WRenderError> {
-        debug!(self.label, "Creating render pipeline.");
+        event!(Level::DEBUG, "Creating render pipeline {}.", self.label);
         let d = &self.config;
 
         // Security checks

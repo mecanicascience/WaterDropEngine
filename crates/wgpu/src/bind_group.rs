@@ -1,5 +1,7 @@
 //! Bind groups are used to bind resources to shaders.
 
+use bevy::{log::Level, utils::tracing::event};
+
 use crate::{buffer::WBuffer, instance::WRenderInstanceData, texture::WTexture};
 
 /// Builder for a bind group layout.
@@ -87,6 +89,8 @@ impl BindGroupLayout {
     }
 
     pub fn build(&self, instance: &WRenderInstanceData) -> wgpu::BindGroupLayout {
+        event!(Level::TRACE, "Creating bind group layout: {}.", self.label);
+
         // Create bind group layout
         instance.device.create_bind_group_layout(
             &wgpu::BindGroupLayoutDescriptor {
@@ -103,6 +107,8 @@ impl BindGroupLayout {
 pub struct BindGroup;
 impl BindGroup {
     pub fn build(label: &str, instance: &WRenderInstanceData, layout: &wgpu::BindGroupLayout, entries: &Vec<wgpu::BindGroupEntry>) -> wgpu::BindGroup {
+        event!(Level::TRACE, "Creating bind group: {}.", label);
+
         // Create bind group
         instance.device.create_bind_group(
             &wgpu::BindGroupDescriptor {

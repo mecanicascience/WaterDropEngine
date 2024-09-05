@@ -1,6 +1,6 @@
 //! Compute pass abstraction.
 
-use bevy::prelude::*;
+use bevy::{log::Level, prelude::*, utils::tracing::event};
 
 use crate::{compute_pipeline::WComputePipeline, instance::WRenderError};
 
@@ -44,6 +44,7 @@ impl<'a> WComputePass<'a> {
     /// * `label` - The label of the compute pass.
     /// * `compute_pass` - The compute pass to create.
     pub fn new(label: &str, compute_pass: wgpu::ComputePass<'a>) -> Self {
+        event!(Level::TRACE, "Creating a new compute pass {}.", label);
         Self {
             label: label.to_string(),
             compute_pass,
@@ -117,6 +118,7 @@ impl<'a> WComputePass<'a> {
         }
 
         // Dispatch
+        event!(Level::TRACE, "Dispatching compute pipeline {} with dimension ({}, {}, {}).", self.label, x, y, z);
         self.compute_pass.dispatch_workgroups(x, y, z);
         Ok(())
     }

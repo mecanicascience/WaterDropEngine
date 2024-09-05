@@ -1,6 +1,6 @@
 //! Contains the texture struct and its implementations.
 
-use bevy::log::{debug, trace};
+use bevy::{log::Level, utils::tracing::event};
 
 use crate::instance::WRenderInstanceData;
 
@@ -66,7 +66,7 @@ impl WTexture {
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
     pub fn new(instance: &WRenderInstanceData<'_>, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsages) -> Self {
-        debug!(label, "Creating texture.");
+        event!(Level::DEBUG, "Creating wgpu texture {}.", label);
         
         // Create texture
         let texture = instance.device.create_texture(&wgpu::TextureDescriptor {
@@ -150,7 +150,7 @@ impl WTexture {
     /// * `depth` - Depth of the image (ex RGB = 3, RGBA = 4).
     /// * `float_format` - Whether the format is float (true for f32, false for u8).
     pub fn copy_from_buffer(&self, instance: &WRenderInstanceData, buffer: &[u8], depth: u32, is_float: bool) {
-        trace!(self.label, "Copying buffer to texture.");
+        event!(Level::TRACE, "Copying buffer to texture.");
 
         // Copy buffer to texture
         instance.queue.write_texture(
@@ -184,7 +184,7 @@ impl WTexture {
     /// * `texture` - Texture to copy from.
     /// * `size` - Size of the texture.
     pub fn copy_from_texture(&self, instance: &WRenderInstanceData<'_>, texture: &wgpu::Texture, size: (u32, u32)) {
-        trace!(self.label, "Copying texture to texture.");
+        event!(Level::TRACE, "Copying texture to texture.");
 
         // Create command buffer
         let mut command = crate::command_buffer::WCommandBuffer::new(instance, "Copy Texture");
