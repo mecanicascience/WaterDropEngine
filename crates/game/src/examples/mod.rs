@@ -11,7 +11,7 @@ enum Examples {
 pub struct ExamplesPugin;
 impl Plugin for ExamplesPugin {
     fn build(&self, app: &mut App) {
-        let selected_example = Examples::DisplayTexture;
+        let selected_example = Examples::None;
 
         // Load the selected example
         match selected_example {

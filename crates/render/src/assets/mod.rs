@@ -1,5 +1,6 @@
 mod mesh;
 mod texture;
+mod buffer;
 mod shader;
 
 pub mod render_assets;
@@ -9,6 +10,7 @@ use render_assets::RenderAssetsPlugin;
 
 pub use mesh::*;
 pub use texture::*;
+pub use buffer::*;
 pub use shader::*;
 
 pub struct SceneResourcesPlugin;
@@ -21,11 +23,13 @@ impl Plugin for SceneResourcesPlugin {
             .init_asset_loader::<MeshLoader>()
             .init_asset::<Mesh>()
             .init_asset_loader::<ShaderLoader>()
-            .init_asset::<Shader>();
+            .init_asset::<Shader>()
+            .init_asset::<Buffer>();
 
         // Add resource loaders to transfer the assets to the GPU
         app
             .add_plugins(RenderAssetsPlugin::<GpuMesh>::default())
-            .add_plugins(RenderAssetsPlugin::<GpuTexture>::default());
+            .add_plugins(RenderAssetsPlugin::<GpuTexture>::default())
+            .add_plugins(RenderAssetsPlugin::<GpuBuffer>::default());
     }
 }

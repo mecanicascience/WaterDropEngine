@@ -2,8 +2,12 @@
 
 use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
 use examples::ExamplesPugin;
+use game::GamePlugin;
 use wde_render::RenderPlugin;
 
+mod game;
+mod components;
+mod features;
 mod examples;
 
 pub fn start_game() {
@@ -63,11 +67,11 @@ pub fn start_game() {
         });
     info!("Starting game engine.");
 
-    // Add the render plugin
-    app.add_plugins(RenderPlugin);
-
-    // Add the examples plugin
-    app.add_plugins(ExamplesPugin);
+    // Add the plugins
+    app
+        .add_plugins(RenderPlugin)
+        .add_plugins(GamePlugin)
+        .add_plugins(ExamplesPugin);
 
     // Run the app
     info!("Running game engine.");
