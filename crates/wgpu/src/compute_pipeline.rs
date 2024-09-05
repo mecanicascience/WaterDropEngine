@@ -1,7 +1,7 @@
 //! Compute pipeline module.
 
 use bevy::{log::{trace, Level}, prelude::*, utils::tracing::event};
-use wgpu::{BindGroupLayout, ShaderStages};
+use wgpu::{naga, BindGroupLayout, ShaderStages};
 
 use crate::instance::{WRenderError, WRenderInstanceData};
 
@@ -121,13 +121,32 @@ impl WComputePipeline {
             error!(self.label, "Pipeline does not have a compute shader.");
             return Err(WRenderError::MissingShader);
         }
-
-        // Load shaders
-        trace!(self.label, "Loading shader.");
-        let shader_module = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("{}-compute-pip-shader", self.label).as_str()),
-            source: wgpu::ShaderSource::Wgsl(self.config.shader.clone().into())
-        });
+        
+        // Load shader
+        trace!(self.label, "Loading compute shader.");
+        let shader_module = match naga::front::wgsl::parse_str(&self.config.shader) {
+            Ok(shader) => {
+                match naga::valid::Validator::new(
+                    naga::valid::ValidationFlags::all(),
+                    naga::valid::Capabilities::all(),
+                ).validate(&shader) {
+                    Ok(_) => {
+                        instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                            label: Some(format!("{}-render-pip-comp", self.label).as_str()),
+                            source: wgpu::ShaderSource::Wgsl(self.config.shader.to_owned().into()),
+                        })
+                    },
+                    Err(e) => {
+                        error!(self.label, "Compute shader validation failed: {:?}.", e);
+                        return Err(WRenderError::ShaderCompilationError);
+                    }
+                }
+            },
+            Err(e) => {
+                error!(self.label, "Compute shader compilation failed: {:?}.", e);
+                return Err(WRenderError::ShaderCompilationError);
+            }
+        };
 
         // Create pipeline layout
         trace!(self.label, "Creating compute pipeline instance.");

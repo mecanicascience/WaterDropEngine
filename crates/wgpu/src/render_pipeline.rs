@@ -1,7 +1,7 @@
 //! Render pipeline module.
 
 use bevy::{log::{error, trace, Level}, utils::tracing::event};
-use wgpu::BindGroupLayout;
+use wgpu::{naga, BindGroupLayout};
 
 use crate::{instance::{WRenderError, WRenderInstanceData}, texture::{WTexture, TextureFormat}, vertex::WVertex};
 
@@ -178,16 +178,56 @@ impl WRenderPipeline {
             return Err(WRenderError::MissingShader);
         }
         
-        // Load shaders
+        // Load vertex shader
         trace!(self.label, "Loading shaders.");
-        let shader_module_vert = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("{}-render-pip-vert", self.label).as_str()),
-            source: wgpu::ShaderSource::Wgsl(self.config.vertex_shader.clone().into())
-        });
-        let shader_module_frag = instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(format!("{}-render-pip-frag", self.label).as_str()),
-            source: wgpu::ShaderSource::Wgsl(self.config.fragment_shader.clone().into())
-        });
+        let shader_module_vert = match naga::front::wgsl::parse_str(&self.config.vertex_shader) {
+            Ok(shader) => {
+                match naga::valid::Validator::new(
+                    naga::valid::ValidationFlags::all(),
+                    naga::valid::Capabilities::all(),
+                ).validate(&shader) {
+                    Ok(_) => {
+                        instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                            label: Some(format!("{}-render-pip-vert", self.label).as_str()),
+                            source: wgpu::ShaderSource::Wgsl(self.config.vertex_shader.to_owned().into()),
+                        })
+                    },
+                    Err(e) => {
+                        error!(self.label, "Vertex shader validation failed: {:?}.", e);
+                        return Err(WRenderError::ShaderCompilationError);
+                    }
+                }
+            },
+            Err(e) => {
+                error!(self.label, "Vertex shader compilation failed: {:?}.", e);
+                return Err(WRenderError::ShaderCompilationError);
+            }
+        };
+
+        // Load fragment shader
+        let shader_module_frag = match naga::front::wgsl::parse_str(&self.config.fragment_shader) {
+            Ok(shader) => {
+                match naga::valid::Validator::new(
+                    naga::valid::ValidationFlags::all(),
+                    naga::valid::Capabilities::all(),
+                ).validate(&shader) {
+                    Ok(_) => {
+                        instance.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                            label: Some(format!("{}-render-pip-frag", self.label).as_str()),
+                            source: wgpu::ShaderSource::Wgsl(self.config.fragment_shader.to_owned().into()),
+                        })
+                    },
+                    Err(e) => {
+                        error!(self.label, "Fragment shader validation failed: {:?}.", e);
+                        return Err(WRenderError::ShaderCompilationError);
+                    }
+                }
+            },
+            Err(e) => {
+                error!(self.label, "Fragment shader compilation failed: {:?}.", e);
+                return Err(WRenderError::ShaderCompilationError);
+            }
+        };
 
         // Create pipeline layout
         trace!(self.label, "Creating render pipeline instance.");

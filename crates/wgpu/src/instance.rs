@@ -28,6 +28,8 @@ pub enum WRenderError {
     UnsupportedSwapchainFormat,
     /// Depth format not supported.
     UnsupportedDepthFormat,
+    /// Shader compilation error.
+    ShaderCompilationError,
 }
 
 /// Type of the render texture.
