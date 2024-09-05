@@ -1,15 +1,17 @@
 use bevy::prelude::*;
 
-use crate::{renderer::{extract_macros::*, Extract, Render, RenderSet}, scene::components::{CameraComponent, CameraViewComponent, TransformComponent}};
+use crate::{renderer::{extract_macros::*, Extract, Render, RenderApp, RenderSet}, scene::components::{CameraComponent, CameraViewComponent, TransformComponent}};
 
 pub struct CameraFeature;
 impl Plugin for CameraFeature {
     fn build(&self, app: &mut App) {
+        let render_app = app.get_sub_app_mut(RenderApp).unwrap();
+
         // Register systems
-        app.add_systems(Extract, extract_camera);
+        render_app.add_systems(Extract, extract_camera);
 
         // TEMP TEMP TEMP
-        app.add_systems(Render, log_camera_component.in_set(RenderSet::Render));
+        render_app.add_systems(Render, log_camera_component.in_set(RenderSet::Render));
     }
 }
 

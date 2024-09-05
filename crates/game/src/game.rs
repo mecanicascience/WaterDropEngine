@@ -22,9 +22,9 @@ fn init(mut commands: Commands) {
     // Creates a camera
     commands.spawn(CameraComponent {
         transform: TransformComponent {
-            position: Vec3::new(0.0, 0.0, 5.0),
-            rotation: Quat::IDENTITY,
-            scale: Vec3::splat(1.0),
+            // position: Vec3::new(0.0, 0.0, 5.0),
+            // rotation: Quat::IDENTITY,
+            // scale: Vec3::splat(1.0),
         },
         view: CameraViewComponent {
             // fov: 60.0,

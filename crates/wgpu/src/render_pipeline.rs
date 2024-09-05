@@ -1,19 +1,12 @@
 //! Render pipeline module.
 
 use bevy::log::{debug, error, trace};
-use wgpu::{ShaderStages, BindGroupLayout};
+use wgpu::BindGroupLayout;
 
 use crate::{instance::{WRenderError, WRenderInstanceData}, texture::{WTexture, TextureFormat}, vertex::WVertex};
 
 /// List of available shaders.
-#[derive(Clone, Copy)]
-pub enum WShaderType {
-    /// Vertex shader.
-    Vertex,
-    /// Fragment shader.
-    Fragment
-}
-
+pub type ShaderStages = wgpu::ShaderStages;
 /// Type of the shader module.
 pub type ShaderModule = wgpu::ShaderModule;
 
@@ -107,10 +100,11 @@ impl WRenderPipeline {
     /// 
     /// * `shader` - The shader source code.
     /// * `shader_type` - The shader type.
-    pub fn set_shader(&mut self, shader: &str, shader_type: WShaderType) -> &mut Self {
+    pub fn set_shader(&mut self, shader: &str, shader_type: ShaderStages) -> &mut Self {
         match shader_type {
-            WShaderType::Vertex => self.config.vertex_shader = shader.to_string(),
-            WShaderType::Fragment => self.config.fragment_shader = shader.to_string(),
+            ShaderStages::VERTEX => self.config.vertex_shader = shader.to_string(),
+            ShaderStages::FRAGMENT => self.config.fragment_shader = shader.to_string(),
+            _ => { error!(self.label, "Unsupported shader type."); }
         };
         self
     }
@@ -155,12 +149,9 @@ impl WRenderPipeline {
     /// * `stages` - The shader stages.
     /// * `offset` - The offset of the push constant.
     /// * `size` - The size of the push constant.
-    pub fn add_push_constant(&mut self, stages: WShaderType, offset: u32, size: u32) {
+    pub fn add_push_constant(&mut self, stages: ShaderStages, offset: u32, size: u32) {
         self.config.push_constants.push(wgpu::PushConstantRange {
-            stages : match stages {
-                WShaderType::Vertex => ShaderStages::VERTEX,
-                WShaderType::Fragment => ShaderStages::FRAGMENT
-            },
+            stages,
             range: offset..offset + size,
         });
     }

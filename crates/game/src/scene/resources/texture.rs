@@ -102,7 +102,7 @@ impl AssetLoader for TextureLoader {
 
 
 pub struct GpuTexture {
-    pub texture: wde_wgpu::texture::WTexture,
+    pub _texture: wde_wgpu::texture::WTexture,
 }
 impl RenderAsset for GpuTexture {
     type SourceAsset = Texture;
@@ -130,7 +130,7 @@ impl RenderAsset for GpuTexture {
         texture.copy_from_buffer(&render_instance, &asset.data, asset.size.2 as u32, asset.is_f32);
 
         Ok(GpuTexture {
-            texture
+            _texture: texture
         })
     }
 }

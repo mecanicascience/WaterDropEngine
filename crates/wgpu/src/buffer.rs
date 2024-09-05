@@ -9,9 +9,6 @@ use crate::{command_buffer::WCommandBuffer, instance::WRenderInstanceData};
 /// Buffer usages.
 pub type BufferUsage = wgpu::BufferUsages;
 
-/// Shader stages.
-pub type ShaderStages = wgpu::ShaderStages;
-
 /// Buffer binding types.
 pub type BufferBindingType = wgpu::BufferBindingType;
 

@@ -20,7 +20,7 @@ pub struct TestComponent {
 fn init_test(mut commands: Commands, server: Res<AssetServer>) {
     warn!("Spawning test element");
 
-    let heightmap: Handle<Texture> = server.load_with_settings("heightmap.png", |settings: &mut TextureLoaderSettings| {
+    let heightmap: Handle<Texture> = server.load_with_settings("test/heightmap.png", |settings: &mut TextureLoaderSettings| {
         settings.label = "Heightmap".to_string();
         settings.format = TextureFormat::R8Unorm;
         settings.force_depth = Some(1);

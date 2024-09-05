@@ -10,9 +10,11 @@ use window::{extract_window_size, WindowPlugins};
 use std::ops::{Deref, DerefMut};
 
 mod features;
+mod core;
 mod render;
 
 pub use features::*;
+pub use core::*;
 pub use render::*;
 
 
@@ -117,6 +119,9 @@ impl Plugin for RenderPlugin {
                 create_instance("wde_renderer", app).await
             }));
 
+            // Copy the asset server from the main app
+            render_app.insert_resource(app.world().resource::<AssetServer>().clone());
+
             // Register the extract schedule
             let mut extract_schedule = Schedule::new(Extract);
             extract_schedule.set_build_settings(ScheduleBuildSettings {
@@ -143,15 +148,23 @@ impl Plugin for RenderPlugin {
             render_app.add_systems(Render, prepare.in_set(RenderSet::Prepare));
             render_app.add_systems(Render, present.in_set(RenderSet::Submit));
 
-            // Add render features plugin
-            render_app.add_plugins(RenderFeaturesPlugin);
+            // Add render plugins
+            render_app
+                .add_plugins(PipelineManagerPlugin);
         }
 
         // Register the render app
         app.insert_sub_app(RenderApp, render_app);
 
-        // Add the render pipeline plugin
-        app.add_plugins(PipelinedRenderingPlugin);
+        {
+            // Add the render pipeline plugins
+            app.add_plugins(PipelinedRenderingPlugin);
+        }
+    }
+
+    fn finish(&self, app: &mut App) {
+        // Add the render features plugin that require access to resources
+        app.add_plugins(RenderFeaturesPlugin);
     }
 }
 

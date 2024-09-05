@@ -5,11 +5,11 @@ use std::ops::Range;
 use bevy::log::error;
 use bevy::log::trace;
 use wgpu::BufferAddress;
+use wgpu::ShaderStages;
 
 use crate::bind_group::WBindGroup;
 use crate::buffer::WBuffer;
 use crate::instance::WRenderError;
-use crate::render_pipeline::WShaderType;
 
 use super::render_pipeline::WRenderPipeline;
 
@@ -158,13 +158,10 @@ impl<'a> WRenderPass<'a> {
     /// 
     /// # Arguments
     /// 
-    /// * `types` - The shader types to set the push constants for.
+    /// * `stages` - The shader stages to set the push constants for.
     /// * `data` - The data to set.
-    pub fn set_push_constants(&mut self, types: WShaderType, data: &[u8]) -> &mut Self {
-        self.render_pass.set_push_constants(match types {
-            WShaderType::Vertex => wgpu::ShaderStages::VERTEX,
-            WShaderType::Fragment => wgpu::ShaderStages::FRAGMENT,
-        }, 0, data);
+    pub fn set_push_constants(&mut self, stages: ShaderStages, data: &[u8]) -> &mut Self {
+        self.render_pass.set_push_constants(stages, 0, data);
         self
     }
 
