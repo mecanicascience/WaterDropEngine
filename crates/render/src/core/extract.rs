@@ -2,7 +2,7 @@
 
 use bevy::{log::Level, prelude::*, utils::tracing::span};
 
-use crate::renderer::{EmptyWorld, Extract, MainWorld};
+use super::{EmptyWorld, Extract, MainWorld};
 
 /// The extract system for the renderer.
 /// This system is responsible for moving the main world into the render world.

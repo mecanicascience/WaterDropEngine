@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use bevy::{app::{App, Plugin}, asset::{AssetEvent, AssetId, Assets}, ecs::prelude::*, log::{error, warn}};
+use bevy::{app::{App, Plugin}, asset::{AssetEvent, AssetId, Assets}, ecs::prelude::*, log::{debug, error}};
 use wde_wgpu::{instance::WRenderInstance, render_pipeline::{ShaderStages, WRenderPipeline}};
 
-use crate::{renderer::{extract_macros::ExtractWorld, Extract, Render, RenderSet}, scene::resources::Shader};
+use crate::{core::{extract_macros::ExtractWorld, Extract, Render, RenderSet}, assets::Shader};
 
 use super::RenderPipelineDescriptor;
 
@@ -163,7 +163,7 @@ fn load_pipelines(
         shaders_to_pipelines.entry(descriptor.vert.as_ref().unwrap().id()).or_default().push(*id);
         shaders_to_pipelines.entry(descriptor.frag.as_ref().unwrap().id()).or_default().push(*id);
 
-        warn!("Loading pipeline: {}", descriptor.label);
+        debug!("Loading pipeline with id {}", id);
 
         // Build the layouts
         let mut bind_group_layouts = Vec::new();

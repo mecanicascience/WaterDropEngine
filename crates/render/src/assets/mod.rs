@@ -2,13 +2,14 @@ mod mesh;
 mod texture;
 mod shader;
 
+pub mod render_assets;
+
 use bevy::prelude::*;
+use render_assets::RenderAssetsPlugin;
 
 pub use mesh::*;
 pub use texture::*;
 pub use shader::*;
-
-use crate::renderer::render_assets::RenderAssetsPlugin;
 
 pub struct SceneResourcesPlugin;
 impl Plugin for SceneResourcesPlugin {

@@ -1,11 +1,10 @@
 #![allow(clippy::just_underscores_and_digits)]
 
 use bevy::{input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
-use game::GamePlugin;
+use test_render::{test_component::TestComponentPlugin, test_feature::TestFeature};
+use wde_render::RenderPlugin;
 
-mod game;
-mod renderer;
-mod scene;
+mod test_render;
 
 pub fn start_game() {
     // Log level
@@ -36,10 +35,17 @@ pub fn start_game() {
             file_path: "res".to_string(),
             ..Default::default()
         });
+    info!("Starting game");
+
+    // Add the render plugin
+    app.add_plugins(RenderPlugin);
 
     // Add the game plugin
-    let app = app.add_plugins(GamePlugin);
+    app
+        .add_plugins(TestComponentPlugin)
+        .add_plugins(TestFeature);
 
     // Run the app
+    info!("Running game");
     app.run();
 }

@@ -1,6 +1,12 @@
 //! The renderer module is responsible for rendering the scene.
 //! It extracts the main world into the render world and runs the render schedule.
 
+pub mod window;
+pub mod extract;
+pub mod render_manager;
+pub mod extract_macros;
+pub mod render_multithread;
+
 use bevy::{app::AppLabel, ecs::schedule::{ScheduleBuildSettings, ScheduleLabel}, prelude::*, tasks::futures_lite};
 use extract::{apply_extract_commands, main_extract};
 use render_manager::{init_main_world, init_surface, prepare, present};
@@ -9,13 +15,7 @@ use wde_wgpu::instance::{create_instance, WRenderTexture};
 use window::{extract_window_size, WindowPlugins};
 use std::ops::{Deref, DerefMut};
 
-mod features;
-mod core;
-mod render;
-
-pub use features::*;
-pub use core::*;
-pub use render::*;
+use crate::{features::RenderFeaturesPlugin, pipelines::PipelineManagerPlugin};
 
 
 /// Stores the main world for rendering as a resource.
@@ -41,13 +41,13 @@ struct EmptyWorld(World);
 /// Configure it such that it skips applying commands during the extract schedule.
 /// The extract schedule will be executed when sync is called between the main app and the sub app.
 #[derive(ScheduleLabel, Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub(crate) struct Extract;
+pub struct Extract;
 
 
 /// The renderer schedule set.
 /// The render schedule will be executed by the renderer app.
 #[derive(SystemSet, Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub(crate) enum RenderSet {
+pub enum RenderSet {
     /// Run the extract commands registered during the extract schedule.
     ExtractCommands,
     /// Initialize the newly created assets.
@@ -65,7 +65,7 @@ pub(crate) enum RenderSet {
 /// The renderer schedule.
 /// This schedule is responsible for rendering the scene.
 #[derive(ScheduleLabel, Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub(crate) struct Render;
+pub struct Render;
 
 impl Render {
     pub fn base() -> Schedule {
@@ -87,7 +87,7 @@ impl Render {
 
 
 #[derive(Resource, Default)]
-pub(crate) struct SwapchainFrame {
+pub struct SwapchainFrame {
     pub data: Option<WRenderTexture>,
 }
 
@@ -95,12 +95,12 @@ pub(crate) struct SwapchainFrame {
 
 /// The main app for the renderer.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, AppLabel)]
-pub(crate) struct RenderApp;
+pub struct RenderApp;
 
 
 /// The plugin that is responsible for the renderer.
-pub struct RenderPlugin;
-impl Plugin for RenderPlugin {
+pub struct RenderCorePlugin;
+impl Plugin for RenderCorePlugin {
     fn build(&self, app: &mut App) {
         // === MAIN APP ===
         // Add window
@@ -167,4 +167,3 @@ impl Plugin for RenderPlugin {
         app.add_plugins(RenderFeaturesPlugin);
     }
 }
-

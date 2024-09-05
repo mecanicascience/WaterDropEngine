@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-
-use crate::scene::resources::{Texture, TextureFormat, TextureLoaderSettings};
+use wde_render::assets::{Texture, TextureFormat, TextureLoaderSettings};
 
 pub struct TestComponentPlugin;
 impl Plugin for TestComponentPlugin {
@@ -18,8 +17,6 @@ pub struct TestComponent {
 }
 
 fn init_test(mut commands: Commands, server: Res<AssetServer>) {
-    warn!("Spawning test element");
-
     let heightmap: Handle<Texture> = server.load_with_settings("test/heightmap.png", |settings: &mut TextureLoaderSettings| {
         settings.label = "Heightmap".to_string();
         settings.format = TextureFormat::R8Unorm;
@@ -34,11 +31,10 @@ fn init_test(mut commands: Commands, server: Res<AssetServer>) {
 pub struct Counter(u32);
 
 fn test_kill_entity(mut commands: Commands, test_elements: Query<(Entity, &TestComponent)>, mut counter: ResMut<Counter>) {
-    if counter.0 == 300 {
-        warn!("Killing test elements");
-        for (entity, _) in test_elements.iter() {
-            commands.entity(entity).despawn();
-        }
-    }
+    // if counter.0 == 300 {
+    //     for (entity, _) in test_elements.iter() {
+    //         commands.entity(entity).despawn();
+    //     }
+    // }
     counter.0 += 1;
 }

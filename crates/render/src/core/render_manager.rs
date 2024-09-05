@@ -3,9 +3,9 @@
 use bevy::{prelude::*, window::{PrimaryWindow, RawHandleWrapperHolder}};
 use wde_wgpu::instance::{self, setup_surface, WRenderEvent, WRenderInstance};
 
-use crate::renderer::SwapchainFrame;
+use super::SwapchainFrame;
 
-use crate::renderer::{extract_macros::ExtractWorld, EmptyWorld};
+use super::{extract_macros::ExtractWorld, EmptyWorld};
 
 
 /// Initialize the main world empty resource.

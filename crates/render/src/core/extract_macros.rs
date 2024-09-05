@@ -6,7 +6,7 @@
 use bevy::{ecs::{component::Tick, system::{ReadOnlySystemParam, SystemMeta, SystemParam, SystemParamItem, SystemState}, world::unsafe_world_cell::UnsafeWorldCell}, prelude::*};
 use std::ops::{Deref, DerefMut};
 
-use crate::renderer::MainWorld;
+use super::MainWorld;
 
 /// Code by `Bevy`: https://github.com/bevyengine/bevy/blob/main/crates/bevy_render/src/extract_param.rs.
 /// 

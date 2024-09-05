@@ -3,9 +3,7 @@
 use bevy::{app::{App, Plugin}, ecs::{schedule::SystemConfigs, system::{StaticSystemParam, SystemParam, SystemParamItem, SystemState}, world}, prelude::*, utils::{HashMap, HashSet}};
 use thiserror::Error;
 
-use crate::renderer::RenderSet;
-
-use crate::renderer::{Extract, MainWorld, Render, RenderApp};
+use crate::core::{Extract, MainWorld, Render, RenderApp, RenderSet};
 
 
 #[derive(Debug, Error)]
@@ -21,7 +19,7 @@ pub enum PrepareAssetError<E: Send + Sync + 'static> {
 }
 
 /// Trait for assets that can be loaded to the GPU for rendering.
-pub(crate) trait RenderAsset: Send + Sync + 'static + Sized {
+pub trait RenderAsset: Send + Sync + 'static + Sized {
     type SourceAsset: Asset + Clone;
     type Param: SystemParam;
 
@@ -105,7 +103,7 @@ impl<A: RenderAsset> Default for PrepareNextFrameAssets<A> {
 
 /// Stores all GPU representations of the assets.
 #[derive(Resource)]
-pub(crate) struct RenderAssets<A: RenderAsset>(HashMap<AssetId<A::SourceAsset>, A>);
+pub struct RenderAssets<A: RenderAsset>(HashMap<AssetId<A::SourceAsset>, A>);
 impl<A: RenderAsset> Default for RenderAssets<A> {
     fn default() -> Self {
         Self(Default::default())
@@ -185,19 +183,16 @@ fn extract_render_assets<A: RenderAsset>(mut commands: Commands, mut main_world:
         let mut removed = HashSet::default();
 
         for event in events.read() {
-            info!("Event: {:?}", event);
             match event {
                 AssetEvent::Added { id } | AssetEvent::Modified { id } => {
                     // Add the asset to the render world
                     changed_assets.insert(*id);
-                    warn!("Asset added or modified: {:?}", id);
                 }
                 AssetEvent::Removed { .. } => {}
                 AssetEvent::Unused { id } => {
                     // Remove the asset from the render world
                     changed_assets.remove(id);
                     removed.insert(*id);
-                    warn!("Asset unused: {:?}. Unloading.", id);
                 }
                 AssetEvent::LoadedWithDependencies { .. } => {}
             }
@@ -208,7 +203,6 @@ fn extract_render_assets<A: RenderAsset>(mut commands: Commands, mut main_world:
         let mut added = HashSet::new();
         for id in changed_assets.drain() {
             if let Some(asset) = assets.remove(id) {
-                warn!("Extracting asset: {:?}", id);
                 extracted_assets.push((id, asset));
                 added.insert(id);
             }
@@ -263,7 +257,7 @@ fn prepare_assets<A: RenderAsset>(
 
     // Remove assets
     for removed in extracted_assets.removed.drain() {
-        warn!("Removing asset: {:?}", removed);
+        debug!("Removing asset of id {} from the render world.", removed);
         render_assets.remove(removed);
     }
 
@@ -274,8 +268,6 @@ fn prepare_assets<A: RenderAsset>(
         // Load the asset to the GPU from the CPU
         match A::prepare_asset(extracted_asset, &mut param) {
             Ok(prepared_asset) => {
-                warn!("Asset prepared: {:?}", id);
-
                 // Add the asset to the render world
                 render_assets.insert(id, prepared_asset);
             }

@@ -4,7 +4,7 @@
 use async_channel::{Receiver, Sender};
 use bevy::{app::{AppLabel, SubApp}, ecs::schedule::MainThreadExecutor, prelude::*, tasks::ComputeTaskPool, utils::tracing};
 
-use crate::renderer::RenderApp;
+use super::RenderApp;
 
 
 /// A Label for the sub app that runs the parts of pipelined rendering that need to run on the main thread.

@@ -1,5 +1,5 @@
-mod pipelines;
+mod pipeline;
 mod pipeline_manager;
 
-pub use pipelines::*;
+pub use pipeline::*;
 pub use pipeline_manager::*;

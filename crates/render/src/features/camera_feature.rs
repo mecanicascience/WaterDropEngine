@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{renderer::{extract_macros::*, Extract, Render, RenderApp, RenderSet}, scene::components::{CameraComponent, CameraViewComponent, TransformComponent}};
+use crate::{core::{extract_macros::*, Extract, Render, RenderApp, RenderSet}, components::{CameraComponent, CameraViewComponent, TransformComponent}};
 
 pub struct CameraFeature;
 impl Plugin for CameraFeature {

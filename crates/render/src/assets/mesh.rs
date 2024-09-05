@@ -3,7 +3,7 @@ use thiserror::Error;
 use serde::{Deserialize, Serialize};
 use wde_wgpu::{buffer::{BufferUsage, WBuffer}, instance::WRenderInstance, vertex::WVertex};
 
-use crate::renderer::render_assets::{PrepareAssetError, RenderAsset};
+use super::render_assets::{PrepareAssetError, RenderAsset};
 
 
 #[derive(Asset, TypePath, Clone)]
@@ -46,9 +46,9 @@ impl AssetLoader for MeshLoader {
         &'a self,
         reader: &'a mut Reader<'_>,
         settings: &'a MeshLoaderSettings,
-        _load_context: &'a mut LoadContext<'_>,
+        load_context: &'a mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
-        info!("Loading mesh on the CPU");
+        info!("Loading mesh on the CPU from {}.", load_context.asset_path());
 
         // Read the texture data
         let mut bytes = Vec::new();
@@ -84,7 +84,7 @@ impl RenderAsset for GpuMesh {
             asset: Self::SourceAsset,
             render_instance: &mut bevy::ecs::system::SystemParamItem<Self::Param>,
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
-        info!("Preparing mesh asset on the GPU");
+        debug!(asset.label, "Loading mesh on the GPU.");
 
         // Create vertex buffer
         let render_instance = render_instance.data.lock().unwrap();

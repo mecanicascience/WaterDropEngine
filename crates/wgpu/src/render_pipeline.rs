@@ -169,7 +169,7 @@ impl WRenderPipeline {
     /// 
     /// * `Result<(), RenderError>` - The result of the initialization.
     pub fn init(&mut self, instance: &WRenderInstanceData<'_>) -> Result<(), WRenderError> {
-        debug!(self.label, "Creating compute pipeline.");
+        debug!(self.label, "Creating render pipeline.");
         let d = &self.config;
 
         // Security checks

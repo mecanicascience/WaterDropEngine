@@ -4,7 +4,7 @@ use thiserror::Error;
 use serde::{Deserialize, Serialize};
 use wde_wgpu::instance::WRenderInstance;
 
-use crate::renderer::render_assets::{PrepareAssetError, RenderAsset};
+use super::render_assets::{PrepareAssetError, RenderAsset};
 
 pub type TextureFormat = wde_wgpu::texture::TextureFormat;
 pub type TextureUsages = wde_wgpu::texture::TextureUsages;
@@ -61,9 +61,9 @@ impl AssetLoader for TextureLoader {
         &'a self,
         reader: &'a mut Reader<'_>,
         settings: &'a TextureLoaderSettings,
-        _load_context: &'a mut LoadContext<'_>,
+        load_context: &'a mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
-        info!("Loading texture on the CPU");
+        debug!("Loading texture on the CPU from {}.", load_context.asset_path());
 
         // Read the texture data
         let mut bytes = Vec::new();
@@ -112,7 +112,7 @@ impl RenderAsset for GpuTexture {
             asset: Self::SourceAsset,
             render_instance: &mut bevy::ecs::system::SystemParamItem<Self::Param>,
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
-        info!("Preparing texture asset on the GPU");
+        debug!(asset.label, "Loading texture on the GPU.");
 
         let render_instance = render_instance.data.as_ref().lock().unwrap();
 

@@ -98,7 +98,7 @@ pub struct WRenderInstanceData<'a> {
 /// * `label` - Label of the instance.
 /// * `app` - Application to create the instance.
 pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'static> {
-    debug!(label, "Creating render instance.");
+    info!(label, "Creating render instance.");
     let _trace = span!(Level::INFO, "new").entered();
 
     // Set flags
@@ -133,10 +133,7 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
                     .create_surface(handle)
                     .expect("Failed to create wgpu surface"),
             )
-        } else {
-            error!("Failed to get window handle.");
-            None
-        }
+        } else { None }
     });
 
     // Retrieve adapter

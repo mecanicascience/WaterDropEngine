@@ -1,7 +1,7 @@
 use bevy::{asset::Handle, ecs::prelude::*};
 use wde_wgpu::{bind_group::BindGroupLayout, render_pipeline::{ShaderStages, WTopology}};
 
-use crate::scene::resources::Shader;
+use crate::assets::Shader;
 
 /// Describes a push constant that will be available to a shader.
 /// Note: the size of the push constant must be a multiple of 4 and must not exceed 128 bytes.

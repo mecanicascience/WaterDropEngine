@@ -1,8 +1,8 @@
 use bevy::prelude::*;
+use wde_render::{assets::{render_assets::RenderAssets, GpuMesh, GpuTexture, Mesh, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::ShaderStages, vertex::WVertex};
 
-use crate::{renderer::{extract_macros::*, render_assets::RenderAssets, CachedPipelineIndex, CachedPipelineStatus, Extract, PipelineManager, Render, RenderApp, RenderPipelineDescriptor, RenderSet, SwapchainFrame}, scene::{components::TestComponent, resources::{GpuMesh, GpuTexture, Mesh, Texture}}};
-
+use super::test_component::TestComponent;
 
 #[derive(Resource)]
 pub struct TestPipeline {

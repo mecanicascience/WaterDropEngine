@@ -4,9 +4,9 @@ use super::TransformComponent;
 
 #[derive(Component, Default, Clone, Copy, Debug)]
 pub struct CameraViewComponent {
-    // pub fov: f32,
-    // pub near: f32,
-    // pub far: f32,
+    pub fov: f32,
+    pub near: f32,
+    pub far: f32,
 }
 
 #[derive(Bundle, Default, Clone, Copy, Debug)]
