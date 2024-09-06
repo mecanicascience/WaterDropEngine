@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::{app::{App, Plugin}, asset::{AssetEvent, AssetId, Assets}, ecs::prelude::*, log::{debug, error}};
-use wde_wgpu::{instance::WRenderInstance, render_pipeline::{ShaderStages, WRenderPipeline}};
+use wde_wgpu::{instance::WRenderInstance, render_pipeline::{WShaderStages, WRenderPipeline}};
 
 use crate::{core::{extract_macros::ExtractWorld, Extract, Render, RenderSet}, assets::Shader};
 
@@ -174,12 +174,13 @@ fn load_pipelines(
         // Load the pipeline
         let mut pipeline = WRenderPipeline::new(descriptor.label);
         if let Some(vert_shader) = vert_shader {
-            pipeline.set_shader(&vert_shader.content, ShaderStages::VERTEX);
+            pipeline.set_shader(&vert_shader.content, WShaderStages::VERTEX);
         }
         if let Some(frag_shader) = frag_shader {
-            pipeline.set_shader(&frag_shader.content, ShaderStages::FRAGMENT);
+            pipeline.set_shader(&frag_shader.content, WShaderStages::FRAGMENT);
         }
         pipeline.set_topology(descriptor.topology);
+        pipeline.set_cull_mode(descriptor.cull_mode);
         if descriptor.depth_stencil {
             pipeline.set_depth_stencil();
         }

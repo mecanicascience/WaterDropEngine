@@ -1,4 +1,5 @@
 #![allow(clippy::just_underscores_and_digits)]
+#![allow(clippy::type_complexity)]
 
 pub mod assets;
 pub mod pipelines;

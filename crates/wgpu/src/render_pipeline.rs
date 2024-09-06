@@ -6,9 +6,11 @@ use wgpu::{naga, BindGroupLayout};
 use crate::{instance::{WRenderError, WRenderInstanceData}, texture::{WTexture, TextureFormat}, vertex::WVertex};
 
 /// List of available shaders.
-pub type ShaderStages = wgpu::ShaderStages;
+pub type WShaderStages = wgpu::ShaderStages;
 /// Type of the shader module.
-pub type ShaderModule = wgpu::ShaderModule;
+pub type WShaderModule = wgpu::ShaderModule;
+/// Export culling params.
+pub type WFace = wgpu::Face;
 
 /// List of available topologies.
 #[derive(Clone, Copy)]
@@ -28,6 +30,7 @@ struct WRenderPipelineConfig {
     bind_groups: Vec<wgpu::BindGroupLayout>,
     vertex_shader: String,
     fragment_shader: String,
+    cull_mode: Option<WFace>,
 }
 
 
@@ -73,6 +76,7 @@ impl WRenderPipeline {
     /// Create a new render pipeline.
     /// By default, the render pipeline does not have a depth or stencil.
     /// By default, the primitive topology is `Topology::TriangleList`.
+    /// By default, the cull mode is `Some(Face::Back)`.
     /// 
     /// # Arguments
     /// 
@@ -90,6 +94,7 @@ impl WRenderPipeline {
                 bind_groups: Vec::new(),
                 vertex_shader: String::new(),
                 fragment_shader: String::new(),
+                cull_mode: Some(WFace::Back),
             },
         }
     }
@@ -100,10 +105,10 @@ impl WRenderPipeline {
     /// 
     /// * `shader` - The shader source code.
     /// * `shader_type` - The shader type.
-    pub fn set_shader(&mut self, shader: &str, shader_type: ShaderStages) -> &mut Self {
+    pub fn set_shader(&mut self, shader: &str, shader_type: WShaderStages) -> &mut Self {
         match shader_type {
-            ShaderStages::VERTEX => self.config.vertex_shader = shader.to_string(),
-            ShaderStages::FRAGMENT => self.config.fragment_shader = shader.to_string(),
+            WShaderStages::VERTEX => self.config.vertex_shader = shader.to_string(),
+            WShaderStages::FRAGMENT => self.config.fragment_shader = shader.to_string(),
             _ => { error!(self.label, "Unsupported shader type."); }
         };
         self
@@ -131,6 +136,12 @@ impl WRenderPipeline {
         self
     }
 
+    /// Set the cull mode. None means no culling.
+    pub fn set_cull_mode(&mut self, cull_mode: Option<WFace>) -> &mut Self {
+        self.config.cull_mode = cull_mode;
+        self
+    }
+
     /// Add a set of bind groups via its layout to the render pipeline.
     /// Note that the order of the bind groups will be the same as the order of the bindings in the shaders.
     /// 
@@ -152,7 +163,7 @@ impl WRenderPipeline {
     /// * `stages` - The shader stages.
     /// * `offset` - The offset of the push constant.
     /// * `size` - The size of the push constant.
-    pub fn add_push_constant(&mut self, stages: ShaderStages, offset: u32, size: u32) {
+    pub fn add_push_constant(&mut self, stages: WShaderStages, offset: u32, size: u32) {
         self.config.push_constants.push(wgpu::PushConstantRange {
             stages,
             range: offset..offset + size,
@@ -271,7 +282,7 @@ impl WRenderPipeline {
                 topology: d.primitive_topology,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: d.cull_mode,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
                 unclipped_depth: false,

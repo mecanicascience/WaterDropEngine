@@ -1,37 +1,29 @@
 use bevy::prelude::*;
 
-use super::TransformComponent;
+use super::TransformUniform;
 
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols_array(&[
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-]);
-
+/// Camera view component with field of view, aspect ratio, near and far planes.
 #[derive(Component, Clone, Debug)]
-pub struct CameraViewComponent {
+pub struct CameraView {
     pub fov: f32,
-    pub aspect: f32,
     pub znear: f32,
     pub zfar: f32,
 }
-impl Default for CameraViewComponent {
+impl Default for CameraView {
     fn default() -> Self {
         Self {
             fov: 60.0,
-            aspect: 1.0,
             znear: 0.1,
             zfar: 1000.0,
         }
     }
 }
 
+/// Camera bundle with a position and a view.
 #[derive(Bundle, Default, Clone, Debug)]
-pub struct CameraComponent {
-    pub transform: TransformComponent,
-    pub view: CameraViewComponent,
+pub struct Camera {
+    pub transform: Transform,
+    pub view: CameraView,
 }
 
 /// Camera uniform buffer.
@@ -49,18 +41,21 @@ impl CameraUniform {
     /// 
     /// * `camera` - The camera component.
     /// * `transform` - The transform component.
+    /// * `aspect_ratio` - The aspect ratio of the screen.
     /// 
     /// # Returns
     /// 
     /// The world to screen (NDC) matrix ((openGL to WGPU) * projection * view).
-    pub fn get_world_to_ndc(transform: &TransformComponent, camera_view: &CameraViewComponent) -> Mat4 {
+    #[inline]
+    pub fn get_world_to_ndc(transform: &Transform, camera_view: &CameraView, aspect_ratio: f32) -> Mat4 {
         // World to camera
-        let view = TransformComponent::transform_world_to_obj(transform);
+        let view = TransformUniform::transform_world_to_obj(transform);
+
         // Projection from camera to NDC
-        let proj = Mat4::perspective_rh_gl(
-            camera_view.fov, camera_view.aspect, camera_view.znear, camera_view.zfar
+        let proj = Mat4::perspective_rh(
+            camera_view.fov.to_radians(), aspect_ratio,
+            camera_view.znear, camera_view.zfar
         );
-        // Convert from OpenGL to WGPU (-1.0 / 1.0 to 0.0 / 1.0)
-        OPENGL_TO_WGPU_MATRIX * proj * view
+        proj * view
     }
 }

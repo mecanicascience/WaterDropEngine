@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wde_render::components::{CameraComponent, CameraViewComponent, TransformComponent};
+use wde_render::components::{Camera, CameraController, CameraView};
 
 use crate::{components::mesh_component::MeshComponent, features::mesh_feature::MeshFeature};
 
@@ -16,12 +16,15 @@ impl Plugin for GamePlugin {
 
 fn init(mut commands: Commands) {
     // Creates a camera
-    commands.spawn(CameraComponent {
-        transform: TransformComponent {
-            position: Vec3::new(0.0, 0.0, 1.0),
-            rotation: Quat::IDENTITY,
-            scale: Vec3::splat(1.0),
+    commands.spawn(
+        (Camera {
+            transform: Transform {
+                translation: Vec3::new(2.0, 2.0, 2.0),
+                rotation: Quat::IDENTITY,
+                scale: Vec3::splat(1.0),
+            }.looking_at(Vec3::ZERO, Vec3::Y),
+            view: CameraView::default()
         },
-        view: CameraViewComponent::default()
-    });
+        CameraController::default()
+    ));
 }

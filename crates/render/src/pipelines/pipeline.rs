@@ -1,5 +1,5 @@
 use bevy::{asset::Handle, ecs::prelude::*};
-use wde_wgpu::{bind_group::BindGroupLayout, render_pipeline::{ShaderStages, WTopology}};
+use wde_wgpu::{bind_group::BindGroupLayout, render_pipeline::{WFace, WShaderStages, WTopology}};
 
 use crate::assets::Shader;
 
@@ -8,7 +8,7 @@ use crate::assets::Shader;
 #[derive(Clone)]
 pub struct PushConstantDescriptor {
     /// The shader stages that the push constant will be available to.
-    pub stages: ShaderStages,
+    pub stages: WShaderStages,
     /// The offset in bytes that the push constant will start at.
     pub offset: u32,
     /// The size in bytes of the push constant (note: this must be a multiple of 4 and must not exceed 128 bytes).
@@ -31,7 +31,9 @@ pub struct RenderPipelineDescriptor {
     /// The push constants that the pipeline will use.
     pub push_constants: Vec<PushConstantDescriptor>,
     /// The primitive topology that the pipeline will use (default: TriangleList).
-    pub topology: WTopology
+    pub topology: WTopology,
+    /// The culling mode that the pipeline will use (default: Back). None will disable culling.
+    pub cull_mode: Option<WFace>,
 }
 
 impl Default for RenderPipelineDescriptor {
@@ -43,7 +45,8 @@ impl Default for RenderPipelineDescriptor {
             depth_stencil: false,
             bind_group_layouts: vec![],
             push_constants: vec![],
-            topology: WTopology::TriangleList
+            topology: WTopology::TriangleList,
+            cull_mode: Some(WFace::Back),
         }
     }
 }

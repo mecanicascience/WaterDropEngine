@@ -1,4 +1,5 @@
 #![allow(clippy::just_underscores_and_digits)]
+#![allow(clippy::type_complexity)]
 
 use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
 use examples::ExamplesPugin;

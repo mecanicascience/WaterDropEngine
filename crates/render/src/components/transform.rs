@@ -18,27 +18,14 @@ impl TransformUniform {
     /// # Returns
     /// 
     /// The transform uniform.
-    pub fn new(transform: &TransformComponent) -> Self {
+    pub fn new(transform: &Transform) -> Self {
         Self {
-            object_to_world: TransformComponent::transform_obj_to_world(transform).to_cols_array_2d()
+            object_to_world: Self::transform_obj_to_world(transform).to_cols_array_2d()
         }
     }
 }
 
-
-
-/// Store the position, rotation and scale of an entity.
-#[derive(Component, Default, Clone, Debug)]
-pub struct TransformComponent {
-    /// The position of the entity.
-    pub position: Vec3,
-    /// The rotation of the entity.
-    pub rotation: Quat,
-    /// The scale of the entity.
-    pub scale: Vec3,
-}
-
-impl TransformComponent {
+impl TransformUniform {
     /// Get the matrix transform from object space to world space.
     /// 
     /// # Arguments
@@ -48,12 +35,9 @@ impl TransformComponent {
     /// # Returns
     /// 
     /// The matrix transform from object to world space (translate * rotate * scale).
-    pub fn transform_obj_to_world(transform: &TransformComponent) -> Mat4 {
-        let translation = Mat4::from_translation(transform.position);
-        let rotation = Mat4::from_quat(transform.rotation);
-        let scale = Mat4::from_scale(transform.scale);
-
-        translation * rotation * scale
+    #[inline]
+    pub fn transform_obj_to_world(transform: &Transform) -> Mat4 {
+        Mat4::from_scale_rotation_translation(transform.scale, transform.rotation, transform.translation)
     }
 
     /// Get the matrix transform from world space to object space.
@@ -65,8 +49,9 @@ impl TransformComponent {
     /// # Returns
     /// 
     /// The matrix transform from world to object space (translate * rotate * scale)^(-1).
-    pub fn transform_world_to_obj(transform: &TransformComponent) -> Mat4 {
-        let translation = Mat4::from_translation(-transform.position);
+    #[inline]
+    pub fn transform_world_to_obj(transform: &Transform) -> Mat4 {
+        let translation = Mat4::from_translation(-transform.translation);
         let rotation = Mat4::from_quat(transform.rotation).inverse();
         let scale = Mat4::from_scale(Vec3 {x: 1.0 / transform.scale.x, y: 1.0 / transform.scale.y, z: 1.0 / transform.scale.z});
 
@@ -78,8 +63,9 @@ impl TransformComponent {
     /// # Arguments
     /// 
     /// * `transform` - The transform component.
-    pub fn forward(transform: TransformComponent) -> Vec3 {
-        transform.rotation * Vec3 { x: 0.0, y: 0.0, z: -1.0 }
+    #[inline]
+    pub fn forward(transform: Transform) -> Vec3 {
+        transform.rotation * Vec3 { x: 0.0, y: 0.0, z: 1.0 }
     }
 
     /// Get the right vector (x axis) that the object is facing.
@@ -87,7 +73,8 @@ impl TransformComponent {
     /// # Arguments
     /// 
     /// * `transform` - The transform component.
-    pub fn right(transform: TransformComponent) -> Vec3 {
+    #[inline]
+    pub fn right(transform: Transform) -> Vec3 {
         transform.rotation * Vec3 { x: 1.0, y: 0.0, z: 0.0 }
     }
 
@@ -96,7 +83,8 @@ impl TransformComponent {
     /// # Arguments
     /// 
     /// * `transform` - The transform component.
-    pub fn up(transform: TransformComponent) -> Vec3 {
+    #[inline]
+    pub fn up(transform: Transform) -> Vec3 {
         transform.rotation * Vec3 { x: 0.0, y: 1.0, z: 0.0 }
     }
 }

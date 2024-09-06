@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use wde_render::{assets::{render_assets::RenderAssets, GpuMesh, GpuTexture, Mesh, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::ShaderStages, vertex::WVertex};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
 
 use super::test_component::DisplayTextureComponent;
 
@@ -20,8 +20,8 @@ impl FromWorld for DisplayTexturePipeline {
         // Create the layout of the bind group at binding 0
         let layout = BindGroupLayout::new("display-texture", |builder| {
             // Set the texture view and sampler
-            builder.add_texture_view(0, ShaderStages::FRAGMENT);
-            builder.add_texture_sampler(1, ShaderStages::FRAGMENT);
+            builder.add_texture_view(0, WShaderStages::FRAGMENT);
+            builder.add_texture_sampler(1, WShaderStages::FRAGMENT);
         });
 
         // Create the pipeline
