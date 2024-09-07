@@ -141,7 +141,7 @@ impl<A: RenderAsset> RenderAssets<A> {
 
 
 /// Plugin that adds the render assets system to the renderer app.
-pub(crate) struct RenderAssetsPlugin<A: RenderAsset, AFTER: RenderAssetDependency + 'static = ()> {
+pub struct RenderAssetsPlugin<A: RenderAsset, AFTER: RenderAssetDependency + 'static = ()> {
     phantom: std::marker::PhantomData<fn() -> (A, AFTER)>
 }
 impl<A: RenderAsset, AFTER: RenderAssetDependency + 'static> Plugin for RenderAssetsPlugin<A, AFTER> {

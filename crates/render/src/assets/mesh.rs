@@ -1,10 +1,21 @@
+use std::{fs::File, io::BufReader};
+
 use bevy::{asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext}, ecs::system::lifetimeless::SRes, prelude::*, utils::tracing::error};
 use thiserror::Error;
 use serde::{Deserialize, Serialize};
+use tobj::LoadError;
 use wde_wgpu::{buffer::{BufferUsage, WBuffer}, instance::WRenderInstance, vertex::WVertex};
 
 use super::render_assets::{PrepareAssetError, RenderAsset};
 
+/// The bounding box of the model.
+#[derive(Clone, Debug)]
+pub struct ModelBoundingBox {
+    /// The minimum point of the bounding box.
+    pub min: Vec3,
+    /// The maximum point of the bounding box.
+    pub max: Vec3,
+}
 
 #[derive(Asset, TypePath, Clone)]
 pub struct Mesh {
@@ -14,6 +25,8 @@ pub struct Mesh {
     pub vertices: Vec<WVertex>,
     /// The list of indices
     pub indices: Vec<u32>,
+    /// The bounding box of the model
+    pub bounding_box: ModelBoundingBox,
 }
 
 #[derive(Default)]
@@ -54,10 +67,93 @@ impl AssetLoader for MeshLoader {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
 
+        // Open file
+        #[allow(clippy::blocks_in_conditions)]
+        let load_res = match tobj::load_obj_buf(
+            &mut BufReader::new(bytes.as_slice()),
+            &tobj::LoadOptions {
+                single_index: true,
+                ..Default::default()
+            },
+            |p| {
+                let f = match File::open(p.file_name().unwrap().to_str().unwrap()) {
+                    Ok(f) => f,
+                    Err(_) => return Err(LoadError::OpenFileFailed)
+                };
+                tobj::load_mtl_buf(&mut BufReader::new(f))
+            }
+        ) {
+            Ok(res) => res,
+            Err(e) => return Err(MeshLoaderError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))),
+        };
+        let models = load_res.0;
+
+        // Bounding box of the model
+        let mut bounding_box = ModelBoundingBox {
+            min: Vec3::new(f32::MAX, f32::MAX, f32::MAX),
+            max: Vec3::new(f32::MIN, f32::MIN, f32::MIN),
+        };
+
+        // Load models
+        let mut vertices: Vec<WVertex> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
+        for m in models.iter() {
+            let mesh = &m.mesh;
+            if mesh.positions.len() % 3 != 0 {
+                return Err(MeshLoaderError::Io(std::io::Error::new(std::io::ErrorKind::Other, "Mesh positions are not divisible by 3.")));
+            }
+
+            // Allocate sizes
+            vertices.reserve(mesh.positions.len() / 3);
+
+            // Create vertices
+            for vtx in 0..mesh.positions.len() / 3 {
+                let x = mesh.positions[3 * vtx];
+                let y = mesh.positions[3 * vtx + 1];
+                let z = mesh.positions[3 * vtx + 2];
+
+                // Normals
+                let mut nx = 0.0;
+                let mut ny = 0.0;
+                let mut nz = 0.0;
+                if mesh.normals.len() >= 3 * vtx + 2 {
+                    nx = mesh.normals[3 * vtx];
+                    ny = mesh.normals[3 * vtx + 1];
+                    nz = mesh.normals[3 * vtx + 2];
+                }
+
+                // UVs
+                let mut u = 0.0;
+                let mut v = 0.0;
+                if mesh.texcoords.len() > 2 * vtx {
+                    u = mesh.texcoords[2 * vtx];
+                    v = mesh.texcoords[2 * vtx + 1];
+                }
+
+                // Vertex
+                vertices.push(WVertex {
+                    position: [x, y, z],
+                    normal: [nx, ny, nz],
+                    uv: [u, v],
+                });
+
+                // Update bounding box
+                bounding_box.min.x = bounding_box.min.x.min(x);
+                bounding_box.min.y = bounding_box.min.y.min(y);
+                bounding_box.min.z = bounding_box.min.z.min(z);
+                bounding_box.max.x = bounding_box.max.x.max(x);
+                bounding_box.max.y = bounding_box.max.y.max(y);
+                bounding_box.max.z = bounding_box.max.z.max(z);
+            }
+
+            // Push indices
+            indices.extend_from_slice(&mesh.indices);
+        }
+
+        // Return the mesh
         Ok(Mesh {
             label: settings.label.clone(),
-            vertices: vec![],
-            indices: vec![],
+            vertices, indices, bounding_box
         })
     }
 
@@ -75,6 +171,8 @@ pub struct GpuMesh {
     pub index_buffer: WBuffer,
     /// The number of indices
     pub index_count: u32,
+    /// The bounding box of the model
+    pub bounding_box: ModelBoundingBox,
 }
 impl RenderAsset for GpuMesh {
     type SourceAsset = Mesh;
@@ -107,6 +205,7 @@ impl RenderAsset for GpuMesh {
             vertex_buffer,
             index_buffer,
             index_count: asset.indices.len() as u32,
+            bounding_box: asset.bounding_box,
         })
     }
 }

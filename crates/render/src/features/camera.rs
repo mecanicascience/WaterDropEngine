@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use wde_wgpu::{bind_group::{BindGroupLayout, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, instance::WRenderInstance, render_pipeline::WShaderStages};
 
-use crate::{assets::{render_assets::RenderAssets, Buffer, GpuBuffer}, components::{CameraUniform, CameraView}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet}};
+use crate::{assets::{RenderAssets, Buffer, GpuBuffer}, components::{CameraUniform, CameraView}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet}};
 
 /// Struct to hold the camera uniform layout description.
 #[derive(Resource)]

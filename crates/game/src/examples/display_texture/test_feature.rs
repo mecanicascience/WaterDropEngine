@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wde_render::{assets::{render_assets::RenderAssets, GpuMesh, GpuTexture, Mesh, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
+use wde_render::{assets::{GpuMesh, GpuTexture, Mesh, ModelBoundingBox, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
 
 use super::test_component::DisplayTextureComponent;
@@ -72,6 +72,10 @@ impl Plugin for DisplayTextureFeature {
                 WVertex { position: [1.0, 1.0, 0.0], uv: [1.0, 1.0], normal: [0.0, 0.0, 0.0] },
             ],
             indices: vec![0, 1, 2, 0, 2, 3],
+            bounding_box: ModelBoundingBox {
+                min: Vec3::new(-1.0, -1.0, 0.0),
+                max: Vec3::new(1.0, 1.0, 0.0),
+            },
         });
         
         // Add resources

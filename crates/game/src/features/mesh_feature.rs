@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use wde_render::{assets::{render_assets::RenderAssets, GpuBuffer, GpuMesh, Mesh}, core::{Render, RenderApp, RenderSet, SwapchainFrame}, features::{CameraFeatureBuffer, CameraFeatureLayout}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
-use wde_wgpu::{bind_group::BindGroup, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, vertex::WVertex};
+use wde_render::{assets::{GpuBuffer, GpuMesh, Mesh, RenderAssets}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::{CameraFeatureBuffer, CameraFeatureLayout}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
+use wde_wgpu::{bind_group::BindGroup, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance};
 
 #[derive(Resource)]
 pub struct MeshPipeline {
@@ -26,34 +26,38 @@ impl FromWorld for MeshPipeline {
     }
 }
 
-#[derive(Resource, Default)]
-struct MeshHandler {
-    mesh: Handle<Mesh>
-}
-
 pub struct MeshFeature;
 impl Plugin for MeshFeature {
     fn build(&self, app: &mut App) {
-        // Create the 2d quad mesh
-        let post_process_mesh: Handle<Mesh> = app.world_mut().add_asset(Mesh {
-            label: "quad".to_string(),
-            vertices: vec![
-                WVertex { position: [-1.0, 1.0, 0.0], uv: [0.0, 1.0], normal: [0.0, 0.0, 0.0] },
-                WVertex { position: [-1.0, -1.0, 0.0], uv: [0.0, 0.0], normal: [0.0, 0.0, 0.0] },
-                WVertex { position: [1.0, -1.0, 0.0], uv: [1.0, 0.0], normal: [0.0, 0.0, 0.0] },
-                WVertex { position: [1.0, 1.0, 0.0], uv: [1.0, 1.0], normal: [0.0, 0.0, 0.0] },
-            ],
-            indices: vec![0, 1, 2, 0, 2, 3],
-        });
-        
         app.get_sub_app_mut(RenderApp).unwrap()
-            .add_systems(Render, render_texture.in_set(RenderSet::Render))
-            .init_resource::<MeshPipeline>()
-            .insert_resource(MeshHandler { mesh: post_process_mesh });
+            .add_systems(Extract, extract_meshes)
+            .add_systems(Render, render.in_set(RenderSet::Render))
+            .init_resource::<MeshPipeline>();
     }
 }
 
-fn render_texture(
+pub struct RenderMeshPassEntity {
+    pub transform: Transform,
+    pub mesh: Handle<Mesh>,
+}
+
+#[derive(Resource)]
+pub struct RenderMeshPass {
+    pub entities: Vec<RenderMeshPassEntity>
+}
+
+fn extract_meshes(mut commands: Commands, entities : ExtractWorld<Query<(&Transform, &Handle<Mesh>)>>) {
+    let mut render_entities = Vec::with_capacity(entities.iter().count());
+    for (transform, draw) in entities.iter() {
+        render_entities.push(RenderMeshPassEntity {
+            transform: *transform,
+            mesh: draw.clone()
+        });
+    }
+    commands.insert_resource(RenderMeshPass { entities: render_entities });
+}
+
+fn render(
     (render_instance, swapchain_frame, pipeline_manager): (
         Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
     ),
@@ -63,8 +67,8 @@ fn render_texture(
     (meshes, buffers) : (
         Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuBuffer>>
     ),
-    (mesh_pipeline, mesh_handler): (
-        Res<MeshPipeline>, Res<MeshHandler>,
+    (mesh_pipeline, render_mesh_pass): (
+        Res<MeshPipeline>, Res<RenderMeshPass>
     )
 ) {
     // Render the texture
@@ -84,11 +88,9 @@ fn render_texture(
         // Render the mesh
         if let (
             CachedPipelineStatus::Ok(pipeline),
-            Some(mesh),
             Some(camera_buffer),
         ) = (
             pipeline_manager.get_pipeline(mesh_pipeline.index),
-            meshes.get(&mesh_handler.mesh),
             buffers.get(&camera_buffer.buffer),
         ) {
             // Set the camera bind group
@@ -99,17 +101,24 @@ fn render_texture(
 
             // Set the pipeline
             if render_pass.set_pipeline(pipeline).is_ok() {
-                // Get the mesh
-                render_pass.set_vertex_buffer(0, &mesh.vertex_buffer);
-                render_pass.set_index_buffer(&mesh.index_buffer);
+                for entity in render_mesh_pass.entities.iter() {
+                    if let Some(mesh) = meshes.get(&entity.mesh) {
+                        // Set the transform
+                        // TODO
 
-                // Draw the mesh
-                match render_pass.draw_indexed(0..mesh.index_count, 0..1) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        error!("Failed to draw: {:?}.", e);
+                        // Set the mesh buffers
+                        render_pass.set_vertex_buffer(0, &mesh.vertex_buffer);
+                        render_pass.set_index_buffer(&mesh.index_buffer);
+
+                        // Draw the mesh
+                        match render_pass.draw_indexed(0..mesh.index_count, 0..1) {
+                            Ok(_) => {},
+                            Err(e) => {
+                                error!("Failed to draw: {:?}.", e);
+                            }
+                        };
                     }
-                };
+                }
             } else {
                 error!("Failed to set pipeline.");
             }

@@ -2,16 +2,17 @@ mod mesh;
 mod texture;
 mod buffer;
 mod shader;
-
-pub mod render_assets;
+mod material;
+mod render_assets;
 
 use bevy::prelude::*;
-use render_assets::RenderAssetsPlugin;
 
 pub use mesh::*;
 pub use texture::*;
 pub use buffer::*;
 pub use shader::*;
+pub use material::*;
+pub use render_assets::*;
 
 pub struct SceneResourcesPlugin;
 impl Plugin for SceneResourcesPlugin {
