@@ -1,5 +1,5 @@
-mod test_component;
-mod test_feature;
+mod component;
+mod feature;
 
-pub use test_component::*;
-pub use test_feature::*;
+pub use component::*;
+pub use feature::*;

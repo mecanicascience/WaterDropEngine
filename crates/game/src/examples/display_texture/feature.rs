@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use wde_render::{assets::{GpuMesh, GpuTexture, Mesh, ModelBoundingBox, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
 
-use super::test_component::DisplayTextureComponent;
+use super::component::DisplayTextureComponent;
 
 #[derive(Resource)]
 pub struct DisplayTexturePipeline {
