@@ -115,7 +115,7 @@ impl WBuffer {
     /// 
     /// * `instance` - The render instance.
     /// * `buffer` - The buffer to copy from.
-    pub fn copy_from_buffer(&mut self, instance: &WRenderInstanceData<'_>, buffer: &WBuffer) {
+    pub fn copy_from_buffer(&self, instance: &WRenderInstanceData<'_>, buffer: &WBuffer) {
         event!(Level::TRACE, "Copying data from buffer {} to buffer {}.", buffer.label, self.label);
 
         // Create command encoder

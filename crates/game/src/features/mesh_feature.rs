@@ -3,7 +3,7 @@ use wde_render::{assets::{Buffer, GpuBuffer, GpuMesh, GpuTexture, Mesh, RenderAs
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
 
 /// The maximum number of batches to render using the mesh feature.
-pub const MAX_BATCHES_COUNT: usize = 1000;
+pub const MAX_BATCHES_COUNT: usize = 100;
 
 pub struct MeshFeature;
 impl Plugin for MeshFeature {
@@ -22,9 +22,15 @@ impl Plugin for MeshFeature {
     fn finish(&self, app: &mut App) {
         // Create the ssbo
         let buffer: Handle<Buffer> = app.world_mut().add_asset(Buffer {
-            label: "mesh_ssbo".to_string(),
+            label: "mesh_ssbo_cpu".to_string(),
             size: std::mem::size_of::<TransformUniform>() * MAX_BATCHES_COUNT,
-            usage: BufferUsage::STORAGE | BufferUsage::MAP_WRITE,
+            usage: BufferUsage::COPY_SRC | BufferUsage::MAP_WRITE,
+            content: None,
+        });
+        let buffer_gpu: Handle<Buffer> = app.world_mut().add_asset(Buffer {
+            label: "mesh_ssbo_gpu".to_string(),
+            size: std::mem::size_of::<TransformUniform>() * MAX_BATCHES_COUNT,
+            usage: BufferUsage::STORAGE | BufferUsage::COPY_DST,
             content: None,
         });
 
@@ -32,6 +38,7 @@ impl Plugin for MeshFeature {
         app.get_sub_app_mut(RenderApp).unwrap()
             .insert_resource(RenderMeshPass {
                 ssbo: buffer,
+                ssbo_gpu: buffer_gpu,
                 batches: Vec::new()
             });
     }
@@ -122,6 +129,7 @@ pub struct RenderMeshBatch {
 #[derive(Resource)]
 pub struct RenderMeshPass {
     pub ssbo: Handle<Buffer>,
+    pub ssbo_gpu: Handle<Buffer>,
     pub batches: Vec<RenderMeshBatch>,
 }
 
@@ -176,7 +184,7 @@ fn construct_pass(
                     });
 
                     // Reset the batch
-                    first = count + first;
+                    first += count;
                     count = 1;
                     last_mesh = None;
                 }
@@ -204,6 +212,13 @@ fn construct_pass(
             });
         }
     });
+
+    // Update the ssbo
+    let ssbo_gpu = match buffers.get(&pass.ssbo_gpu) {
+        Some(ssbo) => ssbo,
+        None => return
+    };
+    ssbo_gpu.buffer.copy_from_buffer(&render_instance, &ssbo.buffer);
 }
 
 fn render(
@@ -255,7 +270,7 @@ fn render(
         ) = (
             pipeline_manager.get_pipeline(mesh_pipeline.index),
             buffers.get(&camera_buffer.buffer),
-            buffers.get(&render_mesh_pass.ssbo)
+            buffers.get(&render_mesh_pass.ssbo_gpu)
         ) {
             // Set the camera bind group
             let bind_group = BindGroup::build("camera", &render_instance, &camera_layout.layout_built, &vec![
