@@ -211,7 +211,7 @@ pub fn setup_surface(label: &str, size: (u32, u32), device: &Device, surface: &S
 
     // Set surface configuration
     let surface_config = wgpu::SurfaceConfiguration {
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: surface_format,
         width: size.0,
         height: size.1,

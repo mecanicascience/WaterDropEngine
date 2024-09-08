@@ -1,6 +1,6 @@
 use bevy::{prelude::*, window::WindowResized};
-use wde_render::{assets::{Buffer, GpuBuffer, GpuMesh, GpuTexture, Mesh, RenderAssets, Texture, TextureUsages}, components::TransformUniform, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::{CameraFeatureBuffer, CameraFeatureLayout}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
+use wde_render::{assets::{Buffer, GpuBuffer, GpuMesh, GpuTexture, Mesh, RenderAssets, Texture, TextureUsages}, components::TransformUniform, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
 
 /// The maximum number of batches to render using the mesh feature.
 pub const MAX_BATCHES_COUNT: usize = 1000;
@@ -15,6 +15,7 @@ impl Plugin for MeshFeature {
 
         app.get_sub_app_mut(RenderApp).unwrap()
             .add_systems(Extract, (construct_pass, extract_depth_texture))
+            .add_systems(Render, build_ssbo_bind_group.in_set(RenderSet::BindGroups))
             .add_systems(Render, render.in_set(RenderSet::Render))
             .init_resource::<MeshPipeline>();
     }
@@ -49,11 +50,12 @@ impl Plugin for MeshFeature {
 pub struct MeshPipeline {
     pub index: CachedPipelineIndex,
     pub ssbo_layout_built: WgpuBindGroupLayout,
+    pub ssbo_bind_group: Option<WgpuBindGroup>,
 }
 impl FromWorld for MeshPipeline {
     fn from_world(world: &mut World) -> Self {
         // Get the camera layout
-        let camera_layout = &world.get_resource::<CameraFeatureLayout>().unwrap().layout;
+        let camera_layout = &world.get_resource::<CameraFeatureRender>().unwrap().layout;
 
         // Create the ssbo layout
         let render_instance = world.get_resource::<WRenderInstance<'static>>().unwrap();
@@ -75,10 +77,32 @@ impl FromWorld for MeshPipeline {
         };
         let cached_index = world.get_resource_mut::<PipelineManager>().unwrap().create_render_pipeline(pipeline_desc);
         
-        MeshPipeline { index: cached_index, ssbo_layout_built }
+        MeshPipeline { index: cached_index, ssbo_layout_built, ssbo_bind_group: None }
     }
 }
 
+fn build_ssbo_bind_group(
+    render_instance: Res<WRenderInstance<'static>>, mut mesh_pipeline: ResMut<MeshPipeline>,
+    ssbo_buffer: Res<RenderAssets<GpuBuffer>>, render_mesh_pass: Res<RenderMeshPass>
+) {
+    // Check if the bind group is already created
+    if mesh_pipeline.ssbo_bind_group.is_some() {
+        return;
+    }
+
+    // Get the ssbo buffer
+    let ssbo_buffer = match ssbo_buffer.get(&render_mesh_pass.ssbo_gpu) {
+        Some(buffer) => buffer,
+        None => return
+    };
+
+    // Create the bind group
+    let render_instance = render_instance.data.read().unwrap();
+    let bind_group = BindGroup::build("mesh_ssbo", &render_instance, &mesh_pipeline.ssbo_layout_built, &vec![
+        BindGroup::buffer(0, &ssbo_buffer.buffer)
+    ]);
+    mesh_pipeline.ssbo_bind_group = Some(bind_group);
+}
 
 
 
@@ -225,11 +249,9 @@ fn render(
     (render_instance, swapchain_frame, pipeline_manager): (
         Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
     ),
-    (camera_buffer, camera_layout) : (
-        Res<CameraFeatureBuffer>, Res<CameraFeatureLayout>
-    ),
-    (meshes, buffers, textures): (
-        Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuBuffer>>, Res<RenderAssets<GpuTexture>>
+    camera_layout : Res<CameraFeatureRender>,
+    (meshes, textures): (
+        Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>
     ),
     (mesh_pipeline, render_mesh_pass, depth_texture): (
         Res<MeshPipeline>, Res<RenderMeshPass>, Res<MeshDepthTexture>
@@ -265,26 +287,20 @@ fn render(
         // Render the mesh
         if let (
             CachedPipelineStatus::Ok(pipeline),
-            Some(camera_buffer),
-            Some(ssbo_buffer)
+            Some(camera_bg),
+            Some(ssbo_bg)
         ) = (
             pipeline_manager.get_pipeline(mesh_pipeline.index),
-            buffers.get(&camera_buffer.buffer),
-            buffers.get(&render_mesh_pass.ssbo_gpu)
+            &camera_layout.bind_group,
+            &mesh_pipeline.ssbo_bind_group
         ) {
             // Set the camera bind group
-            let bind_group = BindGroup::build("camera", &render_instance, &camera_layout.layout_built, &vec![
-                BindGroup::buffer(0, &camera_buffer.buffer)
-            ]);
-            render_pass.set_bind_group(0, &bind_group);
+            render_pass.set_bind_group(0, camera_bg);
 
             // Set the pipeline
             if render_pass.set_pipeline(pipeline).is_ok() {
                 // Set the ssbo
-                let bind_group = BindGroup::build("mesh_ssbo", &render_instance, &mesh_pipeline.ssbo_layout_built, &vec![
-                    BindGroup::buffer(0, &ssbo_buffer.buffer)
-                ]);
-                render_pass.set_bind_group(1, &bind_group);
+                render_pass.set_bind_group(1, ssbo_bg);
 
                 for batch in render_mesh_pass.batches.iter() {
                     // Get the mesh

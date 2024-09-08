@@ -54,6 +54,8 @@ pub enum RenderSet {
     PrepareAssets,
     /// Prepare resources.
     Prepare,
+    /// Prepare the bind groups.
+    BindGroups,
     /// Render commands.
     Render,
     /// Submit commands.
@@ -76,6 +78,7 @@ impl Render {
             ExtractCommands,
             PrepareAssets,
             Prepare,
+            BindGroups,
             Render,
             Submit,
             Cleanup,

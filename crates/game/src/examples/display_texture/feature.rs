@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use wde_render::{assets::{GpuMesh, GpuTexture, Mesh, ModelBoundingBox, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
 
 use super::component::DisplayTextureComponent;
 
@@ -9,6 +9,7 @@ pub struct DisplayTexturePipeline {
     pub index: CachedPipelineIndex,
     pub layout: BindGroupLayout,
     pub layout_built: Option<WgpuBindGroupLayout>,
+    pub bind_group: Option<WgpuBindGroup>,
 }
 impl DisplayTexturePipeline {
     fn build(mut pipeline: ResMut<DisplayTexturePipeline>, render_instance: Res<WRenderInstance<'static>>) {
@@ -34,7 +35,7 @@ impl FromWorld for DisplayTexturePipeline {
             ..Default::default()
         };
         let cached_index = world.get_resource_mut::<PipelineManager>().unwrap().create_render_pipeline(pipeline_desc);
-        DisplayTexturePipeline { index: cached_index, layout, layout_built: None }
+        DisplayTexturePipeline { index: cached_index, layout, layout_built: None, bind_group: None }
     }
 }
 
@@ -59,6 +60,7 @@ impl Plugin for DisplayTextureFeature {
                 .init_resource::<DisplayTextureHolder>()
                 .add_systems(Extract, extract_texture)
                 .add_systems(Render, DisplayTexturePipeline::build.in_set(RenderSet::Prepare).run_if(run_once()))
+                .add_systems(Render, prepare_texture_bind_group.in_set(RenderSet::BindGroups))
                 .add_systems(Render, render_texture.in_set(RenderSet::Render));
         }
 
@@ -96,13 +98,36 @@ fn extract_texture(display_texture_cpus: ExtractWorld<Query<Ref<DisplayTextureCo
     }
 }
 
+// Prepare the bind group
+fn prepare_texture_bind_group(
+    (render_instance, display_texture_holder, mut texture_pipeline): (
+        Res<WRenderInstance<'static>>, Res<DisplayTextureHolder>, ResMut<DisplayTexturePipeline>
+    ),
+    display_textures: Res<RenderAssets<GpuTexture>>
+) {
+    // Check if bind group already exists
+    if texture_pipeline.bind_group.is_some() {
+        return;
+    }
+
+    if let (Some(texture), Some(pipeline_layout)) = (
+        display_textures.get(display_texture_holder.texture.as_ref().unwrap()),
+        &texture_pipeline.layout_built
+    ) {
+        let render_instance = render_instance.data.read().unwrap();
+        let bind_group = BindGroup::build("display-texture", &render_instance, pipeline_layout, &vec![
+            BindGroup::texture_view(0, &texture.texture),
+            BindGroup::texture_sampler(1, &texture.texture)
+        ]);
+        texture_pipeline.bind_group = Some(bind_group);
+    }
+}
+
 fn render_texture(
     (render_instance, swapchain_frame, pipeline_manager): (
         Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
     ),
-    (textures, meshes): (
-        Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMesh>>
-    ),
+    meshes: Res<RenderAssets<GpuMesh>>,
     (display_texture_holders, texture_test_pipeline, test_pipeline_mesh): (
         Res<DisplayTextureHolder>, Res<DisplayTexturePipeline>, Res<DisplayTextureMesh>,
     )
@@ -124,14 +149,12 @@ fn render_texture(
         if display_texture_holders.texture.is_some() {
             if let (
                 CachedPipelineStatus::Ok(pipeline),
-                Some(layout),
                 Some(mesh),
-                Some(texture)
+                Some(bind_group)
             ) = (
                 pipeline_manager.get_pipeline(texture_test_pipeline.index),
-                &texture_test_pipeline.layout_built,
                 meshes.get(&test_pipeline_mesh.mesh),
-                textures.get(display_texture_holders.texture.as_ref().unwrap())
+                &texture_test_pipeline.bind_group
             ) {
                 // Set the pipeline
                 if render_pass.set_pipeline(pipeline).is_ok() {
@@ -140,12 +163,9 @@ fn render_texture(
                     render_pass.set_index_buffer(&mesh.index_buffer);
 
                     // Set bind group
-                    let bind_group = BindGroup::build("display-texture", &render_instance, layout, &vec![
-                        BindGroup::texture_view(0, &texture.texture),
-                        BindGroup::texture_sampler(1, &texture.texture)
-                    ]);
-                    render_pass.set_bind_group(0, &bind_group);
+                    render_pass.set_bind_group(0, bind_group);
 
+                    // Draw the mesh
                     match render_pass.draw_indexed(0..mesh.index_count, 0..1) {
                         Ok(_) => {},
                         Err(e) => {

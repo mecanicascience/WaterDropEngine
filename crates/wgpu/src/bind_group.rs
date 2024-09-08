@@ -4,6 +4,9 @@ use bevy::{log::Level, utils::tracing::event};
 
 use crate::{buffer::WBuffer, instance::WRenderInstanceData, texture::WTexture};
 
+/// The wgpu bind group layout builder.
+pub type WgpuBindGroup = wgpu::BindGroup;
+
 /// Builder for a bind group layout.
 #[derive(Debug, Clone)]
 pub struct BindGroupLayoutBuilder {
