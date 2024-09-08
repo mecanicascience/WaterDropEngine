@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, RwLock};
 
-use bevy::{ecs::system::SystemState, log::{debug, error, warn, Level}, prelude::*, utils::tracing::{event, span}, window::{PrimaryWindow, RawHandleWrapperHolder}};
+use bevy::{ecs::system::SystemState, log::{debug, error, warn, Level}, prelude::*, utils::tracing::{event, span}, window::{PresentMode, PrimaryWindow, RawHandleWrapperHolder}};
 use wgpu::{Device, Limits, Surface, SurfaceConfiguration, SurfaceTexture};
 
 use crate::texture::TextureView;
@@ -194,11 +194,12 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
 /// * `device` - Device of the instance.
 /// * `surface` - Surface of the instance.
 /// * `adapter` - Adapter of the instance.
+/// * `present_mode` - Present mode of the instance.
 /// 
 /// # Returns
 /// 
 /// * `SurfaceConfiguration` - Surface configuration of the instance.
-pub fn setup_surface(label: &str, size: (u32, u32), device: &Device, surface: &Surface, adapter: &wgpu::Adapter) -> SurfaceConfiguration {
+pub fn setup_surface(label: &str, size: (u32, u32), device: &Device, surface: &Surface, adapter: &wgpu::Adapter, present_mode: PresentMode) -> SurfaceConfiguration {
     debug!(label, "Configuring surface.");
 
     // Retrieve surface format (sRGB if possible)
@@ -214,7 +215,14 @@ pub fn setup_surface(label: &str, size: (u32, u32), device: &Device, surface: &S
         format: surface_format,
         width: size.0,
         height: size.1,
-        present_mode: surface_caps.present_modes[0],
+        present_mode: match present_mode {
+            PresentMode::Fifo => wgpu::PresentMode::Fifo,
+            PresentMode::FifoRelaxed => wgpu::PresentMode::FifoRelaxed,
+            PresentMode::Mailbox => wgpu::PresentMode::Mailbox,
+            PresentMode::Immediate => wgpu::PresentMode::Immediate,
+            PresentMode::AutoVsync => wgpu::PresentMode::AutoVsync,
+            PresentMode::AutoNoVsync => wgpu::PresentMode::AutoNoVsync,
+        },
         alpha_mode: surface_caps.alpha_modes[0],
         view_formats: vec![],
         desired_maximum_frame_latency: 2

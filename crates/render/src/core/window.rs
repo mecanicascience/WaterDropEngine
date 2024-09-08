@@ -21,7 +21,7 @@ impl PluginGroup for WindowPlugins {
                     title: "WaterDropEngine".into(),
                     name: Some("waterdropengine".into()),
                     resolution: (600.0, 500.0).into(),
-                    present_mode: PresentMode::AutoVsync,
+                    present_mode: PresentMode::Mailbox,
                     fit_canvas_to_parent: true,
                     prevent_default_event_handling: false,
                     window_theme: Some(WindowTheme::Dark),

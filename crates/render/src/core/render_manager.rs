@@ -14,7 +14,7 @@ pub(crate) fn init_main_world(mut commands: Commands) {
 }
 
 /// Initialize the wgpu surface.
-pub(crate) fn init_surface(mut commands: Commands, mut render_instance: ResMut<WRenderInstance<'static>>, primary_window: ExtractWorld<Query<&RawHandleWrapperHolder, With<PrimaryWindow>>>) {
+pub(crate) fn init_surface(mut commands: Commands, mut render_instance: ResMut<WRenderInstance<'static>>, primary_window: ExtractWorld<Query<&RawHandleWrapperHolder, With<PrimaryWindow>>>, windows: ExtractWorld<Query<&Window>>) {
     trace!("Initializing wgpu surface");
     
     // Create the wgpu surface
@@ -40,7 +40,7 @@ pub(crate) fn init_surface(mut commands: Commands, mut render_instance: ResMut<W
     let surface_config = {
         let instance_ref = render_instance.as_ref().data.as_ref().read().unwrap();
         setup_surface("wde_renderer", (600, 500),
-            &instance_ref.device, &surface, &instance_ref.adapter)
+            &instance_ref.device, &surface, &instance_ref.adapter, windows.single().present_mode)
     };
     let mut mut_render_instance = render_instance.as_mut().data.write().unwrap();
     mut_render_instance.surface = Some(surface);
