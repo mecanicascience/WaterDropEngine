@@ -1,30 +1,9 @@
 use bevy::{prelude::*, window::WindowResized};
-use wde_render::{assets::{GpuBuffer, GpuMesh, GpuTexture, Mesh, RenderAssets, Texture, TextureUsages}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::{CameraFeatureBuffer, CameraFeatureLayout}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
-use wde_wgpu::{bind_group::BindGroup, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, texture::WTexture};
+use wde_render::{assets::{Buffer, GpuBuffer, GpuMesh, GpuTexture, Mesh, RenderAssets, Texture, TextureUsages}, components::TransformUniform, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::{CameraFeatureBuffer, CameraFeatureLayout}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
 
-#[derive(Resource)]
-pub struct MeshPipeline {
-    pub index: CachedPipelineIndex
-}
-impl FromWorld for MeshPipeline {
-    fn from_world(world: &mut World) -> Self {
-        // Get the camera layout
-        let layout = &world.get_resource::<CameraFeatureLayout>().unwrap().layout;
-
-        // Create the pipeline
-        let pipeline_desc = RenderPipelineDescriptor {
-            label: "mesh",
-            vert: Some(world.load_asset("mesh/vert.wgsl")),
-            frag: Some(world.load_asset("mesh/frag.wgsl")),
-            bind_group_layouts: vec![layout.clone()],
-            depth_stencil: true,
-            ..Default::default()
-        };
-        let cached_index = world.get_resource_mut::<PipelineManager>().unwrap().create_render_pipeline(pipeline_desc);
-        
-        MeshPipeline { index: cached_index }
-    }
-}
+/// The maximum number of batches to render using the mesh feature.
+pub const MAX_BATCHES_COUNT: usize = 1000;
 
 pub struct MeshFeature;
 impl Plugin for MeshFeature {
@@ -35,11 +14,64 @@ impl Plugin for MeshFeature {
 
 
         app.get_sub_app_mut(RenderApp).unwrap()
-            .add_systems(Extract, (extract_meshes, extract_depth_texture))
+            .add_systems(Extract, (construct_pass, extract_depth_texture))
             .add_systems(Render, render.in_set(RenderSet::Render))
             .init_resource::<MeshPipeline>();
     }
+
+    fn finish(&self, app: &mut App) {
+        // Create the ssbo
+        let buffer: Handle<Buffer> = app.world_mut().add_asset(Buffer {
+            label: "mesh_ssbo".to_string(),
+            size: std::mem::size_of::<TransformUniform>() * MAX_BATCHES_COUNT,
+            usage: BufferUsage::STORAGE | BufferUsage::MAP_WRITE,
+            content: None,
+        });
+
+        // Add resources
+        app.get_sub_app_mut(RenderApp).unwrap()
+            .insert_resource(RenderMeshPass {
+                ssbo: buffer,
+                batches: Vec::new()
+            });
+    }
 }
+
+
+#[derive(Resource)]
+pub struct MeshPipeline {
+    pub index: CachedPipelineIndex,
+    pub ssbo_layout_built: WgpuBindGroupLayout,
+}
+impl FromWorld for MeshPipeline {
+    fn from_world(world: &mut World) -> Self {
+        // Get the camera layout
+        let camera_layout = &world.get_resource::<CameraFeatureLayout>().unwrap().layout;
+
+        // Create the ssbo layout
+        let render_instance = world.get_resource::<WRenderInstance<'static>>().unwrap();
+        let ssbo_layout = BindGroupLayout::new("mesh_ssbo", |builder| {
+            builder.add_buffer(0,
+                WShaderStages::VERTEX,
+                BufferBindingType::Storage { read_only: true });
+        });
+        let ssbo_layout_built = ssbo_layout.build(&render_instance.data.read().unwrap());
+
+        // Create the pipeline
+        let pipeline_desc = RenderPipelineDescriptor {
+            label: "mesh",
+            vert: Some(world.load_asset("mesh/vert.wgsl")),
+            frag: Some(world.load_asset("mesh/frag.wgsl")),
+            bind_group_layouts: vec![camera_layout.clone(), ssbo_layout.clone()],
+            depth_stencil: true,
+            ..Default::default()
+        };
+        let cached_index = world.get_resource_mut::<PipelineManager>().unwrap().create_render_pipeline(pipeline_desc);
+        
+        MeshPipeline { index: cached_index, ssbo_layout_built }
+    }
+}
+
 
 
 
@@ -79,26 +111,99 @@ fn extract_depth_texture(mut commands: Commands, depth_texture : ExtractWorld<Re
 }
 
 
-pub struct RenderMeshPassEntity {
-    pub transform: Transform,
+
+
+pub struct RenderMeshBatch {
     pub mesh: Handle<Mesh>,
+    pub first: usize,
+    pub count: usize,
 }
 
 #[derive(Resource)]
 pub struct RenderMeshPass {
-    pub entities: Vec<RenderMeshPassEntity>
+    pub ssbo: Handle<Buffer>,
+    pub batches: Vec<RenderMeshBatch>,
 }
-    
 
-fn extract_meshes(mut commands: Commands, entities : ExtractWorld<Query<(&Transform, &Handle<Mesh>)>>) {
-    let mut render_entities = Vec::with_capacity(entities.iter().count());
-    for (transform, draw) in entities.iter() {
-        render_entities.push(RenderMeshPassEntity {
-            transform: *transform,
-            mesh: draw.clone()
-        });
+fn construct_pass(
+    mut pass: ResMut<RenderMeshPass>, render_instance: Res<WRenderInstance<'static>>,
+    entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>)>>, meshes: Res<RenderAssets<GpuMesh>>,
+    buffers: Res<RenderAssets<GpuBuffer>>
+) {
+    // Clear the batches of the previous frame
+    pass.batches.clear();
+
+    // Get the ssbo
+    let ssbo = match buffers.get(&pass.ssbo) {
+        Some(ssbo) => ssbo,
+        None => return
+    };
+    
+    // If no entities, return
+    if entities.is_empty() {
+        return
     }
-    commands.insert_resource(RenderMeshPass { entities: render_entities });
+
+    // Create the batches
+    let render_instance = render_instance.data.read().unwrap();
+    ssbo.buffer.map_write(&render_instance, |mut view| {
+        let mut first = 0;
+        let mut count = 1;
+        let mut last_mesh: Option<Handle<Mesh>> = None;
+        let data = view.as_mut_ptr() as *mut TransformUniform;
+
+        for (transform, mesh_handle) in entities.iter() {
+            // Check if new element in same batch
+            let last_mesh_ref = last_mesh.as_ref();
+            if last_mesh_ref.is_some() {
+                if mesh_handle.id() == last_mesh_ref.unwrap().id() {
+                    // Update the ssbo
+                    let transform = TransformUniform::new(transform);
+                    unsafe {
+                        *data.add(first + count) = transform;
+                    }
+
+                    // Increment the count
+                    count += 1;
+
+                    continue;
+                } else {
+                    // Push the batch
+                    pass.batches.push(RenderMeshBatch {
+                        mesh: last_mesh_ref.unwrap().clone_weak(),
+                        first,
+                        count
+                    });
+
+                    // Reset the batch
+                    first = count + first;
+                    count = 1;
+                    last_mesh = None;
+                }
+            }
+
+            // Update the last mesh and ssbo if loaded
+            if meshes.get(mesh_handle).is_some() {
+                // Update the mesh
+                last_mesh = Some(mesh_handle.clone_weak());
+
+                // Update the ssbo
+                let transform = TransformUniform::new(transform);
+                unsafe {
+                    *data.add(first) = transform;
+                }
+            }
+        }
+
+        // Push the last batch
+        if let Some(last_mesh) = last_mesh {
+            pass.batches.push(RenderMeshBatch {
+                mesh: last_mesh,
+                first,
+                count
+            });
+        }
+    });
 }
 
 fn render(
@@ -146,9 +251,11 @@ fn render(
         if let (
             CachedPipelineStatus::Ok(pipeline),
             Some(camera_buffer),
+            Some(ssbo_buffer)
         ) = (
             pipeline_manager.get_pipeline(mesh_pipeline.index),
             buffers.get(&camera_buffer.buffer),
+            buffers.get(&render_mesh_pass.ssbo)
         ) {
             // Set the camera bind group
             let bind_group = BindGroup::build("camera", &render_instance, &camera_layout.layout_built, &vec![
@@ -158,23 +265,31 @@ fn render(
 
             // Set the pipeline
             if render_pass.set_pipeline(pipeline).is_ok() {
-                for entity in render_mesh_pass.entities.iter() {
-                    if let Some(mesh) = meshes.get(&entity.mesh) {
-                        // Set the transform
-                        // TODO
+                // Set the ssbo
+                let bind_group = BindGroup::build("mesh_ssbo", &render_instance, &mesh_pipeline.ssbo_layout_built, &vec![
+                    BindGroup::buffer(0, &ssbo_buffer.buffer)
+                ]);
+                render_pass.set_bind_group(1, &bind_group);
 
-                        // Set the mesh buffers
-                        render_pass.set_vertex_buffer(0, &mesh.vertex_buffer);
-                        render_pass.set_index_buffer(&mesh.index_buffer);
+                for batch in render_mesh_pass.batches.iter() {
+                    // Get the mesh
+                    let mesh = match meshes.get(&batch.mesh) {
+                        Some(mesh) => mesh,
+                        None => continue
+                    };
 
-                        // Draw the mesh
-                        match render_pass.draw_indexed(0..mesh.index_count, 0..1) {
-                            Ok(_) => {},
-                            Err(e) => {
-                                error!("Failed to draw: {:?}.", e);
-                            }
-                        };
-                    }
+                    // Set the mesh buffers
+                    render_pass.set_vertex_buffer(0, &mesh.vertex_buffer);
+                    render_pass.set_index_buffer(&mesh.index_buffer);
+
+                    // Draw the mesh
+                    let instance_indices = batch.first as u32..((batch.first + batch.count) as u32);
+                    match render_pass.draw_indexed(0..mesh.index_count, instance_indices) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!("Failed to draw: {:?}.", e);
+                        }
+                    };
                 }
             } else {
                 error!("Failed to set pipeline.");

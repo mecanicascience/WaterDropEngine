@@ -151,8 +151,9 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
     // Set required features
     let required_features = wgpu::Features::INDIRECT_FIRST_INSTANCE
         | wgpu::Features::MULTI_DRAW_INDIRECT
-        | wgpu::Features::PUSH_CONSTANTS;
-
+        | wgpu::Features::PUSH_CONSTANTS
+        | wgpu::Features::MAPPABLE_PRIMARY_BUFFERS;
+        
     // Set limits
     let required_limits = Limits {
         max_push_constant_size: 128,

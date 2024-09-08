@@ -24,7 +24,6 @@ pub struct PbrBundle {
 }
 
 fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Creates a mesh
     commands.spawn(PbrBundle {
         transform: Transform::from_xyz(0.0, 0.0, 0.0),
         mesh: asset_server.load("mesh/suzanne.obj"),
@@ -32,5 +31,17 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         //     label: "pbr_material".to_string(),
         //     ..Default::default()
         // })
+    });
+    commands.spawn(PbrBundle {
+        transform: Transform::from_xyz(5.0, 0.0, 0.0),
+        mesh: asset_server.load("mesh/suzanne.obj")
+    });
+    commands.spawn(PbrBundle {
+        transform: Transform::from_xyz(10.0,0.0, 0.0),
+        mesh: asset_server.load("mesh/cube.obj"),
+    });
+    commands.spawn(PbrBundle {
+        transform: Transform::from_xyz(15.0, 0.0, 0.0),
+        mesh: asset_server.load("mesh/suzanne.obj"),
     });
 }
