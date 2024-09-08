@@ -57,7 +57,7 @@ pub(crate) fn extract_window_size(render_instance: ResMut<WRenderInstance<'stati
     );
     
     // Update the surface configuration
-    let mut render_instance = render_instance.data.lock().unwrap();
+    let mut render_instance = render_instance.data.write().unwrap();
     let surface_config = render_instance.surface_config.as_mut().unwrap();
     surface_config.width = width;
     surface_config.height = height;

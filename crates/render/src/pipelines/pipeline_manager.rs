@@ -168,7 +168,7 @@ fn load_pipelines(
         // Build the layouts
         let mut bind_group_layouts = Vec::new();
         for layout in descriptor.bind_group_layouts.iter() {
-            bind_group_layouts.push(layout.build(&render_instance.data.lock().unwrap()));
+            bind_group_layouts.push(layout.build(&render_instance.data.read().unwrap()));
         }
 
         // Load the pipeline
@@ -188,7 +188,7 @@ fn load_pipelines(
             pipeline.add_push_constant(push_constant.stages, push_constant.offset, push_constant.size);
         }
         pipeline.set_bind_groups(bind_group_layouts);
-        match pipeline.init(&render_instance.data.lock().unwrap()) {
+        match pipeline.init(&render_instance.data.read().unwrap()) {
             Ok(_) => (),
             Err(e) => {
                 error!("Failed to load pipeline: {:?}", e);

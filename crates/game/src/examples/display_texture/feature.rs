@@ -12,7 +12,7 @@ pub struct DisplayTexturePipeline {
 }
 impl DisplayTexturePipeline {
     fn build(mut pipeline: ResMut<DisplayTexturePipeline>, render_instance: Res<WRenderInstance<'static>>) {
-        pipeline.layout_built = Some(pipeline.layout.build(&render_instance.data.lock().unwrap()));
+        pipeline.layout_built = Some(pipeline.layout.build(&render_instance.data.read().unwrap()));
     }
 }
 impl FromWorld for DisplayTexturePipeline {
@@ -108,7 +108,7 @@ fn render_texture(
     )
 ) {
     // Render the texture
-    let render_instance = render_instance.data.lock().unwrap();
+    let render_instance = render_instance.data.read().unwrap();
     let swapchain_frame = swapchain_frame.data.as_ref().unwrap();
     let mut command_buffer = WCommandBuffer::new(&render_instance, "display-texture");
 

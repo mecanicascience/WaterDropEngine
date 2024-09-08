@@ -17,13 +17,6 @@ impl Plugin for MeshComponent {
     }
 }
 
-
-#[derive(Component)]
-pub struct DrawItem {
-    pub mesh: Handle<Mesh>,
-    // pub material: Handle<Material<PbrMaterial>>,
-}
-
 #[derive(Bundle)]
 pub struct PbrBundle {
     pub transform: Transform,

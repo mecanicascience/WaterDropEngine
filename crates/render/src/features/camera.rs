@@ -17,7 +17,7 @@ impl FromWorld for CameraFeatureLayout {
         let layout = BindGroupLayout::new("camera", |builder| {
             builder.add_buffer(0, WShaderStages::VERTEX, BufferBindingType::Uniform);
         });
-        let layout_built = layout.build(&render_instance.data.lock().unwrap());
+        let layout_built = layout.build(&render_instance.data.read().unwrap());
         
         CameraFeatureLayout { layout, layout_built }
     }
@@ -79,7 +79,7 @@ fn update_buffer(
 ) {
     // Update the camera buffer
     if let Some(camera_buffer) = buffers.get_mut(&camera_buffer.buffer) {
-        let render_instance = render_instance.data.lock().unwrap();
+        let render_instance = render_instance.data.read().unwrap();
         camera_buffer.buffer.write(&render_instance, bytemuck::cast_slice(&[camera_uniform.to_owned()]), 0);
     }
 }

@@ -185,7 +185,7 @@ impl RenderAsset for GpuMesh {
         debug!(asset.label, "Loading mesh on the GPU.");
 
         // Create vertex buffer
-        let render_instance = render_instance.data.lock().unwrap();
+        let render_instance = render_instance.data.read().unwrap();
         let vertex_buffer = WBuffer::new(
             &render_instance,
             format!("{}-vertex", asset.label).as_str(),

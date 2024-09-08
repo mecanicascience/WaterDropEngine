@@ -24,7 +24,7 @@ impl RenderAsset for GpuBuffer {
             asset: Self::SourceAsset,
             render_instance: &mut bevy::ecs::system::SystemParamItem<Self::Param>,
         ) -> Result<Self, super::render_assets::PrepareAssetError<Self::SourceAsset>> {
-        let render_instance = render_instance.data.lock().unwrap();
+        let render_instance = render_instance.data.read().unwrap();
         let buffer = WBuffer::new(
             &render_instance,
             asset.label.as_str(),

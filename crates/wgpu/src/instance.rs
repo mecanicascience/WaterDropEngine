@@ -1,6 +1,6 @@
 //! Instance of the GPU device required for the renderer.
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use bevy::{ecs::system::SystemState, log::{debug, error, warn, Level}, prelude::*, utils::tracing::{event, span}, window::{PrimaryWindow, RawHandleWrapperHolder}};
 use wgpu::{Device, Limits, Surface, SurfaceConfiguration, SurfaceTexture};
@@ -74,7 +74,7 @@ pub enum WRenderEvent {
 /// ```
 #[derive(Resource)]
 pub struct WRenderInstance<'a> {
-    pub data: Arc<Mutex<WRenderInstanceData<'a>>>,
+    pub data: Arc<RwLock<WRenderInstanceData<'a>>>,
 }
 
 /// Data of the render instance.
@@ -174,7 +174,7 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
 
     // Return instance
     WRenderInstance {
-        data: Arc::new(Mutex::new(WRenderInstanceData {
+        data: Arc::new(RwLock::new(WRenderInstanceData {
             device,
             queue,
             surface,

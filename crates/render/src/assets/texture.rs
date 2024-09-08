@@ -19,6 +19,18 @@ pub struct Texture {
     pub data: Vec<u8>,
     pub is_f32: bool
 }
+impl Default for Texture {
+    fn default() -> Self {
+        Texture {
+            label: "Texture".to_string(),
+            size: (1, 1, 1),
+            format: TextureFormat::Rgba8Unorm,
+            usages: TextureUsages::TEXTURE_BINDING,
+            data: Vec::new(),
+            is_f32: false
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct TextureLoader;
@@ -114,10 +126,10 @@ impl RenderAsset for GpuTexture {
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         debug!(asset.label, "Loading texture on the GPU.");
 
-        let render_instance = render_instance.data.as_ref().lock().unwrap();
+        let render_instance = render_instance.data.as_ref().read().unwrap();
 
         // Check if format is compatible with the image depth
-        if asset.size.0 as u32 * asset.size.1 as u32 * asset.size.2 as u32 * if asset.is_f32 { 4 } else { 1 } != asset.data.len() as u32 {
+        if !asset.data.is_empty() && asset.size.0 as u32 * asset.size.1 as u32 * asset.size.2 as u32 * if asset.is_f32 { 4 } else { 1 } != asset.data.len() as u32 {
             return Err(PrepareAssetError::Fatal(format!("Format of size {:?} (width, height, depth) is not compatible with the image data of size {}", asset.size, asset.data.len())));
         }
 
@@ -127,7 +139,9 @@ impl RenderAsset for GpuTexture {
             asset.format, asset.usages);
 
         // Copy the texture data
-        texture.copy_from_buffer(&render_instance, &asset.data, asset.size.2 as u32, asset.is_f32);
+        if !asset.data.is_empty() {
+            texture.copy_from_buffer(&render_instance, &asset.data, asset.size.2 as u32, asset.is_f32);
+        }
 
         Ok(GpuTexture { texture })
     }
