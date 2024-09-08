@@ -40,7 +40,7 @@ pub struct MeshLoaderSettings {
 
 impl Default for MeshLoaderSettings {
     fn default() -> Self {
-        Self { label: "Mesh".to_string() }
+        Self { label: "".to_string() }
     }
 }
 
@@ -62,6 +62,13 @@ impl AssetLoader for MeshLoader {
         load_context: &'a mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         info!("Loading mesh on the CPU from {}.", load_context.asset_path());
+
+        // Update the label from the path
+        let label = if settings.label.is_empty() {
+            load_context.asset_path().to_string()
+        } else {
+            settings.label.clone()
+        };
 
         // Read the texture data
         let mut bytes = Vec::new();
@@ -152,7 +159,7 @@ impl AssetLoader for MeshLoader {
 
         // Return the mesh
         Ok(Mesh {
-            label: settings.label.clone(),
+            label,
             vertices, indices, bounding_box
         })
     }

@@ -50,7 +50,7 @@ pub struct TextureLoaderSettings {
 impl Default for TextureLoaderSettings {
     fn default() -> Self {
         Self {
-            label: "Texture".to_string(),
+            label: "texture".to_string(),
             format: TextureFormat::Rgba8Unorm,
             usages: TextureUsages::TEXTURE_BINDING,
             force_depth: None

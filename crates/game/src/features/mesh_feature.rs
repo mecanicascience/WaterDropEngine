@@ -3,7 +3,7 @@ use wde_render::{assets::{Buffer, GpuBuffer, GpuMesh, GpuTexture, Mesh, RenderAs
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
 
 /// The maximum number of batches to render using the mesh feature.
-pub const MAX_BATCHES_COUNT: usize = 100;
+pub const MAX_BATCHES_COUNT: usize = 1000;
 
 pub struct MeshFeature;
 impl Plugin for MeshFeature {

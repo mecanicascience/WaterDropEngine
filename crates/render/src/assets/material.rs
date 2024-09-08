@@ -18,7 +18,7 @@ impl<M: MaterialType> Default for Material<M> {
     fn default() -> Self {
         Material {
             phantom: std::marker::PhantomData,
-            label: "Material".to_string(),
+            label: "material".to_string(),
         }
     }
 }
