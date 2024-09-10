@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WBufferBindingType, WgpuBindGroup, WgpuBindGroupLayout}, buffer::BufferUsage, instance::WRenderInstance, render_pipeline::WShaderStages};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WBufferBindingType, WgpuBindGroup}, buffer::BufferUsage, instance::WRenderInstance, render_pipeline::WShaderStages, texture::{TextureFormat, TextureUsages}};
 
-use super::{Buffer, GpuBuffer, GpuTexture, PrepareAssetError, RenderAsset, RenderAssets, RenderAssetsPlugin, Texture};
+use super::{Buffer, GpuBuffer, GpuTexture, PrepareAssetError, RenderAsset, RenderAssets, RenderAssetsPlugin, Texture, TextureLoaderSettings};
 
 pub trait Material {
     /// Describe the material by adding buffers, textures, etc. to the material builder.
@@ -12,6 +12,7 @@ pub trait Material {
     fn label(&self) -> &str;
 }
 
+const DUMMY_TEXTURE_PATH: &str = "mesh/dummy_texture.png";
 
 
 struct MaterialBuilderBuffer {
@@ -25,12 +26,12 @@ struct MaterialBuilderBuffer {
 struct MaterialBuilderTextureView {
     binding: u32,
     visibility: WShaderStages,
-    texture: Handle<Texture>
+    texture: Option<Handle<Texture>>
 }
 struct MaterialBuilderTextureSampler {
     binding: u32,
     visibility: WShaderStages,
-    texture: Handle<Texture>
+    texture: Option<Handle<Texture>>
 }
 
 enum MaterialBuilderType {
@@ -55,13 +56,13 @@ impl MaterialBuilder {
         });
         self.elements.push((MaterialBuilderType::Buffer, self.buffers.len() as u32 - 1));
     }
-    pub fn add_texture_view(&mut self, binding: u32, visibility: WShaderStages, texture: Handle<Texture>) {
+    pub fn add_texture_view(&mut self, binding: u32, visibility: WShaderStages, texture: Option<Handle<Texture>>) {
         self.texture_views.push(MaterialBuilderTextureView {
             binding, visibility, texture
         });
         self.elements.push((MaterialBuilderType::TextureView, self.texture_views.len() as u32 - 1));
     }
-    pub fn add_texture_sampler(&mut self, binding: u32, visibility: WShaderStages, texture: Handle<Texture>) {
+    pub fn add_texture_sampler(&mut self, binding: u32, visibility: WShaderStages, texture: Option<Handle<Texture>>) {
         self.texture_samplers.push(MaterialBuilderTextureSampler {
             binding, visibility, texture
         });
@@ -88,7 +89,8 @@ impl MaterialsBuilderCache {
 pub struct GpuMaterial<M: Material + Sync + Send + Asset + Clone> {
     phantom: std::marker::PhantomData<M>,
     _builder: MaterialBuilder,
-    pub bind_group_layout: WgpuBindGroupLayout,
+    _dummy_texture: Handle<Texture>,
+    pub bind_group_layout: BindGroupLayout,
     pub bind_group: WgpuBindGroup
 }
 impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
@@ -119,6 +121,12 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
         // Create bind group entries
         // If a buffer or texture is not ready, retry next update
         let mut bg_entries = Vec::new();
+        let dummy_texture = assets_server.load_with_settings(DUMMY_TEXTURE_PATH, |settings: &mut TextureLoaderSettings| {
+            settings.label = "dummy-texture".to_string();
+            settings.format = TextureFormat::R8Unorm;
+            settings.force_depth = Some(1);
+            settings.usages = TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST;
+        });
         for (material_type, material_index) in &material_builder.elements {
             match material_type {
                 MaterialBuilderType::Buffer => {
@@ -151,18 +159,34 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
                 }
                 MaterialBuilderType::TextureView => {
                     let texture = &material_builder.texture_views[*material_index as usize];
-                    if let Some(tex) = textures.get(&texture.texture) {
-                        bg_entries.push(BindGroup::texture_view(texture.binding, &tex.texture));
-                    } else {
+                    if let Some(ref texture_handle) = texture.texture {
+                        if let Some(tex) = textures.get(texture_handle) {
+                            bg_entries.push(BindGroup::texture_view(texture.binding, &tex.texture));
+                        } else {
+                            materials_cache.insert(material_name.to_string(), material_builder);
+                            return Err(PrepareAssetError::RetryNextUpdate(asset));
+                        }
+                    }
+                    else {
+                        // Set dummy texture
+                        material_builder.texture_views[*material_index as usize].texture = Some(dummy_texture.clone());
                         materials_cache.insert(material_name.to_string(), material_builder);
                         return Err(PrepareAssetError::RetryNextUpdate(asset));
                     }
                 }
                 MaterialBuilderType::TextureSampler => {
                     let texture = &material_builder.texture_samplers[*material_index as usize];
-                    if let Some(tex) = textures.get(&texture.texture) {
-                        bg_entries.push(BindGroup::texture_sampler(texture.binding, &tex.texture));
-                    } else {
+                    if let Some(ref texture_handle) = texture.texture {
+                        if let Some(tex) = textures.get(texture_handle) {
+                            bg_entries.push(BindGroup::texture_sampler(texture.binding, &tex.texture));
+                        } else {
+                            materials_cache.insert(material_name.to_string(), material_builder);
+                            return Err(PrepareAssetError::RetryNextUpdate(asset));
+                        }
+                    }
+                    else {
+                        // Set dummy texture
+                        material_builder.texture_samplers[*material_index as usize].texture = Some(dummy_texture.clone());
                         materials_cache.insert(material_name.to_string(), material_builder);
                         return Err(PrepareAssetError::RetryNextUpdate(asset));
                     }
@@ -171,7 +195,7 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
         }
 
         // Create bind group layout
-        let layout: BindGroupLayout = BindGroupLayout::new(label, |builder| {
+        let layout = BindGroupLayout::new(label, |builder| {
             for (material_type, material_index) in &material_builder.elements {
                 match material_type {
                     MaterialBuilderType::Buffer => {
@@ -189,14 +213,14 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
                 }
             }
         });
-        let layout_built = layout.build(&render_instance);
 
         // Create bind group
-        let bind_group = BindGroup::build(label, &render_instance, &layout_built, &bg_entries);
+        let bind_group = BindGroup::build(label, &render_instance, &layout.build(&render_instance), &bg_entries);
 
         Ok(GpuMaterial {
             phantom: std::marker::PhantomData,
-            bind_group_layout: layout_built,
+            _dummy_texture: dummy_texture,
+            bind_group_layout: layout,
             bind_group,
             _builder: material_builder
         })

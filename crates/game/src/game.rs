@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use wde_render::components::{Camera, CameraController, CameraView};
 
-use crate::{components::mesh_component::MeshComponent, features::mesh_feature::MeshFeature};
+use crate::components::mesh_component::MeshComponent;
 
 /// Start the game engine plugin
 pub struct GamePlugin;
@@ -9,8 +9,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, init)
-            .add_plugins(MeshComponent)
-            .add_plugins(MeshFeature);
+            .add_plugins(MeshComponent);
     }
 }
 

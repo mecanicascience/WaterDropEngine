@@ -1,27 +1,38 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*, window::WindowResized};
-use wde_render::{assets::{Buffer, GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, PrepareAssetError, RenderAsset, RenderAssets, RenderAssetsPlugin, Texture, TextureUsages}, components::TransformUniform, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
+use crate::{assets::{Buffer, GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Material, Mesh, PrepareAssetError, RenderAsset, RenderAssets, RenderAssetsPlugin, Texture, TextureUsages}, components::TransformUniform, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup}, buffer::{BufferBindingType, BufferUsage}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
-
-use crate::components::mesh_component::PbrMaterial;
 
 /// The maximum number of batches to render using the mesh feature.
 pub const MAX_ENTITY_COUNT: usize = 20_000;
 
-pub struct MeshFeature;
-impl Plugin for MeshFeature {
+pub struct PipelinesFeaturesPlugin;
+impl Plugin for PipelinesFeaturesPlugin {
     fn build(&self, app: &mut App) {
-        // Pipeline
         app
-            .init_asset::<MeshRenderPipeline>()
-            .add_plugins(RenderAssetsPlugin::<GpuMeshRenderPipeline>::default());
+            .add_systems(Startup, DepthTexture::init_depth)
+            .add_systems(Update, DepthTexture::resize_depth);
+        
+    }
+}
 
+pub struct PipelinesPlugin<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> {
+    phantom: std::marker::PhantomData<(P, M)>
+}
+impl<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> Default for PipelinesPlugin<P, M> {
+    fn default() -> Self {
+        PipelinesPlugin {
+            phantom: std::marker::PhantomData
+        }
+    }
+}
+impl<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> Plugin for PipelinesPlugin<P, M> {
+    fn build(&self, app: &mut App) {
         app
-            .add_systems(Startup, MeshDepthTexture::init_depth)
-            .add_systems(Update, MeshDepthTexture::resize_depth);
-
+            .init_asset::<RenderPipeline<P, M>>()
+            .add_plugins(RenderAssetsPlugin::<GpuRenderPipeline<P, M>>::default());
         app.get_sub_app_mut(RenderApp).unwrap()
-            .add_systems(Extract, (RenderMeshPass::construct_pass, MeshDepthTexture::extract_depth_texture))
-            .add_systems(Render, RenderMeshPass::render.in_set(RenderSet::Render));
+            .add_systems(Extract, (RenderPass::<P, M>::construct_pass, DepthTexture::extract_depth_texture))
+            .add_systems(Render, RenderPass::<P, M>::render.in_set(RenderSet::Render));
     }
 
     fn finish(&self, app: &mut App) {
@@ -39,31 +50,86 @@ impl Plugin for MeshFeature {
             content: None,
         });
         app.get_sub_app_mut(RenderApp).unwrap()
-            .insert_resource(RenderMeshPass {
+            .insert_resource(RenderPass::<P, M> {
+                phantom: std::marker::PhantomData,
                 ssbo: buffer,
                 ssbo_gpu: buffer_gpu,
                 batches: Vec::new()
             });
 
         // Create the pipeline
-        let pipeline = app.world_mut().get_resource::<AssetServer>().unwrap().add(MeshRenderPipeline {});
+        let pipeline: Handle<RenderPipeline<P, M>> = app.world_mut()
+            .get_resource::<AssetServer>().unwrap().add(RenderPipeline::default());
         app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(pipeline);
     }
 }
 
 
+
+
+#[derive(Resource)]
+struct DepthTexture {
+    texture: Handle<Texture>
+}
+impl DepthTexture {
+    fn init_depth(mut commands: Commands, server: Res<AssetServer>, window: Query<&Window>) {
+        let resolution = &window.single().resolution;
+        let texture = server.add(Texture {
+            label: "depth".to_string(),
+            size: (resolution.width() as usize, resolution.height() as usize, 1),
+            format: WTexture::DEPTH_FORMAT,
+            usages: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            ..Default::default()
+        });
+        commands.insert_resource(DepthTexture { texture });
+    }
+
+    fn resize_depth(mut commands: Commands, mut window_resized_events: EventReader<WindowResized>, server: Res<AssetServer>) {
+        for event in window_resized_events.read() {
+            // Recreate the depth texture
+            let texture = server.add(Texture {
+                label: "depth".to_string(),
+                size: (event.width as usize, event.height as usize, 1),
+                format: WTexture::DEPTH_FORMAT,
+                usages: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+                ..Default::default()
+            });
+            commands.insert_resource(DepthTexture { texture });
+        }
+    }
+
+    fn extract_depth_texture(mut commands: Commands, depth_texture : ExtractWorld<Res<DepthTexture>>) {
+        commands.insert_resource(DepthTexture { texture: depth_texture.texture.clone() });
+    }
+}
+
+
+
+pub trait Pipeline {}
+
 #[derive(Asset, Clone, TypePath)]
-pub struct MeshRenderPipeline;
-pub struct GpuMeshRenderPipeline {
+pub struct RenderPipeline<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> {
+    phantom: std::marker::PhantomData<(P, M)>
+}
+impl<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> Default for RenderPipeline<P, M> {
+    fn default() -> Self {
+        RenderPipeline {
+            phantom: std::marker::PhantomData
+        }
+    }
+}
+pub struct GpuRenderPipeline<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> {
+    phantom: std::marker::PhantomData<(P, M)>,
     cached_pipeline_index: CachedPipelineIndex,
     ssbo_bind_group: WgpuBindGroup
 }
-impl RenderAsset for GpuMeshRenderPipeline {
-    type SourceAsset = MeshRenderPipeline;
+impl<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuRenderPipeline<P, M> {
+    type SourceAsset = RenderPipeline<P, M>;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>,
         SRes<CameraFeatureRender>, SRes<WRenderInstance<'static>>,
-        SRes<RenderAssets<GpuBuffer>>, SRes<RenderMeshPass>
+        SRes<RenderAssets<GpuBuffer>>, SRes<RenderPass<P, M>>,
+        SRes<RenderAssets<GpuMaterial<M>>>
     );
 
     fn prepare_asset(
@@ -71,12 +137,19 @@ impl RenderAsset for GpuMeshRenderPipeline {
             (
                 assets_server, pipeline_manager,
                 camera_feature, render_instance,
-                ssbo_buffer, render_mesh_pass
+                ssbo_buffer, render_mesh_pass,
+                materials
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         // Get the ssbo buffer
         let ssbo_buffer = match ssbo_buffer.get(&render_mesh_pass.ssbo_gpu) {
             Some(buffer) => buffer,
+            None => return Err(PrepareAssetError::RetryNextUpdate(asset))
+        };
+
+        // Get the material layout
+        let material = match materials.iter().next() {
+            Some((_, material)) => material,
             None => return Err(PrepareAssetError::RetryNextUpdate(asset))
         };
 
@@ -93,7 +166,7 @@ impl RenderAsset for GpuMeshRenderPipeline {
             label: "mesh",
             vert: Some(assets_server.load("mesh/vert.wgsl")),
             frag: Some(assets_server.load("mesh/frag.wgsl")),
-            bind_group_layouts: vec![camera_feature.layout.clone(), ssbo_layout.clone()],
+            bind_group_layouts: vec![camera_feature.layout.clone(), ssbo_layout.clone(), material.bind_group_layout.clone()],
             depth_stencil: true,
             ..Default::default()
         };
@@ -105,7 +178,8 @@ impl RenderAsset for GpuMeshRenderPipeline {
             BindGroup::buffer(0, &ssbo_buffer.buffer)
         ]);
 
-        Ok(GpuMeshRenderPipeline {
+        Ok(GpuRenderPipeline {
+            phantom: std::marker::PhantomData,
             cached_pipeline_index: cached_index,
             ssbo_bind_group: bind_group
         })
@@ -114,63 +188,27 @@ impl RenderAsset for GpuMeshRenderPipeline {
 
 
 
-#[derive(Resource)]
-struct MeshDepthTexture {
-    texture: Handle<Texture>
-}
-impl MeshDepthTexture {
-    fn init_depth(mut commands: Commands, server: Res<AssetServer>, window: Query<&Window>) {
-        let resolution = &window.single().resolution;
-        let texture = server.add(Texture {
-            label: "depth".to_string(),
-            size: (resolution.width() as usize, resolution.height() as usize, 1),
-            format: WTexture::DEPTH_FORMAT,
-            usages: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-            ..Default::default()
-        });
-        commands.insert_resource(MeshDepthTexture { texture });
-    }
 
-    fn resize_depth(mut commands: Commands, mut window_resized_events: EventReader<WindowResized>, server: Res<AssetServer>) {
-        for event in window_resized_events.read() {
-            // Recreate the depth texture
-            let texture = server.add(Texture {
-                label: "depth".to_string(),
-                size: (event.width as usize, event.height as usize, 1),
-                format: WTexture::DEPTH_FORMAT,
-                usages: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-                ..Default::default()
-            });
-            commands.insert_resource(MeshDepthTexture { texture });
-        }
-    }
-
-    fn extract_depth_texture(mut commands: Commands, depth_texture : ExtractWorld<Res<MeshDepthTexture>>) {
-        commands.insert_resource(MeshDepthTexture { texture: depth_texture.texture.clone() });
-    }
-}
-
-
-
-struct RenderMeshBatch {
+struct RenderBatch<M: Material + Sync + Send + Asset + Clone> {
     mesh: Handle<Mesh>,
-    material: Handle<PbrMaterial>,
+    material: Handle<M>,
     first: usize,
     count: usize,
     index_count: usize,
 }
 
 #[derive(Resource)]
-pub struct RenderMeshPass {
+pub struct RenderPass<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> {
+    phantom: std::marker::PhantomData<(P, M)>,
     ssbo: Handle<Buffer>,
     ssbo_gpu: Handle<Buffer>,
-    batches: Vec<RenderMeshBatch>,
+    batches: Vec<RenderBatch<M>>,
 }
-impl RenderMeshPass {
+impl<P: Pipeline + Sync + Send + Asset + Clone, M: Material + Sync + Send + Asset + Clone> RenderPass<P, M> {
     fn construct_pass(
-        mut pass: ResMut<RenderMeshPass>, render_instance: Res<WRenderInstance<'static>>,
-        entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>, &Handle<PbrMaterial>)>>,
-        meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<PbrMaterial>>>,
+        mut pass: ResMut<RenderPass<P, M>>, render_instance: Res<WRenderInstance<'static>>,
+        entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>, &Handle<M>)>>,
+        meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<M>>>,
         buffers: Res<RenderAssets<GpuBuffer>>
     ) {
         // Clear the batches of the previous frame
@@ -193,7 +231,7 @@ impl RenderMeshPass {
             let mut first = 0;
             let mut count = 1;
             let mut last_mesh: Option<Handle<Mesh>> = None;
-            let mut last_material: Option<Handle<PbrMaterial>> = None;
+            let mut last_material: Option<Handle<M>> = None;
             let data = view.as_mut_ptr() as *mut TransformUniform;
 
             for (transform, mesh_handle, material_handle) in entities.iter() {
@@ -214,7 +252,7 @@ impl RenderMeshPass {
                         continue;
                     } else {
                         // Push the batch
-                        pass.batches.push(RenderMeshBatch {
+                        pass.batches.push(RenderBatch {
                             mesh: last_mesh_ref.unwrap().clone_weak(),
                             material: last_material_ref.unwrap().clone_weak(),
                             first,
@@ -255,7 +293,7 @@ impl RenderMeshPass {
 
             // Push the last batch
             if let (Some(last_mesh), Some(last_material)) = (last_mesh, last_material) {
-                pass.batches.push(RenderMeshBatch {
+                pass.batches.push(RenderBatch {
                     mesh: last_mesh.clone_weak(),
                     material: last_material.clone_weak(),
                     first,
@@ -282,10 +320,10 @@ impl RenderMeshPass {
         ),
         camera_layout : Res<CameraFeatureRender>,
         (meshes, textures, materials): (
-            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<PbrMaterial>>>
+            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<M>>>
         ),
         (mesh_pipeline, render_mesh_pass, depth_texture): (
-            Res<RenderAssets<GpuMeshRenderPipeline>>, Res<RenderMeshPass>, Res<MeshDepthTexture>
+            Res<RenderAssets<GpuRenderPipeline<P, M>>>, Res<RenderPass<P, M>>, Res<DepthTexture>
         )
     ) {
         // Get the render instance and swapchain frame
