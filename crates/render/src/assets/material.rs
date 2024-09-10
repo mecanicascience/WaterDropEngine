@@ -87,6 +87,7 @@ impl MaterialsBuilderCache {
 
 pub struct GpuMaterial<M: Material + Sync + Send + Asset + Clone> {
     phantom: std::marker::PhantomData<M>,
+    _builder: MaterialBuilder,
     pub bind_group_layout: WgpuBindGroupLayout,
     pub bind_group: WgpuBindGroup
 }
@@ -196,7 +197,8 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
         Ok(GpuMaterial {
             phantom: std::marker::PhantomData,
             bind_group_layout: layout_built,
-            bind_group
+            bind_group,
+            _builder: material_builder
         })
     }
 }
