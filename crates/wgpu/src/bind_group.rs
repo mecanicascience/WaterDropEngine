@@ -2,10 +2,13 @@
 
 use bevy::{log::Level, utils::tracing::event};
 
-use crate::{buffer::WBuffer, instance::WRenderInstanceData, texture::WTexture};
+use crate::{buffer::WBuffer, instance::WRenderInstanceData, render_pipeline::WShaderStages, texture::WTexture};
 
 /// The wgpu bind group layout builder.
 pub type WgpuBindGroup = wgpu::BindGroup;
+
+/// The buffer binding type.
+pub type WBufferBindingType = wgpu::BufferBindingType;
 
 /// Builder for a bind group layout.
 #[derive(Debug, Clone)]
@@ -21,7 +24,7 @@ impl BindGroupLayoutBuilder {
     /// * `binding` - The binding index of the buffer.
     /// * `visibility` - The shader stages that can access the buffer.
     /// * `binding_type` - The type of the buffer binding.
-    pub fn add_buffer(&mut self, binding: u32, visibility: wgpu::ShaderStages, binding_type: wgpu::BufferBindingType) -> &mut Self {
+    pub fn add_buffer(&mut self, binding: u32, visibility: WShaderStages, binding_type: WBufferBindingType) -> &mut Self {
         // Create bind group layout
         self.layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding,
@@ -43,7 +46,7 @@ impl BindGroupLayoutBuilder {
     /// 
     /// * `binding` - The binding index of the texture. Note that the binding index of the sampler is incremented by 1
     /// * `visibility` - The shader stages that can access the texture.
-    pub fn add_texture_view(&mut self, binding: u32, visibility: wgpu::ShaderStages) -> &mut Self {
+    pub fn add_texture_view(&mut self, binding: u32, visibility: WShaderStages) -> &mut Self {
         // Create bind group layout
         self.layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding,
@@ -65,7 +68,7 @@ impl BindGroupLayoutBuilder {
     /// 
     /// * `binding` - The binding index of the texture. Note that the binding index of the sampler is incremented by 1
     /// * `visibility` - The shader stages that can access the texture.
-    pub fn add_texture_sampler(&mut self, binding: u32, visibility: wgpu::ShaderStages) -> &mut Self {
+    pub fn add_texture_sampler(&mut self, binding: u32, visibility: WShaderStages) -> &mut Self {
         self.layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding,
             visibility,
@@ -116,6 +119,7 @@ impl BindGroupLayout {
 }
 
 
+pub type WBindGroupEntry<'a> = wgpu::BindGroupEntry<'a>;
 
 /// Structure for a bind group.
 pub struct BindGroup;

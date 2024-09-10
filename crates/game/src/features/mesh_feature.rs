@@ -1,9 +1,11 @@
 use bevy::{prelude::*, window::WindowResized};
-use wde_render::{assets::{Buffer, GpuBuffer, GpuMesh, GpuTexture, Mesh, RenderAssets, Texture, TextureUsages}, components::TransformUniform, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
+use wde_render::{assets::{Buffer, GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets, Texture, TextureUsages}, components::TransformUniform, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
 
+use crate::components::mesh_component::PbrMaterial;
+
 /// The maximum number of batches to render using the mesh feature.
-pub const MAX_BATCHES_COUNT: usize = 1000;
+pub const MAX_ENTITY_COUNT: usize = 20_000;
 
 pub struct MeshFeature;
 impl Plugin for MeshFeature {
@@ -24,13 +26,13 @@ impl Plugin for MeshFeature {
         // Create the ssbo
         let buffer: Handle<Buffer> = app.world_mut().add_asset(Buffer {
             label: "mesh_ssbo_cpu".to_string(),
-            size: std::mem::size_of::<TransformUniform>() * MAX_BATCHES_COUNT,
+            size: std::mem::size_of::<TransformUniform>() * MAX_ENTITY_COUNT,
             usage: BufferUsage::COPY_SRC | BufferUsage::MAP_WRITE,
             content: None,
         });
         let buffer_gpu: Handle<Buffer> = app.world_mut().add_asset(Buffer {
             label: "mesh_ssbo_gpu".to_string(),
-            size: std::mem::size_of::<TransformUniform>() * MAX_BATCHES_COUNT,
+            size: std::mem::size_of::<TransformUniform>() * MAX_ENTITY_COUNT,
             usage: BufferUsage::STORAGE | BufferUsage::COPY_DST,
             content: None,
         });
@@ -107,7 +109,6 @@ impl MeshPipeline {
 
 
 
-
 #[derive(Resource)]
 struct MeshDepthTexture {
     texture: Handle<Texture>
@@ -146,11 +147,9 @@ impl MeshDepthTexture {
 
 
 
-
-
-
 struct RenderMeshBatch {
     mesh: Handle<Mesh>,
+    material: Handle<PbrMaterial>,
     first: usize,
     count: usize,
     index_count: usize,
@@ -165,7 +164,8 @@ struct RenderMeshPass {
 impl RenderMeshPass {
     fn construct_pass(
         mut pass: ResMut<RenderMeshPass>, render_instance: Res<WRenderInstance<'static>>,
-        entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>)>>, meshes: Res<RenderAssets<GpuMesh>>,
+        entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>, &Handle<PbrMaterial>)>>,
+        meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<PbrMaterial>>>,
         buffers: Res<RenderAssets<GpuBuffer>>
     ) {
         // Clear the batches of the previous frame
@@ -188,13 +188,15 @@ impl RenderMeshPass {
             let mut first = 0;
             let mut count = 1;
             let mut last_mesh: Option<Handle<Mesh>> = None;
+            let mut last_material: Option<Handle<PbrMaterial>> = None;
             let data = view.as_mut_ptr() as *mut TransformUniform;
 
-            for (transform, mesh_handle) in entities.iter() {
+            for (transform, mesh_handle, material_handle) in entities.iter() {
                 // Check if new element in same batch
                 let last_mesh_ref = last_mesh.as_ref();
-                if last_mesh_ref.is_some() {
-                    if mesh_handle.id() == last_mesh_ref.unwrap().id() {
+                let last_material_ref = last_material.as_ref();
+                if last_mesh_ref.is_some() && last_material_ref.is_some() {
+                    if mesh_handle.id() == last_mesh_ref.unwrap().id() && material_handle.id() == last_material_ref.unwrap().id() {
                         // Update the ssbo
                         let transform = TransformUniform::new(transform);
                         unsafe {
@@ -209,6 +211,7 @@ impl RenderMeshPass {
                         // Push the batch
                         pass.batches.push(RenderMeshBatch {
                             mesh: last_mesh_ref.unwrap().clone_weak(),
+                            material: last_material_ref.unwrap().clone_weak(),
                             first,
                             count,
                             index_count: match meshes.get(last_mesh_ref.unwrap()) {
@@ -221,14 +224,22 @@ impl RenderMeshPass {
                         first += count;
                         count = 1;
                         last_mesh = None;
+                        last_material = None;
                     }
                 }
 
                 // Update the last mesh and ssbo if loaded
+                let mut updated_mesh = false;
+                let mut updated_material = false;
                 if meshes.get(mesh_handle).is_some() {
-                    // Update the mesh
                     last_mesh = Some(mesh_handle.clone_weak());
-
+                    updated_mesh = true;
+                }
+                if materials.get(material_handle).is_some() {
+                    last_material = Some(material_handle.clone_weak());
+                    updated_material = true;
+                }
+                if updated_mesh && updated_material {
                     // Update the ssbo
                     let transform = TransformUniform::new(transform);
                     unsafe {
@@ -238,9 +249,10 @@ impl RenderMeshPass {
             }
 
             // Push the last batch
-            if let Some(last_mesh) = last_mesh {
+            if let (Some(last_mesh), Some(last_material)) = (last_mesh, last_material) {
                 pass.batches.push(RenderMeshBatch {
                     mesh: last_mesh.clone_weak(),
+                    material: last_material.clone_weak(),
                     first,
                     count,
                     index_count: match meshes.get(&last_mesh) {
@@ -264,8 +276,8 @@ impl RenderMeshPass {
             Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
         ),
         camera_layout : Res<CameraFeatureRender>,
-        (meshes, textures): (
-            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>
+        (meshes, textures, materials): (
+            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<PbrMaterial>>>
         ),
         (mesh_pipeline, render_mesh_pass, depth_texture): (
             Res<MeshPipeline>, Res<RenderMeshPass>, Res<MeshDepthTexture>
@@ -317,7 +329,20 @@ impl RenderMeshPass {
                     render_pass.set_bind_group(1, ssbo_bg);
 
                     let mut old_mesh_id = None;
+                    let mut old_material_id = None;
                     for batch in render_mesh_pass.batches.iter() {
+                        // Set the material
+                        if old_material_id != Some(batch.material.id()) {
+                            let material = match materials.get(&batch.material) {
+                                Some(material) => material,
+                                None => continue // Should not happen
+                            };
+
+                            // Set the material bind group
+                            render_pass.set_bind_group(2, &material.bind_group);
+                            old_material_id = Some(batch.material.id());
+                        }
+
                         // Set the mesh
                         if old_mesh_id != Some(batch.mesh.id()) {
                             let mesh = match meshes.get(&batch.mesh) {

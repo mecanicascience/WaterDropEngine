@@ -14,6 +14,8 @@ pub use shader::*;
 pub use material::*;
 pub use render_assets::*;
 
+use crate::core::RenderApp;
+
 pub struct SceneResourcesPlugin;
 impl Plugin for SceneResourcesPlugin {
     fn build(&self, app: &mut App) {
@@ -32,5 +34,9 @@ impl Plugin for SceneResourcesPlugin {
             .add_plugins(RenderAssetsPlugin::<GpuMesh>::default())
             .add_plugins(RenderAssetsPlugin::<GpuTexture>::default())
             .add_plugins(RenderAssetsPlugin::<GpuBuffer>::default());
+
+        // Add cached resources
+        app.get_sub_app_mut(RenderApp).unwrap()
+            .init_resource::<MaterialsBuilderCache>();
     }
 }
