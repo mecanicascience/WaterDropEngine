@@ -6,7 +6,7 @@ impl Plugin for DisplayTextureComponentPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, load_texture)
-            .add_systems(Update, delete_entity_after_300)
+            .add_systems(Update, delete_entity_after_time)
             .init_resource::<Counter>();
     }
 }
@@ -31,8 +31,11 @@ fn load_texture(mut commands: Commands, server: Res<AssetServer>) {
 #[derive(Resource, Default)]
 pub struct Counter(u32);
 
-fn delete_entity_after_300(mut commands: Commands, display_texture_components: Query<Entity, With<DisplayTextureComponent>>, mut counter: ResMut<Counter>) {
-    if counter.0 == 300 {
+fn delete_entity_after_time(
+    mut commands: Commands, display_texture_components: Query<Entity, With<DisplayTextureComponent>>,
+    mut counter: ResMut<Counter>
+) {
+    if counter.0 == 3000 {
         // Despawn the entity
         // This should unload the texture as no other entity is using it
         let entity = display_texture_components.single();

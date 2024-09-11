@@ -7,7 +7,7 @@ use wde_wgpu::instance::WRenderInstance;
 use super::render_assets::{PrepareAssetError, RenderAsset};
 
 pub type TextureFormat = wde_wgpu::texture::WTextureFormat;
-pub type TextureUsages = wde_wgpu::texture::TextureUsages;
+pub type WTextureUsages = wde_wgpu::texture::TextureUsages;
 
 
 #[derive(Asset, TypePath, Clone)]
@@ -15,7 +15,7 @@ pub struct Texture {
     pub label: String,
     pub size: (usize, usize, usize),
     pub format: TextureFormat,
-    pub usages: TextureUsages,
+    pub usages: WTextureUsages,
     pub data: Vec<u8>,
     pub is_f32: bool
 }
@@ -25,7 +25,7 @@ impl Default for Texture {
             label: "Texture".to_string(),
             size: (1, 1, 1),
             format: TextureFormat::Rgba8Unorm,
-            usages: TextureUsages::TEXTURE_BINDING,
+            usages: WTextureUsages::TEXTURE_BINDING,
             data: Vec::new(),
             is_f32: false
         }
@@ -42,7 +42,7 @@ pub struct TextureLoaderSettings {
     /// The format of the texture (by default RGBA8Unorm).
     pub format: TextureFormat,
     /// The usages of the texture (by default TEXTURE_BINDING).
-    pub usages: TextureUsages,
+    pub usages: WTextureUsages,
     /// The depth of the texture (ex: RGB 3, RGBA 4). If None, the depth is 1.
     pub force_depth: Option<usize>
 }
@@ -52,7 +52,7 @@ impl Default for TextureLoaderSettings {
         Self {
             label: "texture".to_string(),
             format: TextureFormat::Rgba8Unorm,
-            usages: TextureUsages::TEXTURE_BINDING,
+            usages: WTextureUsages::TEXTURE_BINDING,
             force_depth: None
         }
     }

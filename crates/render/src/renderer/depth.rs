@@ -1,7 +1,7 @@
 use bevy::{prelude::*, window::WindowResized};
 use wde_wgpu::texture::WTexture;
 
-use crate::{assets::{Texture, TextureUsages}, core::extract_macros::ExtractWorld};
+use crate::{assets::{Texture, WTextureUsages}, core::extract_macros::ExtractWorld};
 
 #[derive(Resource)]
 pub struct DepthTexture {
@@ -14,7 +14,7 @@ impl DepthTexture {
             label: "depth".to_string(),
             size: (resolution.width() as usize, resolution.height() as usize, 1),
             format: WTexture::DEPTH_FORMAT,
-            usages: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
             ..Default::default()
         });
         commands.insert_resource(DepthTexture { texture });
@@ -27,7 +27,7 @@ impl DepthTexture {
                 label: "depth".to_string(),
                 size: (event.width as usize, event.height as usize, 1),
                 format: WTexture::DEPTH_FORMAT,
-                usages: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+                usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
                 ..Default::default()
             });
             commands.insert_resource(DepthTexture { texture });
