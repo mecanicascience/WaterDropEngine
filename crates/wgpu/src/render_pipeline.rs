@@ -3,7 +3,7 @@
 use bevy::{log::{error, trace, Level}, utils::tracing::event};
 use wgpu::{naga, BindGroupLayout};
 
-use crate::{instance::{WRenderError, WRenderInstanceData}, texture::{WTexture, TextureFormat}, vertex::WVertex};
+use crate::{instance::{WRenderError, WRenderInstanceData}, texture::{WTexture, WTextureFormat}, vertex::WVertex};
 
 /// List of available shaders.
 pub type WShaderStages = wgpu::ShaderStages;
@@ -11,6 +11,28 @@ pub type WShaderStages = wgpu::ShaderStages;
 pub type WShaderModule = wgpu::ShaderModule;
 /// Export culling params.
 pub type WFace = wgpu::Face;
+/// Export compare function.
+pub type WCompareFunction = wgpu::CompareFunction;
+
+/// Describes the depth/stencil attachment of a render pipeline.
+#[derive(Clone)]
+pub struct WDepthStencilDescriptor {
+    /// Whether the pipeline should have a depth/stencil attachment.
+    pub enabled: bool,
+    /// Whether the stencil attachment should be read-only.
+    pub write: bool,
+    /// The comparison function that the depth attachment will use.
+    pub compare: WCompareFunction
+}
+impl Default for WDepthStencilDescriptor {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            write: true,
+            compare: WCompareFunction::Less
+        }
+    }
+}
 
 /// List of available topologies.
 #[derive(Clone, Copy)]
@@ -24,7 +46,8 @@ pub enum WTopology {
 
 // Render pipeline configuration
 struct WRenderPipelineConfig {
-    depth_stencil: bool,
+    depth: WDepthStencilDescriptor,
+    render_targets: Vec<WTextureFormat>,
     primitive_topology: wgpu::PrimitiveTopology,
     push_constants: Vec<wgpu::PushConstantRange>,
     bind_groups: Vec<wgpu::BindGroupLayout>,
@@ -88,7 +111,8 @@ impl WRenderPipeline {
             layout: None,
             is_initialized: false,
             config: WRenderPipelineConfig {
-                depth_stencil: false,
+                depth: WDepthStencilDescriptor::default(),
+                render_targets: Vec::from([WTexture::SWAPCHAIN_FORMAT]),
                 primitive_topology: wgpu::PrimitiveTopology::TriangleList,
                 push_constants: Vec::new(),
                 bind_groups: Vec::new(),
@@ -130,9 +154,9 @@ impl WRenderPipeline {
         self
     }
 
-    /// Set the render pipeline to use depth and stencil.
-    pub fn set_depth_stencil(&mut self) -> &mut Self {
-        self.config.depth_stencil = true;
+    /// Set the configuration of the depth/stencil attachment.
+    pub fn set_depth(&mut self, depth: WDepthStencilDescriptor) -> &mut Self {
+        self.config.depth = depth;
         self
     }
 
@@ -153,6 +177,16 @@ impl WRenderPipeline {
             self.config.bind_groups.push(l);
         }
         
+        self
+    }
+
+    /// Set the render targets of the render pipeline.
+    ///
+    /// # Arguments
+    /// 
+    /// * `targets` - The render targets.
+    pub fn set_render_targets(&mut self, targets: Vec<WTextureFormat>) -> &mut Self {
+        self.config.render_targets = targets;
         self
     }
 
@@ -263,19 +297,11 @@ impl WRenderPipeline {
             fragment: Some(wgpu::FragmentState { // Always write to swapchain format
                 module: &shader_module_frag,
                 entry_point: "main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: match WTexture::SWAPCHAIN_FORMAT {
-                        TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8UnormSrgb,
-                        TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
-                        _ => {
-                            error!("Swapchain format is not supported for render pipeline '{}'.", self.label);
-                            res = Err(WRenderError::UnsupportedSwapchainFormat);
-                            wgpu::TextureFormat::Bgra8UnormSrgb
-                        }
-                    },
+                targets: d.render_targets.iter().map(|format| Some(wgpu::ColorTargetState {
+                    format: *format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
-                })],
+                })).collect::<Vec<Option<wgpu::ColorTargetState>>>().as_slice(),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
@@ -287,17 +313,17 @@ impl WRenderPipeline {
                 conservative: false,
                 unclipped_depth: false,
             },
-            depth_stencil: if d.depth_stencil { Some(wgpu::DepthStencilState {
+            depth_stencil: if d.depth.enabled { Some(wgpu::DepthStencilState {
                 format: match WTexture::DEPTH_FORMAT {
-                    TextureFormat::Depth32Float => wgpu::TextureFormat::Depth32Float,
+                    WTextureFormat::Depth32Float => wgpu::TextureFormat::Depth32Float,
                     _ => {
                         error!("Depth format is not supported for render pipeline '{}'.", self.label);
                         res = Err(WRenderError::UnsupportedDepthFormat);
                         wgpu::TextureFormat::Depth32Float
                     }
                 },
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled: d.depth.write,
+                depth_compare: d.depth.compare,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }) } else { None },

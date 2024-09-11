@@ -14,7 +14,7 @@ pub type TextureView = wgpu::TextureView;
 pub type TextureUsages = wgpu::TextureUsages;
 
 /// Texture format.
-pub type TextureFormat = wgpu::TextureFormat;
+pub type WTextureFormat = wgpu::TextureFormat;
 
 /// Texture struct.
 /// 
@@ -52,9 +52,9 @@ impl std::fmt::Debug for WTexture {
 
 impl WTexture {
     /// The swap chain texture format.
-    pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+    pub const SWAPCHAIN_FORMAT: WTextureFormat = WTextureFormat::Bgra8UnormSrgb;
     /// The depth texture format.
-    pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+    pub const DEPTH_FORMAT: WTextureFormat = WTextureFormat::Depth32Float;
 
     /// Create a new texture.
     /// 
@@ -65,7 +65,7 @@ impl WTexture {
     /// * `size` - Size of the texture.
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
-    pub fn new(instance: &WRenderInstanceData<'_>, label: &str, size: (u32, u32), format: TextureFormat, usage: TextureUsages) -> Self {
+    pub fn new(instance: &WRenderInstanceData<'_>, label: &str, size: (u32, u32), format: WTextureFormat, usage: TextureUsages) -> Self {
         event!(Level::DEBUG, "Creating wgpu texture {}.", label);
         
         // Create texture

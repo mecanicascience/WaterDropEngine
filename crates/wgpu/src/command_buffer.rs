@@ -22,6 +22,76 @@ pub struct Operations<V> {
     pub store: StoreOp,
 }
 
+pub type WLoadOp<T> = wgpu::LoadOp<T>;
+pub type WStoreOp = wgpu::StoreOp;
+
+/// Describe the depth texture of a render pass.
+pub struct RenderPassDepth<'pass> {
+    /// The depth texture. If `None`, the render pass will not have a depth texture.
+    pub texture: Option<&'pass TextureView>,
+    /// The depth operation when loading the texture. By default, clear the texture to 1.0 (farthest).
+    pub load_operation: WLoadOp<f32>,
+    /// The depth operation when storing the texture. By default, store the texture.
+    pub store_operation: WStoreOp,
+}
+impl<'pass> Default for RenderPassDepth<'pass> {
+    fn default() -> Self {
+        Self {
+            texture: None,
+            load_operation: wgpu::LoadOp::Clear(1.0),
+            store_operation: wgpu::StoreOp::Store,
+        }
+    }
+}
+
+/// Describe a color attachment of a render pass.
+pub struct RenderPassColorAttachment<'pass> {
+    /// The color texture.
+    pub texture: Option<&'pass TextureView>,
+    /// The color load operation. By default, clear the texture to black.
+    pub load: WLoadOp<Color>,
+    /// The color store operation. By default, store the texture.
+    pub store: WStoreOp,
+}
+impl<'pass> Default for RenderPassColorAttachment<'pass> {
+    fn default() -> Self {
+        Self {
+            texture: None,
+            load: wgpu::LoadOp::Clear(Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
+            store: wgpu::StoreOp::Store,
+        }
+    }
+}
+
+/// Builder for a render pass.
+#[derive(Default)]
+pub struct RenderPassBuilder<'pass> {
+    /// The depth texture of the render pass.
+    depth: RenderPassDepth<'pass>,
+    /// The color attachments of the render pass. By default, no color attachments.
+    color_attachments: Vec<RenderPassColorAttachment<'pass>>,
+}
+impl<'pass> RenderPassBuilder<'pass> {
+    /// Set the depth texture of the render pass.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `texture` - The depth texture.
+    pub fn set_depth_texture(&mut self, texture: RenderPassDepth<'pass>) {
+        self.depth = texture;
+    }
+
+    /// Add a color attachment to the render pass.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `attachment` - The color attachment.
+    pub fn add_color_attachment(&mut self, attachment: RenderPassColorAttachment<'pass>) {
+        self.color_attachments.push(attachment);
+    }
+}
+
+
 /// Create a new command buffer to record commands for the GPU.
 /// The command buffer can be used to create render passes and compute passes.
 /// Then, the command buffer can be submitted to the GPU.
@@ -88,48 +158,41 @@ impl WCommandBuffer {
     /// * `color_texture` - The color texture to render to.
     /// * `color_operations` - The color operations. If `None`, clear the color texture to black.
     /// * `depth_texture` - The depth texture to render to if the pipeline has a depth stencil.
-    pub fn create_render_pass<'pass>(&'pass mut self, label: &str,
-        color_texture: &'pass TextureView,
-        color_operations: Option<Operations<Color>>,
-        depth_texture: Option<&'pass TextureView>) -> WRenderPass<'pass> {
+    pub fn create_render_pass<'pass>(
+        &'pass mut self, label: &str, builder_func: impl FnOnce(&mut RenderPassBuilder<'pass>)
+    ) -> WRenderPass<'pass> {
         event!(Level::TRACE, "Creating a render pass {}.", label);
 
+        // Run the builder function
+        let mut builder = RenderPassBuilder::default();
+        builder_func(&mut builder);
+
         let mut depth_attachment = None;
-        if depth_texture.is_some() {
+        if let Some(depth_texture) = builder.depth.texture {
             depth_attachment = Some(wgpu::RenderPassDepthStencilAttachment {
-                view: depth_texture.unwrap(),
+                view: depth_texture,
                 depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: wgpu::StoreOp::Store,
+                    load: builder.depth.load_operation,
+                    store: builder.depth.store_operation
                 }),
                 stencil_ops: None,
             });
         }
 
-        let mut wgpu_color_operations = None;
-        if color_operations.as_ref().is_some() {
-            wgpu_color_operations = Some(wgpu::Operations {
-                load: match color_operations.as_ref().unwrap().load {
-                    LoadOp::Clear(color) => wgpu::LoadOp::Clear(color),
-                    LoadOp::Load => wgpu::LoadOp::Load,
+        let color_attachments = builder.color_attachments.iter().map(|attachment| {
+            attachment.texture.map(|texture| wgpu::RenderPassColorAttachment {
+                view: texture,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: attachment.load,
+                    store: attachment.store
                 },
-                store: match color_operations.unwrap().store {
-                    StoreOp::Discard => wgpu::StoreOp::Discard,
-                    StoreOp::Store => wgpu::StoreOp::Store,
-                },
-            });
-        }
+            })
+        }).collect::<Vec<_>>();
 
         let render_pass = self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some(format!("{}-render-pass", label).as_str()),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: color_texture,
-                resolve_target: None,
-                ops: wgpu_color_operations.unwrap_or(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(Color::BLACK),
-                    store: wgpu::StoreOp::Store
-                }),
-            })],
+            color_attachments: &color_attachments,
             depth_stencil_attachment: depth_attachment,
             timestamp_writes: None,
             occlusion_query_set: None,

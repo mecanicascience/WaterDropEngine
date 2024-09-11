@@ -181,8 +181,9 @@ fn load_pipelines(
         }
         pipeline.set_topology(descriptor.topology);
         pipeline.set_cull_mode(descriptor.cull_mode);
-        if descriptor.depth_stencil {
-            pipeline.set_depth_stencil();
+        pipeline.set_depth(descriptor.depth.clone());
+        if let Some(ref render_targets) = descriptor.render_targets {
+            pipeline.set_render_targets(render_targets.clone());
         }
         for push_constant in descriptor.push_constants.iter() {
             pipeline.add_push_constant(push_constant.stages, push_constant.offset, push_constant.size);

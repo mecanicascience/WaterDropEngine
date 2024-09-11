@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::{assets::{GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
-use wde_wgpu::{command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance};
+use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer}, instance::WRenderInstance};
 
 use super::{GpuPbrRenderPipeline, PbrMaterial, PbrSsbo};
 
@@ -165,14 +165,16 @@ impl PbrRenderPass {
         // Create the render pass
         let mut command_buffer = WCommandBuffer::new(&render_instance, "pbr");
         {
-            let mut render_pass = command_buffer.create_render_pass(
-                "pbr", &swapchain_frame.view,
-                Some(Operations {
-                    load: LoadOp::Clear(Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
-                    store: StoreOp::Store,
-                }),
-                Some(&depth_texture.texture.view),
-            );
+            let mut render_pass = command_buffer.create_render_pass("pbr", |builder: &mut RenderPassBuilder| {
+                builder.set_depth_texture(RenderPassDepth {
+                    texture: Some(&depth_texture.texture.view),
+                    ..Default::default()
+                });
+                builder.add_color_attachment(RenderPassColorAttachment {
+                    texture: Some(&swapchain_frame.view),
+                    ..Default::default()
+                });
+            });
 
             // Render the mesh
             if let (

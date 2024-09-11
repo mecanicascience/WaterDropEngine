@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use wde_render::{assets::{GpuMesh, GpuTexture, Mesh, ModelBoundingBox, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup, WgpuBindGroupLayout}, command_buffer::{Color, LoadOp, Operations, StoreOp, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup, WgpuBindGroupLayout}, command_buffer::{RenderPassBuilder, RenderPassColorAttachment, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
 
 use super::component::DisplayTextureComponent;
 
@@ -30,7 +30,6 @@ impl FromWorld for DisplayTexturePipeline {
             label: "display-texture",
             vert: Some(world.load_asset("examples/display_texture/vert.wgsl")),
             frag: Some(world.load_asset("examples/display_texture/frag.wgsl")),
-            depth_stencil: false,
             bind_group_layouts: vec![layout.clone()],
             ..Default::default()
         };
@@ -138,13 +137,12 @@ fn render_texture(
     let mut command_buffer = WCommandBuffer::new(&render_instance, "display-texture");
 
     {
-        let mut render_pass = command_buffer.create_render_pass(
-            "display-texture", &swapchain_frame.view,
-            Some(Operations {
-                load: LoadOp::Clear(Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
-                store: StoreOp::Store,
-            }),
-            None);
+        let mut render_pass = command_buffer.create_render_pass("display-texture", |builder: &mut RenderPassBuilder| {
+            builder.add_color_attachment(RenderPassColorAttachment {
+                texture: Some(&swapchain_frame.view),
+                ..Default::default()
+            });
+        });
 
         if display_texture_holders.texture.is_some() {
             if let (

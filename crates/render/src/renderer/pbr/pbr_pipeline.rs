@@ -1,4 +1,5 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
+use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
 use crate::{assets::{GpuMaterial, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
 
 use super::{PbrMaterial, PbrSsbo};
@@ -43,7 +44,11 @@ impl RenderAsset for GpuPbrRenderPipeline {
             vert: Some(assets_server.load("pbr/vert.wgsl")),
             frag: Some(assets_server.load("pbr/frag.wgsl")),
             bind_group_layouts: vec![camera_feature.layout.clone(), ssbo_layout.clone(), material.bind_group_layout.clone()],
-            depth_stencil: true,
+            depth: WDepthStencilDescriptor {
+                enabled: true,
+                ..Default::default()
+            },
+            render_targets: None,
             ..Default::default()
         };
         let cached_index = pipeline_manager.create_render_pipeline(pipeline_desc);

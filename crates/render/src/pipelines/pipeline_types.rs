@@ -1,5 +1,5 @@
 use bevy::{asset::Handle, ecs::prelude::*};
-use wde_wgpu::{bind_group::BindGroupLayout, render_pipeline::{WFace, WShaderStages, WTopology}};
+use wde_wgpu::{bind_group::BindGroupLayout, render_pipeline::{WDepthStencilDescriptor, WFace, WShaderStages, WTopology}, texture::WTextureFormat};
 
 use crate::assets::Shader;
 
@@ -24,8 +24,10 @@ pub struct RenderPipelineDescriptor {
     pub vert: Option<Handle<Shader>>,
     /// The fragment shader of the pipeline (default: None).
     pub frag: Option<Handle<Shader>>,
-    /// Whether the pipeline should have a depth/stencil attachment (default: false).
-    pub depth_stencil: bool,
+    /// Describes the depth and stencil state of the pipeline.
+    pub depth: WDepthStencilDescriptor,
+    /// The render targets of the pipeline. By default, the pipeline will render to the swap chain.
+    pub render_targets: Option<Vec<WTextureFormat>>,
     /// The bind group layouts that the pipeline will use.
     pub bind_group_layouts: Vec<BindGroupLayout>,
     /// The push constants that the pipeline will use.
@@ -42,7 +44,8 @@ impl Default for RenderPipelineDescriptor {
             label: "Render Pipeline",
             vert: None,
             frag: None,
-            depth_stencil: false,
+            depth: WDepthStencilDescriptor::default(),
+            render_targets: None,
             bind_group_layouts: vec![],
             push_constants: vec![],
             topology: WTopology::TriangleList,

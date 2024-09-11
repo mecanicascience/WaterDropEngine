@@ -6,7 +6,7 @@ use wde_wgpu::instance::WRenderInstance;
 
 use super::render_assets::{PrepareAssetError, RenderAsset};
 
-pub type TextureFormat = wde_wgpu::texture::TextureFormat;
+pub type TextureFormat = wde_wgpu::texture::WTextureFormat;
 pub type TextureUsages = wde_wgpu::texture::TextureUsages;
 
 
