@@ -162,10 +162,10 @@ impl PbrGBufferRenderPass {
         };
 
         // Check if the defered textures are ready
-        let (albedo, normal) = match (
-            textures.get(&defered_textures.albedo), textures.get(&defered_textures.normal)
+        let (albedo, normal, material_tex) = match (
+            textures.get(&defered_textures.albedo), textures.get(&defered_textures.normal), textures.get(&defered_textures.material)
         ) {
-            (Some(albedo), Some(normal)) => (albedo, normal),
+            (Some(albedo), Some(normal), Some(material_tex)) => (albedo, normal, material_tex),
             _ => return
         };
 
@@ -183,6 +183,10 @@ impl PbrGBufferRenderPass {
                 });
                 builder.add_color_attachment(RenderPassColorAttachment {
                     texture: Some(&normal.texture.view),
+                    ..Default::default()
+                });
+                builder.add_color_attachment(RenderPassColorAttachment {
+                    texture: Some(&material_tex.texture.view),
                     ..Default::default()
                 });
             });

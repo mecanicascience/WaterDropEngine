@@ -29,11 +29,13 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
         label: "pbr-material-red-box".to_string(),
         albedo: (1.0, 0.0, 0.0),
         texture: Some(box_texture),
+        ..Default::default()
     });
     let blue = materials.add(PbrMaterial {
         label: "pbr-material-blue".to_string(),
         albedo: (0.0, 0.0, 1.0),
         texture: None,
+        ..Default::default()
     });
     let suzanne = asset_server.load("examples/pbr_batches/suzanne.obj");
     let cube = asset_server.load("examples/pbr_batches/cube.obj");

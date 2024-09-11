@@ -1,7 +1,7 @@
 struct ModelInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coord: vec2<f32>,
-    @location(2) normal: vec3<f32>,
+    @location(2) normal: vec3<f32>
 };
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -23,6 +23,7 @@ struct Model {
     data: array<ObjectToWorld>,
 }
 @group(1) @binding(0) var<storage> in_model: Model;
+
 
 @vertex
 fn main(@builtin(instance_index) instance: u32, model: ModelInput) -> VertexOutput {

@@ -27,10 +27,11 @@ impl RenderAsset for GpuPbrGBufferRenderPipeline {
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         // Get the defered textures
-        let (albedo, normal) = match (textures.get(&defered_textures.albedo), textures.get(&defered_textures.normal)) {
-            (Some(albedo), Some(normal)) => (albedo, normal),
-            _ => return Err(PrepareAssetError::RetryNextUpdate(asset))
-        };
+        let (albedo, normal, material_tex) =
+            match (textures.get(&defered_textures.albedo), textures.get(&defered_textures.normal), textures.get(&defered_textures.material)) {
+                (Some(albedo), Some(normal), Some(material_tex)) => (albedo, normal, material_tex),
+                _ => return Err(PrepareAssetError::RetryNextUpdate(asset))
+            };
 
         // Get the ssbo layout
         let ssbo_layout = match &ssbo.bind_group_layout {
@@ -54,7 +55,7 @@ impl RenderAsset for GpuPbrGBufferRenderPipeline {
                 enabled: true,
                 ..Default::default()
             },
-            render_targets: Some(vec![albedo.texture.format, normal.texture.format]),
+            render_targets: Some(vec![albedo.texture.format, normal.texture.format, material_tex.texture.format]),
             ..Default::default()
         };
         let cached_index = pipeline_manager.create_render_pipeline(pipeline_desc);

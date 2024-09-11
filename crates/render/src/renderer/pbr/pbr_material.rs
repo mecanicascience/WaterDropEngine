@@ -10,8 +10,14 @@ pub struct PbrMaterial {
     pub label: String,
     /// The albedo color of the material instance.
     pub albedo: (f32, f32, f32),
-    /// The texture of the material instance. If none, a dummy texture is used.
+    /// The texture of the material instance. If none, a dummy texture is used. If some, the texture is used and replaces the albedo color.
     pub texture: Option<Handle<Texture>>,
+    /// Metalness of the material instance.
+    pub metallic: f32,
+    /// Roughness of the material instance.
+    pub roughness: f32,
+    /// Reflectance of the material instance.
+    pub reflectance: f32,
 }
 impl Default for PbrMaterial {
     fn default() -> Self {
@@ -19,6 +25,9 @@ impl Default for PbrMaterial {
             label: "pbr-material".to_string(),
             albedo: (1.0, 1.0, 1.0),
             texture: None,
+            metallic: 0.0,
+            roughness: 0.0,
+            reflectance: 0.0,
         }
     }
 }
@@ -27,16 +36,25 @@ impl Default for PbrMaterial {
 #[derive(Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct PbrMaterialUniform {
     /// RGB color of the material.
-    pub color: [f32; 3],
+    pub color: [f32; 4],
     /// Whether the material has a texture (1.0) or not (0.0).
     pub has_texture: f32,
+    /// Metalness of the material.
+    pub metallic: f32,
+    /// Roughness of the material.
+    pub roughness: f32,
+    /// Reflectance of the material.
+    pub reflectance: f32,
 }
 impl Material for PbrMaterial {
     fn describe(&self, builder: &mut MaterialBuilder) {
         // Create the uniform buffer
         let uniform = PbrMaterialUniform {
-            color: [self.albedo.0, self.albedo.1, self.albedo.2],
+            color: [self.albedo.0, self.albedo.1, self.albedo.2, 1.0],
             has_texture: if self.texture.is_some() { 1.0 } else { 0.0 },
+            metallic: self.metallic,
+            roughness: self.roughness,
+            reflectance: self.reflectance
         };
 
         // Build the material

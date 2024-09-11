@@ -23,17 +23,21 @@ impl PbrDeferredTexturesLayout {
         }
 
         // Get the textures
-        let (albedo, normal) = match (textures.get(&deferred_textures.albedo), textures.get(&deferred_textures.normal)) {
-            (Some(albedo), Some(normal)) => (albedo, normal),
+        let (albedo, normal, material) = match (
+            textures.get(&deferred_textures.albedo), textures.get(&deferred_textures.normal), textures.get(&deferred_textures.material)
+        ) {
+            (Some(albedo), Some(normal), Some(material)) => (albedo, normal, material),
             _ => return
         };
 
         // Create the deferred layout
         let deferred_layout = BindGroupLayout::new("deferred-textures", |builder: &mut BindGroupLayoutBuilder| {
-            builder.add_texture_view(0, WShaderStages::FRAGMENT);
+            builder.add_texture_view(   0, WShaderStages::FRAGMENT);
             builder.add_texture_sampler(1, WShaderStages::FRAGMENT);
-            builder.add_texture_view(2, WShaderStages::FRAGMENT);
+            builder.add_texture_view(   2, WShaderStages::FRAGMENT);
             builder.add_texture_sampler(3, WShaderStages::FRAGMENT);
+            builder.add_texture_view(   4, WShaderStages::FRAGMENT);
+            builder.add_texture_sampler(5, WShaderStages::FRAGMENT);
         });
 
         // Build the layout
@@ -42,10 +46,12 @@ impl PbrDeferredTexturesLayout {
 
         // Create the bind group
         let deferred_bind_group = BindGroup::build("deferred-textures", &render_instance, &deferred_layout_built, &vec![
-            BindGroup::texture_view(0, &albedo.texture),
+            BindGroup::texture_view(   0, &albedo.texture),
             BindGroup::texture_sampler(1, &albedo.texture),
-            BindGroup::texture_view(2, &normal.texture),
-            BindGroup::texture_sampler(3, &normal.texture)
+            BindGroup::texture_view(   2, &normal.texture),
+            BindGroup::texture_sampler(3, &normal.texture),
+            BindGroup::texture_view(   4, &material.texture),
+            BindGroup::texture_sampler(5, &material.texture)
         ]);
 
         // Insert the resources
@@ -58,6 +64,7 @@ impl PbrDeferredTexturesLayout {
 pub struct PbrDeferredTextures {
     pub albedo: Handle<Texture>,
     pub normal: Handle<Texture>,
+    pub material: Handle<Texture>,
     pub resized: bool
 }
 impl PbrDeferredTextures {
@@ -83,9 +90,18 @@ impl PbrDeferredTextures {
             ..Default::default()
         });
 
+        // Create the material textures (metallic, roughness, reflectance)
+        let material = assets_server.add(Texture {
+            label: "pbr-material".to_string(),
+            size: (resolution.width() as usize, resolution.height() as usize, 1),
+            format: WTextureFormat::Rgba8UnormSrgb,
+            usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
+            ..Default::default()
+        });
+
         // Insert the resources
         commands.insert_resource(PbrDeferredTextures {
-            albedo, normal, resized: false
+            albedo, normal, material, resized: false
         });
     }
 
@@ -114,9 +130,19 @@ impl PbrDeferredTextures {
                 ..Default::default()
             });
 
+            // Recreate the material textures
+            let material = server.add(Texture {
+                label: "pbr-material".to_string(),
+                size: (event.width as usize, event.height as usize, 1),
+                format: WTextureFormat::Rgba8UnormSrgb,
+                usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
+                ..Default::default()
+            });
+
             // Insert the resources
             deferred_textures.albedo = albedo;
             deferred_textures.normal = normal;
+            deferred_textures.material = material;
             deferred_textures.resized = true;
         }
     }
@@ -131,6 +157,7 @@ impl PbrDeferredTextures {
         commands.insert_resource(PbrDeferredTextures {
             albedo: textures.albedo.clone(),
             normal: textures.normal.clone(),
+            material: textures.material.clone(),
             resized: false
         });
     }
