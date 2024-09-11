@@ -1,31 +1,37 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
-use crate::{assets::{GpuMaterial, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
+use crate::{assets::{GpuMaterial, GpuTexture, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
 
-use super::{PbrMaterial, PbrSsbo};
+use super::{PbrDeferredTextures, PbrMaterial, PbrSsbo};
 
 
 #[derive(Default, Asset, Clone, TypePath)]
-/// Render the entities with a physically based rendering material and a mesh.
-pub struct PbrRenderPipeline;
-/// Represents the gpu pbr render pipeline.
-pub struct GpuPbrRenderPipeline {
+pub struct PbrGBufferRenderPipeline;
+pub struct GpuPbrGBufferRenderPipeline {
     pub cached_pipeline_index: CachedPipelineIndex
 }
-impl RenderAsset for GpuPbrRenderPipeline {
-    type SourceAsset = PbrRenderPipeline;
+impl RenderAsset for GpuPbrGBufferRenderPipeline {
+    type SourceAsset = PbrGBufferRenderPipeline;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>,
-        SRes<CameraFeatureRender>, SRes<RenderAssets<GpuMaterial<PbrMaterial>>>, SRes<PbrSsbo>
+        SRes<CameraFeatureRender>, SRes<RenderAssets<GpuMaterial<PbrMaterial>>>, SRes<PbrSsbo>,
+        SRes<PbrDeferredTextures>, SRes<RenderAssets<GpuTexture>>
     );
 
     fn prepare_asset(
             asset: Self::SourceAsset,
             (
                 assets_server, pipeline_manager,
-                camera_feature, materials, ssbo
+                camera_feature, materials, ssbo,
+                defered_textures, textures
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
+        // Get the defered textures
+        let (albedo, normal) = match (textures.get(&defered_textures.albedo), textures.get(&defered_textures.normal)) {
+            (Some(albedo), Some(normal)) => (albedo, normal),
+            _ => return Err(PrepareAssetError::RetryNextUpdate(asset))
+        };
+
         // Get the ssbo layout
         let ssbo_layout = match &ssbo.bind_group_layout {
             Some(layout) => layout,
@@ -40,20 +46,20 @@ impl RenderAsset for GpuPbrRenderPipeline {
 
         // Create the pipeline
         let pipeline_desc = RenderPipelineDescriptor {
-            label: "pbr",
-            vert: Some(assets_server.load("pbr/vert.wgsl")),
-            frag: Some(assets_server.load("pbr/frag.wgsl")),
+            label: "gbuffer-pbr",
+            vert: Some(assets_server.load("pbr/gbuffer_vert.wgsl")),
+            frag: Some(assets_server.load("pbr/gbuffer_frag.wgsl")),
             bind_group_layouts: vec![camera_feature.layout.clone(), ssbo_layout.clone(), material.bind_group_layout.clone()],
             depth: WDepthStencilDescriptor {
                 enabled: true,
                 ..Default::default()
             },
-            render_targets: None,
+            render_targets: Some(vec![albedo.texture.format, normal.texture.format]),
             ..Default::default()
         };
         let cached_index = pipeline_manager.create_render_pipeline(pipeline_desc);
 
-        Ok(GpuPbrRenderPipeline {
+        Ok(GpuPbrGBufferRenderPipeline {
             cached_pipeline_index: cached_index
         })
     }

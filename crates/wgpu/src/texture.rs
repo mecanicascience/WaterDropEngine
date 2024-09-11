@@ -35,6 +35,7 @@ pub type WTextureFormat = wgpu::TextureFormat;
 pub struct WTexture {
     pub label: String,
     pub texture: wgpu::Texture,
+    pub format: WTextureFormat,
     pub view: TextureView,
     pub sampler: wgpu::Sampler,
     pub size: (u32, u32),
@@ -131,6 +132,7 @@ impl WTexture {
         Self {
             label: label.to_string(),
             texture,
+            format,
             view,
             sampler,
             size,

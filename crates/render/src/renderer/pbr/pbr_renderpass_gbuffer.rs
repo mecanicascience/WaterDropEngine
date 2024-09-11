@@ -1,25 +1,24 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
+use crate::{assets::{GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::extract_macros::ExtractWorld, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer}, instance::WRenderInstance};
 
-use super::{GpuPbrRenderPipeline, PbrMaterial, PbrSsbo};
+use super::{GpuPbrGBufferRenderPipeline, PbrDeferredTextures, PbrMaterial, PbrSsbo};
 
-pub struct PbrRenderBatch {
+pub struct PbrGBufferRenderBatch {
     mesh: Handle<Mesh>,
     material: Handle<PbrMaterial>,
     first: usize,
     count: usize,
     index_count: usize,
 }
-
 #[derive(Resource)]
-pub struct PbrRenderPass {
-    pub batches: Vec<PbrRenderBatch>,
+pub struct PbrGBufferRenderPass {
+    pub batches: Vec<PbrGBufferRenderBatch>,
 }
-impl PbrRenderPass {
+impl PbrGBufferRenderPass {
     /// Create the batches with the correct mesh and material.
     pub fn create_batches(
-        mut pass: ResMut<PbrRenderPass>, render_instance: Res<WRenderInstance<'static>>,
+        mut pass: ResMut<PbrGBufferRenderPass>, render_instance: Res<WRenderInstance<'static>>,
         entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>, &Handle<PbrMaterial>)>>,
         meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<PbrMaterial>>>,
         buffers: Res<RenderAssets<GpuBuffer>>, ssbo: Res<PbrSsbo>
@@ -65,7 +64,7 @@ impl PbrRenderPass {
                         continue;
                     } else {
                         // Push the batch
-                        pass.batches.push(PbrRenderBatch {
+                        pass.batches.push(PbrGBufferRenderBatch {
                             mesh: last_mesh_ref.unwrap().clone_weak(),
                             material: last_material_ref.unwrap().clone_weak(),
                             first,
@@ -106,7 +105,7 @@ impl PbrRenderPass {
 
             // Push the last batch
             if let (Some(last_mesh), Some(last_material)) = (last_mesh, last_material) {
-                pass.batches.push(PbrRenderBatch {
+                pass.batches.push(PbrGBufferRenderBatch {
                     mesh: last_mesh.clone_weak(),
                     material: last_material.clone_weak(),
                     first,
@@ -129,21 +128,21 @@ impl PbrRenderPass {
 
 
     /// Render the different batches.
-    pub fn render(
-        (render_instance, swapchain_frame, pipeline_manager): (
-            Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
+    pub fn render_g_buffer(
+        (render_instance, pipeline_manager): (
+            Res<WRenderInstance<'static>>,  Res<PipelineManager>
         ),
         (camera_layout, ssbo) : (Res<CameraFeatureRender>, Res<PbrSsbo>),
         (meshes, textures, materials): (
             Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<PbrMaterial>>>
         ),
-        (mesh_pipeline, render_mesh_pass, depth_texture): (
-            Res<RenderAssets<GpuPbrRenderPipeline>>, Res<PbrRenderPass>, Res<DepthTexture>
-        )
+        (gbuffer_pipeline, render_mesh_pass, depth_texture): (
+            Res<RenderAssets<GpuPbrGBufferRenderPipeline>>, Res<PbrGBufferRenderPass>, Res<DepthTexture>
+        ),
+        defered_textures: Res<PbrDeferredTextures>
     ) {
         // Get the render instance and swapchain frame
         let render_instance = render_instance.data.read().unwrap();
-        let swapchain_frame = swapchain_frame.data.as_ref().unwrap();
 
         // Check if depth texture is ready
         let depth_texture = match textures.get(&depth_texture.texture) {
@@ -157,21 +156,33 @@ impl PbrRenderPass {
         };
 
         // Check if pipeline is ready
-        let mesh_pipeline = match mesh_pipeline.iter().next() {
+        let gbuffer_pipeline = match gbuffer_pipeline.iter().next() {
             Some((_, pipeline)) => pipeline,
             None => return
         };
 
+        // Check if the defered textures are ready
+        let (albedo, normal) = match (
+            textures.get(&defered_textures.albedo), textures.get(&defered_textures.normal)
+        ) {
+            (Some(albedo), Some(normal)) => (albedo, normal),
+            _ => return
+        };
+
         // Create the render pass
-        let mut command_buffer = WCommandBuffer::new(&render_instance, "pbr");
+        let mut command_buffer = WCommandBuffer::new(&render_instance, "gbuffer-pbr");
         {
-            let mut render_pass = command_buffer.create_render_pass("pbr", |builder: &mut RenderPassBuilder| {
+            let mut render_pass = command_buffer.create_render_pass("gbuffer-pbr", |builder: &mut RenderPassBuilder| {
                 builder.set_depth_texture(RenderPassDepth {
                     texture: Some(&depth_texture.texture.view),
                     ..Default::default()
                 });
                 builder.add_color_attachment(RenderPassColorAttachment {
-                    texture: Some(&swapchain_frame.view),
+                    texture: Some(&albedo.texture.view),
+                    ..Default::default()
+                });
+                builder.add_color_attachment(RenderPassColorAttachment {
+                    texture: Some(&normal.texture.view),
                     ..Default::default()
                 });
             });
@@ -182,7 +193,7 @@ impl PbrRenderPass {
                 Some(camera_bg),
                 Some(ssbo_bind_group)
             ) = (
-                pipeline_manager.get_pipeline(mesh_pipeline.cached_pipeline_index),
+                pipeline_manager.get_pipeline(gbuffer_pipeline.cached_pipeline_index),
                 &camera_layout.bind_group,
                 &ssbo.bind_group
             ) {
