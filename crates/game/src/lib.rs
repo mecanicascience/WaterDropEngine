@@ -3,12 +3,11 @@
 
 use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
 use examples::ExamplesPugin;
-use game::GamePlugin;
+use game::*;
+use scene::GamePlugin;
 use wde_render::RenderPlugin;
 
 mod game;
-mod components;
-mod features;
 mod examples;
 
 pub fn start_game() {
