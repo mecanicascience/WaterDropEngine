@@ -12,7 +12,7 @@ pub trait Material {
     fn label(&self) -> &str;
 }
 
-const DUMMY_TEXTURE_PATH: &str = "mesh/dummy_texture.png";
+const DUMMY_TEXTURE_PATH: &str = "pbr/dummy_texture.png";
 
 
 struct MaterialBuilderBuffer {

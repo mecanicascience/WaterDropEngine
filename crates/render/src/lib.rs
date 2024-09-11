@@ -6,6 +6,7 @@ pub mod pipelines;
 pub mod components;
 pub mod core;
 pub mod features;
+pub mod renderer;
 
 use core::RenderCorePlugin;
 

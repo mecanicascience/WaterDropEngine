@@ -15,7 +15,7 @@ use wde_wgpu::instance::{create_instance, WRenderTexture};
 use window::{extract_window_size, WindowPlugins};
 use std::ops::{Deref, DerefMut};
 
-use crate::{components:: RenderComponentsPlugin, features::RenderFeaturesPlugin, pipelines::{PipelineManagerPlugin, PipelinesFeaturesPlugin}};
+use crate::{components:: RenderComponentsPlugin, features::RenderFeaturesPlugin, pipelines::PipelineManagerPlugin, renderer::RendererPlugin};
 
 
 /// Stores the main world for rendering as a resource.
@@ -150,8 +150,9 @@ impl Plugin for RenderCorePlugin {
             );
 
             // Add present system
-            render_app.add_systems(Render, prepare.in_set(RenderSet::Prepare));
-            render_app.add_systems(Render, present.in_set(RenderSet::Submit));
+            render_app
+                .add_systems(Render, prepare.in_set(RenderSet::Prepare))
+                .add_systems(Render, present.in_set(RenderSet::Submit));
 
             // Add render plugins
             render_app
@@ -163,7 +164,7 @@ impl Plugin for RenderCorePlugin {
 
         // Add the render pipeline plugins
         app
-            .add_plugins(PipelinesFeaturesPlugin)
+            .add_plugins(RendererPlugin)
             .add_plugins(PipelinedRenderingPlugin)
             .add_plugins(RenderComponentsPlugin)
             .add_plugins(RenderFeaturesPlugin);
