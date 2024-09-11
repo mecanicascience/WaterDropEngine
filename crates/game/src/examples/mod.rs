@@ -32,7 +32,7 @@ impl Plugin for ExamplesPugin {
                 app.add_plugins(pbr_batches::PbrBatchesPlugin);
             },
             Examples::CustomForwardRender => {
-                app.add_plugins(custom_forward_render::PbrFeaturesPlugin);
+                app.add_plugins(custom_forward_render::CustomFeaturesPlugin);
             }
         }
     }

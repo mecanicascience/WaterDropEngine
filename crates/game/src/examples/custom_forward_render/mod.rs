@@ -27,17 +27,17 @@ fn create_scene(mut commands: Commands, asset_server: Res<AssetServer>, mut mate
     // Load the assets
     let box_texture = asset_server.load_with_settings("examples/custom_forward_render/box.png", 
     |settings: &mut TextureLoaderSettings| {
-        settings.label = "pbr-box".to_string();
+        settings.label = "custom-box".to_string();
         settings.format = WTextureFormat::Rgba8Unorm;
         settings.usages = WTextureUsages::TEXTURE_BINDING;
     });
     let red_box = materials.add(CustomMaterial {
-        label: "pbr-material-red-box".to_string(),
+        label: "custom-material-red-box".to_string(),
         color: (1.0, 0.0, 0.0),
         texture: Some(box_texture),
     });
     let blue = materials.add(CustomMaterial {
-        label: "pbr-material-blue".to_string(),
+        label: "custom-material-blue".to_string(),
         color: (0.0, 0.0, 1.0),
         texture: None,
     });
@@ -68,27 +68,27 @@ fn create_scene(mut commands: Commands, asset_server: Res<AssetServer>, mut mate
 }
 
 /// Plugin to add the custom forward render pass, pipeline and material
-pub struct PbrFeaturesPlugin;
-impl Plugin for PbrFeaturesPlugin {
+pub struct CustomFeaturesPlugin;
+impl Plugin for CustomFeaturesPlugin {
     fn build(&self, app: &mut App) {
         // Create the scene to display
         app
             .add_systems(Startup, create_scene);
 
-        // Add the pbr material
+        // Add the custom material
         app
             .add_plugins(MaterialsPlugin::<CustomMaterial>::default());
 
-        // Add the pbr ssbo
+        // Add the custom ssbo
         app
             .add_plugins(CustomSsboPlugin);
 
-        // Add the pbr pipeline
+        // Add the custom pipeline
         app
             .init_asset::<CustomRenderPipeline>()
             .add_plugins(RenderAssetsPlugin::<GpuCustomRenderPipeline>::default());
 
-        // Add the pbr render pass
+        // Add the custom render pass
         app.get_sub_app_mut(RenderApp).unwrap()
             .add_systems(Extract, (CustomRenderPass::create_batches, DepthTexture::extract_depth_texture))
             .add_systems(Render, CustomRenderPass::render.in_set(RenderSet::Render));

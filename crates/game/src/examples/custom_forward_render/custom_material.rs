@@ -51,7 +51,7 @@ impl Material for CustomMaterial {
 }
 
 #[derive(Bundle)]
-/// A bundle of components for a physically based rendering entity.
+/// A bundle of components for a custom material entity.
 pub struct CustomBundle {
     pub transform: Transform,
     pub mesh: Handle<Mesh>,
