@@ -11,7 +11,7 @@ struct FragOutput {
 
 // Material description
 struct PbrMaterial {
-    base_color: vec3<f32>,
+    albedo: vec3<f32>,
     has_texture: f32,
 };
 @group(2) @binding(0) var<uniform> in_material: PbrMaterial;
@@ -22,7 +22,11 @@ struct PbrMaterial {
 fn main(in: VertexOutput) -> FragOutput {
     var out: FragOutput;
     
-    out.color = vec4<f32>(in_material.base_color, 1.0);
+    if (in_material.has_texture > 0.0) {
+        out.color = textureSample(in_material_texture, in_material_sampler, in.tex_coord);
+    } else {
+        out.color = vec4<f32>(in_material.albedo, 1.0);
+    }
     out.normal = vec4<f32>(normalize(in.normal), 1.0);
 
     return out;

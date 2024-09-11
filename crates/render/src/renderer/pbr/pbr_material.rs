@@ -8,8 +8,8 @@ use crate::assets::{Material, MaterialBuilder, Mesh, Texture};
 pub struct PbrMaterial {
     /// The label of the material instance.
     pub label: String,
-    /// The color of the material instance.
-    pub color: (f32, f32, f32),
+    /// The albedo color of the material instance.
+    pub albedo: (f32, f32, f32),
     /// The texture of the material instance. If none, a dummy texture is used.
     pub texture: Option<Handle<Texture>>,
 }
@@ -17,7 +17,7 @@ impl Default for PbrMaterial {
     fn default() -> Self {
         PbrMaterial {
             label: "pbr-material".to_string(),
-            color: (1.0, 1.0, 1.0),
+            albedo: (1.0, 1.0, 1.0),
             texture: None,
         }
     }
@@ -35,7 +35,7 @@ impl Material for PbrMaterial {
     fn describe(&self, builder: &mut MaterialBuilder) {
         // Create the uniform buffer
         let uniform = PbrMaterialUniform {
-            color: [self.color.0, self.color.1, self.color.2],
+            color: [self.albedo.0, self.albedo.1, self.albedo.2],
             has_texture: if self.texture.is_some() { 1.0 } else { 0.0 },
         };
 

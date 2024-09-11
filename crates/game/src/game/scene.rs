@@ -27,12 +27,12 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
     });
     let red_box = materials.add(PbrMaterial {
         label: "pbr-material-red-box".to_string(),
-        color: (1.0, 0.0, 0.0),
+        albedo: (1.0, 0.0, 0.0),
         texture: Some(box_texture),
     });
     let blue = materials.add(PbrMaterial {
         label: "pbr-material-blue".to_string(),
-        color: (0.0, 0.0, 1.0),
+        albedo: (0.0, 0.0, 1.0),
         texture: None,
     });
     let suzanne = asset_server.load("models/suzanne.obj");
