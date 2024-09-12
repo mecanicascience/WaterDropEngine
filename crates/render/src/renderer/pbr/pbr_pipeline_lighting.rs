@@ -1,6 +1,6 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
-use crate::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}, renderer::depth::DepthTextureLayout};
+use crate::{assets::{PrepareAssetError, RenderAsset}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}, renderer::depth::DepthTextureLayout};
 
 use super::PbrDeferredTexturesLayout;
 
@@ -13,14 +13,16 @@ pub struct GpuPbrLightingRenderPipeline {
 impl RenderAsset for GpuPbrLightingRenderPipeline {
     type SourceAsset = PbrLightingRenderPipeline;
     type Param = (
-        SRes<AssetServer>, SResMut<PipelineManager>, SRes<PbrDeferredTexturesLayout>, SRes<DepthTextureLayout>
+        SRes<AssetServer>, SResMut<PipelineManager>, SRes<PbrDeferredTexturesLayout>,
+        SRes<DepthTextureLayout>, SRes<CameraFeatureRender>
     );
 
     fn prepare_asset(
             asset: Self::SourceAsset,
             (
                 assets_server, pipeline_manager,
-                deferred_layout, depth_texture_layout
+                deferred_layout, depth_texture_layout,
+                camera_feature
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         // Get the depth layout
@@ -40,7 +42,7 @@ impl RenderAsset for GpuPbrLightingRenderPipeline {
             label: "lighting-pbr",
             vert: Some(assets_server.load("pbr/lighting_vert.wgsl")),
             frag: Some(assets_server.load("pbr/lighting_frag.wgsl")),
-            bind_group_layouts: vec![depth_layout.clone(), deferred_layout.clone()],
+            bind_group_layouts: vec![camera_feature.layout.clone(), depth_layout.clone(), deferred_layout.clone()],
             depth: WDepthStencilDescriptor {
                 enabled: false,
                 ..Default::default()

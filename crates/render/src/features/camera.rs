@@ -89,7 +89,7 @@ fn extract(
     ) = (cameras.get_single(), window.get_single()) {
         // Update the camera uniform
         let aspect_ratio = window.width() / window.height();
-        camera_uniform.world_to_ndc = CameraUniform::get_world_to_ndc(transform, view, aspect_ratio).to_cols_array_2d();
+        *camera_uniform = CameraUniform::new(transform, view, aspect_ratio);
     }
 }
 
