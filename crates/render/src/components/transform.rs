@@ -51,11 +51,7 @@ impl TransformUniform {
     /// The matrix transform from world to object space (translate * rotate * scale)^(-1).
     #[inline]
     pub fn transform_world_to_obj(transform: &Transform) -> Mat4 {
-        let translation = Mat4::from_translation(-transform.translation);
-        let rotation = Mat4::from_quat(transform.rotation).inverse();
-        let scale = Mat4::from_scale(Vec3 {x: 1.0 / transform.scale.x, y: 1.0 / transform.scale.y, z: 1.0 / transform.scale.z});
-
-        scale * rotation * translation
+        Mat4::from_scale_rotation_translation(transform.scale, transform.rotation, transform.translation).inverse()
     }
 
     /// Get the forward vector (z axis) that the object is facing.

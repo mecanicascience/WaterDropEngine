@@ -62,6 +62,28 @@ impl BindGroupLayoutBuilder {
         self
     }
 
+    /// Add a depth texture to the bind group.
+    ///
+    /// # Arguments
+    /// 
+    /// * `binding` - The binding index of the texture. Note that the binding index of the sampler is incremented by 1
+    /// * `visibility` - The shader stages that can access the texture.
+    pub fn add_depth_texture_view(&mut self, binding: u32, visibility: WShaderStages) -> &mut Self {
+        // Create bind group layout
+        self.layout_entries.push(wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility,
+            ty: wgpu::BindingType::Texture {
+                multisampled: false,
+                view_dimension: wgpu::TextureViewDimension::D2,
+                sample_type: wgpu::TextureSampleType::Depth,
+            },
+            count: None
+        });
+
+        self
+    }
+
     /// Add a texture to the bind group.
     /// 
     /// # Arguments
@@ -69,6 +91,23 @@ impl BindGroupLayoutBuilder {
     /// * `binding` - The binding index of the texture. Note that the binding index of the sampler is incremented by 1
     /// * `visibility` - The shader stages that can access the texture.
     pub fn add_texture_sampler(&mut self, binding: u32, visibility: WShaderStages) -> &mut Self {
+        self.layout_entries.push(wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        });
+
+        self
+    }
+
+    /// Add a depth texture sampler to the bind group.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `binding` - The binding index of the texture. Note that the binding index of the sampler is incremented by 1
+    /// * `visibility` - The shader stages that can access the texture.
+    pub fn add_depth_texture_sampler(&mut self, binding: u32, visibility: WShaderStages) -> &mut Self {
         self.layout_entries.push(wgpu::BindGroupLayoutEntry {
             binding,
             visibility,

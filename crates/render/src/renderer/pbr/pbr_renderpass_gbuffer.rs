@@ -139,7 +139,7 @@ impl PbrGBufferRenderPass {
         (gbuffer_pipeline, render_mesh_pass, depth_texture): (
             Res<RenderAssets<GpuPbrGBufferRenderPipeline>>, Res<PbrGBufferRenderPass>, Res<DepthTexture>
         ),
-        defered_textures: Res<PbrDeferredTextures>
+        deferred_textures: Res<PbrDeferredTextures>
     ) {
         // Get the render instance and swapchain frame
         let render_instance = render_instance.data.read().unwrap();
@@ -161,11 +161,13 @@ impl PbrGBufferRenderPass {
             None => return
         };
 
-        // Check if the defered textures are ready
+        // Check if the deferred textures are ready
         let (albedo, normal, material_tex) = match (
-            textures.get(&defered_textures.albedo), textures.get(&defered_textures.normal), textures.get(&defered_textures.material)
+            textures.get(&deferred_textures.albedo),
+            textures.get(&deferred_textures.normal), textures.get(&deferred_textures.material)
         ) {
-            (Some(albedo), Some(normal), Some(material_tex)) => (albedo, normal, material_tex),
+            (Some(albedo), Some(normal), Some(material_tex))
+                => (albedo, normal, material_tex),
             _ => return
         };
 

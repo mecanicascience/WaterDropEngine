@@ -1,6 +1,6 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
-use wde_wgpu::render_pipeline::{WCompareFunction, WDepthStencilDescriptor};
-use crate::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
+use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
+use crate::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}, renderer::depth::DepthTextureLayout};
 
 use super::PbrDeferredTexturesLayout;
 
@@ -13,16 +13,22 @@ pub struct GpuPbrLightingRenderPipeline {
 impl RenderAsset for GpuPbrLightingRenderPipeline {
     type SourceAsset = PbrLightingRenderPipeline;
     type Param = (
-        SRes<AssetServer>, SResMut<PipelineManager>, SRes<PbrDeferredTexturesLayout>
+        SRes<AssetServer>, SResMut<PipelineManager>, SRes<PbrDeferredTexturesLayout>, SRes<DepthTextureLayout>
     );
 
     fn prepare_asset(
             asset: Self::SourceAsset,
             (
                 assets_server, pipeline_manager,
-                deferred_layout
+                deferred_layout, depth_texture_layout
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
+        // Get the depth layout
+        let depth_layout = match &depth_texture_layout.layout {
+            Some(layout) => layout,
+            None => return Err(PrepareAssetError::RetryNextUpdate(asset))
+        };
+
         // Get the deferred layout
         let deferred_layout = match &deferred_layout.deferred_layout {
             Some(layout) => layout,
@@ -34,11 +40,10 @@ impl RenderAsset for GpuPbrLightingRenderPipeline {
             label: "lighting-pbr",
             vert: Some(assets_server.load("pbr/lighting_vert.wgsl")),
             frag: Some(assets_server.load("pbr/lighting_frag.wgsl")),
-            bind_group_layouts: vec![deferred_layout.clone()],
+            bind_group_layouts: vec![depth_layout.clone(), deferred_layout.clone()],
             depth: WDepthStencilDescriptor {
-                enabled: true,
-                write: false,
-                compare: WCompareFunction::LessEqual
+                enabled: false,
+                ..Default::default()
             },
             render_targets: None,
             ..Default::default()

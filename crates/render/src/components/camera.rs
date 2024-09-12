@@ -58,4 +58,31 @@ impl CameraUniform {
         );
         proj * view
     }
+
+    /// Get the ndc to world matrix.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `camera` - The camera component.
+    /// * `transform` - The transform component.
+    /// * `aspect_ratio` - The aspect ratio of the screen.
+    /// 
+    /// # Returns
+    /// 
+    /// The screen (NDC) to world matrix (inverse(projection * view) * inverse(openGL to WGPU)).
+    #[inline]
+    pub fn get_ndc_to_world(transform: &Transform, camera_view: &CameraView, aspect_ratio: f32) -> Mat4 {
+        // Camera to world
+        let view_inverse = TransformUniform::transform_obj_to_world(transform);
+
+        // Projection from camera to NDC
+        let proj = Mat4::perspective_rh(
+            camera_view.fov.to_radians(), aspect_ratio,
+            camera_view.znear, camera_view.zfar
+        );
+        let proj_inverse = proj.inverse();
+
+        // NDC to world
+        view_inverse * proj_inverse
+    }
 }

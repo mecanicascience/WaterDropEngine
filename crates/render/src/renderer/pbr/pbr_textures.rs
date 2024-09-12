@@ -24,9 +24,11 @@ impl PbrDeferredTexturesLayout {
 
         // Get the textures
         let (albedo, normal, material) = match (
-            textures.get(&deferred_textures.albedo), textures.get(&deferred_textures.normal), textures.get(&deferred_textures.material)
+            textures.get(&deferred_textures.albedo),
+            textures.get(&deferred_textures.normal), textures.get(&deferred_textures.material)
         ) {
-            (Some(albedo), Some(normal), Some(material)) => (albedo, normal, material),
+            (Some(albedo), Some(normal), Some(material)) =>
+                (albedo, normal, material),
             _ => return
         };
 
@@ -85,7 +87,7 @@ impl PbrDeferredTextures {
         let normal = assets_server.add(Texture {
             label: "pbr-normal".to_string(),
             size: (resolution.width() as usize, resolution.height() as usize, 1),
-            format: WTextureFormat::Rgba8UnormSrgb,
+            format: WTextureFormat::Rgba16Float,
             usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
             ..Default::default()
         });
@@ -94,7 +96,7 @@ impl PbrDeferredTextures {
         let material = assets_server.add(Texture {
             label: "pbr-material".to_string(),
             size: (resolution.width() as usize, resolution.height() as usize, 1),
-            format: WTextureFormat::Rgba8UnormSrgb,
+            format: WTextureFormat::Rgba8Unorm,
             usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
             ..Default::default()
         });
@@ -125,7 +127,7 @@ impl PbrDeferredTextures {
             let normal = server.add(Texture {
                 label: "pbr-normal".to_string(),
                 size: (event.width as usize, event.height as usize, 1),
-                format: WTextureFormat::Rgba8UnormSrgb,
+                format: WTextureFormat::Rgba16Float,
                 usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
                 ..Default::default()
             });
@@ -134,7 +136,7 @@ impl PbrDeferredTextures {
             let material = server.add(Texture {
                 label: "pbr-material".to_string(),
                 size: (event.width as usize, event.height as usize, 1),
-                format: WTextureFormat::Rgba8UnormSrgb,
+                format: WTextureFormat::Rgba8Unorm,
                 usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
                 ..Default::default()
             });

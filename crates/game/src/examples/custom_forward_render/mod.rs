@@ -9,7 +9,7 @@ pub use custom_material::*;
 pub use custom_pipeline::*;
 pub use custom_renderpass::*;
 pub use custom_ssbo::*;
-use wde_render::{assets::{MaterialsPlugin, RenderAssetsPlugin, TextureLoaderSettings, WTextureUsages}, components::{Camera, CameraController, CameraView}, core::{Extract, Render, RenderApp, RenderSet}, renderer::depth::DepthTexture};
+use wde_render::{assets::{MaterialsPlugin, RenderAssetsPlugin, TextureLoaderSettings, WTextureUsages}, components::{Camera, CameraController, CameraView}, core::{Extract, Render, RenderApp, RenderSet}};
 use wde_wgpu::texture::WTextureFormat;
 
 
@@ -90,7 +90,7 @@ impl Plugin for CustomFeaturesPlugin {
 
         // Add the custom render pass
         app.get_sub_app_mut(RenderApp).unwrap()
-            .add_systems(Extract, (CustomRenderPass::create_batches, DepthTexture::extract_depth_texture))
+            .add_systems(Extract, CustomRenderPass::create_batches)
             .add_systems(Render, CustomRenderPass::render.in_set(RenderSet::Render));
     }
 

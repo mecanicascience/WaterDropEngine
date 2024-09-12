@@ -1,12 +1,12 @@
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coord: vec2<f32>,
-    @location(1) normal: vec3<f32>
+    @location(1) normal:    vec3<f32>
 };
 
 struct FragOutput {
-    @location(0) albedo: vec4<f32>,
-    @location(1) normal: vec4<f32>,
+    @location(0) albedo:   vec4<f32>,
+    @location(1) normal:   vec4<f32>,
     @location(2) material: vec4<f32>
 };
 
@@ -14,8 +14,8 @@ struct FragOutput {
 struct PbrMaterial {
     albedo: vec4<f32>,
     has_texture: f32,
-    metallic: f32,
-    roughness: f32,
+    metallic:    f32,
+    roughness:   f32,
     reflectance: f32,
 };
 @group(2) @binding(0) var<uniform> in_material: PbrMaterial;
@@ -31,7 +31,7 @@ fn main(in: VertexOutput) -> FragOutput {
     } else {
         out.albedo = in_material.albedo;
     }
-    out.normal = vec4<f32>(normalize(in.normal), 1.0);
+    out.normal = vec4<f32>(normalize(in.normal), 0.0);
     out.material = vec4<f32>(in_material.metallic, in_material.roughness, in_material.reflectance, 0.0);
 
     return out;

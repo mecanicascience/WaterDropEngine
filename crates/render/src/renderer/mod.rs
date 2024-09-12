@@ -1,8 +1,8 @@
 use bevy::prelude::*;
-use depth::DepthTexture;
+use depth::{DepthTexture, DepthTextureLayout};
 use pbr::PbrFeaturesPlugin;
 
-use crate::core::{Extract, RenderApp};
+use crate::core::{Extract, Render, RenderApp, RenderSet};
 
 pub mod pbr;
 pub mod depth;
@@ -10,10 +10,16 @@ pub mod depth;
 pub(crate) struct RendererPlugin;
 impl Plugin for RendererPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(PbrFeaturesPlugin)
-            .add_systems(Startup, DepthTexture::init_depth)
-            .add_systems(Update, DepthTexture::resize_depth);
+        // Add the depth texture to the app
+        app
+            .add_systems(Startup, DepthTexture::create_texture)
+            .add_systems(Update, DepthTexture::resize_texture);
         app.get_sub_app_mut(RenderApp).unwrap()
-            .add_systems(Extract, DepthTexture::extract_depth_texture);
+            .init_resource::<DepthTextureLayout>()
+            .add_systems(Extract, DepthTexture::extract_texture)
+            .add_systems(Render, DepthTextureLayout::build_bind_group.in_set(RenderSet::BindGroups));
+
+        // Add the pbr material
+        app.add_plugins(PbrFeaturesPlugin);
     }
 }

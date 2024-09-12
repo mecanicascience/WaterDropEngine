@@ -16,7 +16,9 @@ impl FromWorld for CameraFeatureRender {
 
         // Create the camera layout
         let layout = BindGroupLayout::new("camera", |builder| {
-            builder.add_buffer(0, WShaderStages::VERTEX, BufferBindingType::Uniform);
+            builder.add_buffer(
+                0, WShaderStages::VERTEX | WShaderStages::FRAGMENT,
+                BufferBindingType::Uniform);
         });
         let layout_built = layout.build(&render_instance.data.read().unwrap());
         

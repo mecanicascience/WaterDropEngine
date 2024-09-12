@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuMesh, GpuTexture, Mesh, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
-use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp, WStoreOp}, instance::WRenderInstance, vertex::WVertex};
+use crate::{assets::{GpuMesh, Mesh, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTextureLayout};
+use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, WCommandBuffer}, instance::WRenderInstance, vertex::WVertex};
 
 use super::{GpuPbrLightingRenderPipeline, PbrDeferredTexturesLayout};
 
@@ -46,28 +46,17 @@ impl PbrLightingRenderPass {
         (render_instance, swapchain_frame, pipeline_manager): (
             Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
         ),
-        (textures, meshes): (
-            Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMesh>>
+        meshes: Res<RenderAssets<GpuMesh>>,
+        (lighting_pipeline, deferred_mesh, ): (
+            Res<RenderAssets<GpuPbrLightingRenderPipeline>>, Res<PbrLightingRenderPassMesh>
         ),
-        (lighting_pipeline, deferred_mesh, textures_layout): (
-            Res<RenderAssets<GpuPbrLightingRenderPipeline>>, Res<PbrLightingRenderPassMesh>, Res<PbrDeferredTexturesLayout>
-        ),
-        depth_texture: Res<DepthTexture>
+        (depth_texture_layout, textures_layout): (
+            Res<DepthTextureLayout>, Res<PbrDeferredTexturesLayout>
+        )
     ) {
         // Get the render instance and swapchain frame
         let render_instance = render_instance.data.read().unwrap();
         let swapchain_frame = swapchain_frame.data.as_ref().unwrap();
-
-        // Check if depth texture is ready
-        let depth_texture = match textures.get(&depth_texture.texture) {
-            Some(tex) => if render_instance.surface_config.as_ref().unwrap().width == tex.texture.size.0
-                && render_instance.surface_config.as_ref().unwrap().height == tex.texture.size.1 {
-                tex
-            } else {
-                return
-            },
-            None => return
-        };
 
         // Check if mesh is ready
         let deferred_mesh = match &deferred_mesh.deferred_mesh {
@@ -88,11 +77,6 @@ impl PbrLightingRenderPass {
         let mut command_buffer = WCommandBuffer::new(&render_instance, "lighting-pbr");
         {
             let mut render_pass = command_buffer.create_render_pass("lighting-pbr", |builder: &mut RenderPassBuilder| {
-                builder.set_depth_texture(RenderPassDepth {
-                    texture: Some(&depth_texture.texture.view),
-                    load_operation: WLoadOp::Load,
-                    store_operation: WStoreOp::Discard
-                });
                 builder.add_color_attachment(RenderPassColorAttachment {
                     texture: Some(&swapchain_frame.view),
                     ..Default::default()
@@ -102,9 +86,11 @@ impl PbrLightingRenderPass {
             // Render the mesh
             if let (
                 CachedPipelineStatus::Ok(pipeline),
+                Some(depth_bind_group),
                 Some(deferred_bind_group)
             ) = (
                 pipeline_manager.get_pipeline(lighting_pipeline.cached_pipeline_index),
+                &depth_texture_layout.bind_group,
                 &textures_layout.deferred_bind_group
             ) {
                 // Set the pipeline
@@ -113,8 +99,9 @@ impl PbrLightingRenderPass {
                     render_pass.set_vertex_buffer(0, &deferred_mesh.vertex_buffer);
                     render_pass.set_index_buffer(&deferred_mesh.index_buffer);
 
-                    // Set bind group
-                    render_pass.set_bind_group(0, deferred_bind_group);
+                    // Set bind groups
+                    render_pass.set_bind_group(0, depth_bind_group);
+                    render_pass.set_bind_group(1, deferred_bind_group);
 
                     // Draw the mesh
                     match render_pass.draw_indexed(0..deferred_mesh.index_count, 0..1) {

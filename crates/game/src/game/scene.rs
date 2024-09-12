@@ -77,8 +77,11 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
     });
     for i in 1..100 {
         for j in 1..100 {
+            let angle = i as f32 * 0.05;
+            let axis = if i % 2 == 0 { Vec3::Y } else if i % 3 == 0 { Vec3::Z } else { Vec3::X };
             commands.spawn(PbrBundle {
-                transform: Transform::from_xyz(i as f32 * 5.0, 0.0, j as f32 * 5.0 + 5.0),
+                transform: Transform::from_xyz(i as f32 * 5.0, 0.0, j as f32 * 5.0 + 5.0)
+                    .with_rotation(Quat::from_axis_angle(axis, angle)),
                 mesh: suzanne.clone(),
                 material: red_box.clone()
             });

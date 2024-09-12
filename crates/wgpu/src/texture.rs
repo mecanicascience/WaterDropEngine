@@ -105,13 +105,6 @@ impl WTexture {
             array_layer_count: None
         });
 
-        // If depth texture, set compare sample
-        let compare = if format == Self::DEPTH_FORMAT {
-            Some(wgpu::CompareFunction::LessEqual)
-        } else {
-            None
-        };
-
         // Create sampler
         let sampler = instance.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some(format!("{}-texture-sampler", label).as_str()),
@@ -123,7 +116,7 @@ impl WTexture {
             mipmap_filter: wgpu::FilterMode::Nearest,
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
-            compare,
+            compare: None,
             anisotropy_clamp: 1,
             border_color: None,
         });
