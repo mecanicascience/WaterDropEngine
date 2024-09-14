@@ -50,14 +50,14 @@ pub(crate) fn init_surface(mut commands: Commands, mut render_instance: ResMut<W
     commands.init_resource::<SwapchainFrame>();
 }
 
-/// Extract the window size from the primary window and update the surface configuration.
+/// Prepare the rendering frame.
 pub(crate) fn prepare(mut swapchain_frame: ResMut<SwapchainFrame>, render_instance: Res<WRenderInstance<'static>>) {
     // Wait for the surface to be initialized
     if render_instance.data.read().unwrap().surface.is_none() {
         debug!("Waiting for surface to be initialized.");
         return
     }
-
+    
     // Retrieve the current texture
     let render_data = render_instance.data.read().unwrap();
     match instance::get_current_texture(

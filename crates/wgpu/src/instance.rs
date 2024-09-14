@@ -303,7 +303,7 @@ pub fn get_current_texture(surface: &Surface, surface_config: &SurfaceConfigurat
         }
         // Timeout of the surface
         Err(wgpu::SurfaceError::Timeout) => {
-            warn!("Timeout of the surface.");
+            error!("Timeout of the surface.");
             WRenderEvent::None
         }
     }

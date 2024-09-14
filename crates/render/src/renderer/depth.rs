@@ -1,7 +1,7 @@
-use bevy::{prelude::*, window::WindowResized};
+use bevy::prelude::*;
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, BindGroupLayoutBuilder, WgpuBindGroup}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
 
-use crate::{assets::{GpuTexture, RenderAssets, Texture, WTextureUsages}, core::extract_macros::ExtractWorld};
+use crate::{assets::{GpuTexture, RenderAssets, Texture, WTextureUsages}, core::{extract_macros::ExtractWorld, window::SurfaceResized}};
 
 #[derive(Resource, Default)]
 pub struct DepthTextureLayoutRegenerate(pub bool);
@@ -69,7 +69,7 @@ impl DepthTexture {
     }
 
     pub fn resize_texture(
-        mut window_resized_events: EventReader<WindowResized>,
+        mut window_resized_events: EventReader<SurfaceResized>,
         server: Res<AssetServer>, mut textures: ResMut<DepthTexture>
     ) {
         textures.resized = false;

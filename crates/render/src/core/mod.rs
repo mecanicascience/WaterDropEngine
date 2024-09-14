@@ -12,7 +12,7 @@ use extract::{apply_extract_commands, main_extract};
 use render_manager::{init_main_world, init_surface, prepare, present};
 use render_multithread::PipelinedRenderingPlugin;
 use wde_wgpu::instance::{create_instance, WRenderTexture};
-use window::{extract_window_size, WindowPlugins};
+use window::{extract_surface_size, send_surface_resized, SurfaceResized, WindowPlugins};
 use std::ops::{Deref, DerefMut};
 
 use crate::{components:: RenderComponentsPlugin, features::RenderFeaturesPlugin, pipelines::PipelineManagerPlugin, renderer::RendererPlugin};
@@ -107,7 +107,10 @@ impl Plugin for RenderCorePlugin {
     fn build(&self, app: &mut App) {
         // === MAIN APP ===
         // Add window
-        app.add_plugins(WindowPlugins);
+        app
+            .add_plugins(WindowPlugins)
+            .add_event::<SurfaceResized>()
+            .add_systems(Update, send_surface_resized);
 
         // Add empty world component
         app.add_systems(Startup, init_main_world);
@@ -145,9 +148,7 @@ impl Plugin for RenderCorePlugin {
                 .set_extract(main_extract); // Register the extract commands
 
             // Init wgpu instance
-            render_app.add_systems(Extract, (
-                init_surface.run_if(run_once()), extract_window_size).chain()
-            );
+            render_app.add_systems(Extract, (init_surface.run_if(run_once()), extract_surface_size).chain());
 
             // Add present system
             render_app

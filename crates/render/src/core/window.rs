@@ -3,10 +3,17 @@
 //! This module contains the window plugin and related components.
 //! It is responsible for creating and managing the window.
 
-use bevy::{a11y::AccessibilityPlugin, app::{PluginGroup, PluginGroupBuilder}, prelude::{Query, ResMut}, utils::default, window::{PresentMode, Window, WindowPlugin, WindowTheme}, winit::WinitPlugin};
+use bevy::{a11y::AccessibilityPlugin, app::{PluginGroup, PluginGroupBuilder}, prelude::{Event, EventReader, EventWriter, Query, ResMut}, utils::default, window::{PresentMode, Window, WindowPlugin, WindowResized, WindowTheme}, winit::WinitPlugin};
 use wde_wgpu::instance::WRenderInstance;
 
 use super::extract_macros::ExtractWorld;
+
+/// An event that is sent when the surface is resized.
+#[derive(Debug, Event)]
+pub struct SurfaceResized {
+    pub width: u32,
+    pub height: u32,
+}
 
 pub(crate) struct WindowPlugins;
 
@@ -42,8 +49,24 @@ impl PluginGroup for WindowPlugins {
 }
 
 
+/// Send surface resized events with the physical window size.
+pub(crate) fn send_surface_resized(
+    mut events_writer: EventWriter<SurfaceResized>, 
+    mut events_reader: EventReader<WindowResized>, window: Query<&Window>
+) {
+    for _ in events_reader.read() {
+        if let Ok(window) = window.get_single() {
+            events_writer.send(SurfaceResized {
+                width: window.resolution.physical_width(),
+                height: window.resolution.physical_height(),
+            });
+        }
+    }
+}
+
+
 /// Extract the window size from the primary window and update the surface configuration.
-pub(crate) fn extract_window_size(render_instance: ResMut<WRenderInstance<'static>>, windows: ExtractWorld<Query<&Window>>) {
+pub(crate) fn extract_surface_size(render_instance: ResMut<WRenderInstance<'static>>, windows: ExtractWorld<Query<&Window>>) {
     // Check if there is a window
     if windows.iter().count() == 0 {
         return

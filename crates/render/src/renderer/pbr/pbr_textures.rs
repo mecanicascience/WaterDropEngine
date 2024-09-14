@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use bevy::window::WindowResized;
-use crate::{assets::{GpuTexture, RenderAssets, Texture, WTextureUsages}, core::extract_macros::ExtractWorld};
+use crate::{assets::{GpuTexture, RenderAssets, Texture, WTextureUsages}, core::{extract_macros::ExtractWorld, window::SurfaceResized}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, BindGroupLayoutBuilder, WgpuBindGroup}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTextureFormat};
 
 #[derive(Resource, Default)]
@@ -109,7 +108,7 @@ impl PbrDeferredTextures {
 
     /// Resize the textures for the deferred renderer.
     pub fn resize_textures(
-        mut window_resized_events: EventReader<WindowResized>,
+        mut window_resized_events: EventReader<SurfaceResized>,
         server: Res<AssetServer>, mut deferred_textures: ResMut<PbrDeferredTextures>
     ) {
         deferred_textures.resized = false;
