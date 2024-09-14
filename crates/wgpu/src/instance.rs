@@ -105,7 +105,7 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
 
     // Set flags
     let flags = if cfg!(debug_assertions) {
-        wgpu::InstanceFlags::DEBUG
+        wgpu::InstanceFlags::DEBUG | wgpu::InstanceFlags::VALIDATION
     } else {
         wgpu::InstanceFlags::DISCARD_HAL_LABELS
     };
@@ -117,7 +117,7 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
     // Create wgpu instance
     debug!(label, "Creating wgpu instance.");
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::VULKAN, // Ask for Vulkan backend
+        backends: wgpu::Backends::all(),
         flags,
         dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
         gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
@@ -141,12 +141,25 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
     // Retrieve adapter
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::None,
+            power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: surface.as_ref(),
-            force_fallback_adapter: false,
+            ..Default::default()
         })
         .await
-        .unwrap_or_else(|| panic!("Failed to create adapter for '{}'.", label));
+        .expect(&format!("Failed to create adapter for '{}'.", label));
+
+    // Check adaptater infos
+    let adapter_info = adapter.get_info();
+    info!("Using adapter named {} of {} type.", adapter_info.name, match adapter_info.device_type {
+        wgpu::DeviceType::DiscreteGpu => "Discrete GPU",
+        wgpu::DeviceType::IntegratedGpu => "Integrated GPU",
+        wgpu::DeviceType::Cpu => "CPU",
+        wgpu::DeviceType::VirtualGpu => "Virtual GPU",
+        wgpu::DeviceType::Other => "Other",
+    });
+    if adapter_info.device_type == wgpu::DeviceType::Cpu {
+        warn!("The selected adapter is using a driver that only supports software rendering, this will be very slow.");
+    }
 
     // Set required features
     let required_features = wgpu::Features::INDIRECT_FIRST_INSTANCE
@@ -170,7 +183,11 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
             None,
         )
         .await
-        .unwrap_or_else(|e| panic!("Failed to create device for '{}': {:?}.", label, e));
+        .expect(&format!("Failed to create device for '{}'.", label));
+
+    // Log device infos
+    debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
+    debug!("Configured wgpu adapter Features: {:#?}", device.features());
 
     // Return instance
     WRenderInstance {
