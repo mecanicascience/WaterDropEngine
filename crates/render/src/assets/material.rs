@@ -42,6 +42,7 @@ enum MaterialBuilderType {
 
 #[derive(Default)]
 pub struct MaterialBuilder {
+    label: String,
     elements: Vec<(MaterialBuilderType, u32)>,
 
     buffers: Vec<MaterialBuilderBuffer>,
@@ -88,7 +89,7 @@ impl MaterialsBuilderCache {
 
 pub struct GpuMaterial<M: Material + Sync + Send + Asset + Clone> {
     phantom: std::marker::PhantomData<M>,
-    _builder: MaterialBuilder,
+    builder: MaterialBuilder,
     _dummy_texture: Handle<Texture>,
     pub bind_group_layout: BindGroupLayout,
     pub bind_group: WgpuBindGroup
@@ -222,8 +223,12 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
             _dummy_texture: dummy_texture,
             bind_group_layout: layout,
             bind_group,
-            _builder: material_builder
+            builder: material_builder
         })
+    }
+
+    fn label(&self) -> &str {
+        &self.builder.label
     }
 }
 

@@ -172,6 +172,8 @@ impl AssetLoader for MeshLoader {
 
 
 pub struct GpuMesh {
+    /// The label of the mesh
+    pub label: String,
     /// The vertex buffer
     pub vertex_buffer: WBuffer,
     /// The index buffer
@@ -209,10 +211,15 @@ impl RenderAsset for GpuMesh {
             Some(bytemuck::cast_slice(&asset.indices)));
         
         Ok(GpuMesh {
+            label: asset.label,
             vertex_buffer,
             index_buffer,
             index_count: asset.indices.len() as u32,
             bounding_box: asset.bounding_box,
         })
+    }
+
+    fn label(&self) -> &str {
+        &self.label
     }
 }

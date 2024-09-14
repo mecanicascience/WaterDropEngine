@@ -28,6 +28,9 @@ pub trait RenderAsset: Send + Sync + 'static + Sized {
         asset: Self::SourceAsset,
         param: &mut SystemParamItem<Self::Param>,
     ) -> Result<Self, PrepareAssetError<Self::SourceAsset>>;
+
+    /// Return the label of the asset.
+    fn label(&self) -> &str;
 }
 
 
@@ -257,7 +260,11 @@ fn prepare_assets<A: RenderAsset>(
 
     // Remove assets
     for removed in extracted_assets.removed.drain() {
-        debug!("Removing asset of id {} from the render world.", removed);
+        let label = match render_assets.get(removed) {
+            Some(asset) => asset.label(),
+            None => "(asset not loaded)"
+        };
+        debug!("Removing asset of type {} labeled {}.", std::any::type_name::<A::SourceAsset>(), label);
         render_assets.remove(removed);
     }
 

@@ -69,4 +69,8 @@ impl RenderAsset for GpuPbrGBufferRenderPipeline {
             cached_pipeline_index: cached_index
         })
     }
+
+    fn label(&self) -> &str {
+        "gbuffer-pbr"
+    }
 }

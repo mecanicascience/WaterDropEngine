@@ -114,6 +114,7 @@ impl AssetLoader for TextureLoader {
 
 
 pub struct GpuTexture {
+    pub label: String,
     pub texture: wde_wgpu::texture::WTexture,
 }
 impl RenderAsset for GpuTexture {
@@ -143,6 +144,10 @@ impl RenderAsset for GpuTexture {
             texture.copy_from_buffer(&render_instance, &asset.data, asset.size.2 as u32, asset.is_f32);
         }
 
-        Ok(GpuTexture { texture })
+        Ok(GpuTexture { label: asset.label, texture })
+    }
+
+    fn label(&self) -> &str {
+        &self.label
     }
 }

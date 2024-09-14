@@ -14,6 +14,7 @@ pub struct Buffer {
 
 /// Stores a GPU buffer
 pub struct GpuBuffer {
+    pub label: String,
     pub buffer: WBuffer
 }
 impl RenderAsset for GpuBuffer {
@@ -31,6 +32,10 @@ impl RenderAsset for GpuBuffer {
             asset.size,
             asset.usage,
             asset.content.as_deref());
-        Ok(GpuBuffer { buffer })
+        Ok(GpuBuffer { label: asset.label, buffer })
+    }
+
+    fn label(&self) -> &str {
+        &self.label
     }
 }

@@ -57,4 +57,8 @@ impl RenderAsset for GpuCustomRenderPipeline {
             cached_pipeline_index: cached_index
         })
     }
+
+    fn label(&self) -> &str {
+        "custom"
+    }
 }

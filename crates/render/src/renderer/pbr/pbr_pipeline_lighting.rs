@@ -56,4 +56,8 @@ impl RenderAsset for GpuPbrLightingRenderPipeline {
             cached_pipeline_index: cached_index
         })
     }
+
+    fn label(&self) -> &str {
+        "lighting-pbr"
+    }
 }
