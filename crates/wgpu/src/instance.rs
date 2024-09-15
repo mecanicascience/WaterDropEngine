@@ -146,7 +146,7 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
             ..Default::default()
         })
         .await
-        .expect(&format!("Failed to create adapter for '{}'.", label));
+        .unwrap_or_else(|| panic!("Failed to create adapter for '{}'.", label));
 
     // Check adaptater infos
     let adapter_info = adapter.get_info();
@@ -183,7 +183,7 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
             None,
         )
         .await
-        .expect(&format!("Failed to create device for '{}'.", label));
+        .unwrap_or_else(|_| panic!("Failed to create device for '{}'.", label));
 
     // Log device infos
     debug!("Configured wgpu adapter Limits: {:#?}", device.limits());
