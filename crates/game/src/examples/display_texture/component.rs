@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use wde_render::assets::{Texture, TextureFormat, TextureLoaderSettings};
+use wde_render::assets::{Texture, TextureLoaderSettings};
+use wde_wgpu::texture::WTextureFormat;
 
 pub struct DisplayTextureComponentPlugin;
 impl Plugin for DisplayTextureComponentPlugin {
@@ -20,8 +21,7 @@ fn load_texture(mut commands: Commands, server: Res<AssetServer>) {
     // Load the texture to display
     let texture: Handle<Texture> = server.load_with_settings("examples/display_texture/texture.png", |settings: &mut TextureLoaderSettings| {
         settings.label = "display-texture".to_string();
-        settings.format = TextureFormat::R8Unorm;
-        settings.force_depth = Some(1);
+        settings.format = WTextureFormat::R8Unorm; 
     });
 
     // Create the terrain entity

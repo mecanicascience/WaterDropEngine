@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, BindGroupLayoutBuilder, WgpuBindGroup}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTexture};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, BindGroupLayoutBuilder, WgpuBindGroup}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::{WTexture, WTextureUsages}};
 
-use crate::{assets::{GpuTexture, RenderAssets, Texture, WTextureUsages}, core::{extract_macros::ExtractWorld, window::SurfaceResized}};
+use crate::{assets::{GpuTexture, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, window::SurfaceResized}};
 
 #[derive(Resource, Default)]
 pub struct DepthTextureLayoutRegenerate(pub bool);
@@ -60,7 +60,7 @@ impl DepthTexture {
         let resolution = &window.single().resolution;
         let texture = server.add(Texture {
             label: "depth".to_string(),
-            size: (resolution.width() as usize, resolution.height() as usize, 1),
+            size: (resolution.physical_width(), resolution.physical_height()),
             format: WTexture::DEPTH_FORMAT,
             usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
             ..Default::default()
@@ -77,7 +77,7 @@ impl DepthTexture {
             // Recreate the depth texture
             let texture = server.add(Texture {
                 label: "depth".to_string(),
-                size: (event.width as usize, event.height as usize, 1),
+                size: (event.width, event.height),
                 format: WTexture::DEPTH_FORMAT,
                 usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
                 ..Default::default()

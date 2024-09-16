@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuTexture, RenderAssets, Texture, WTextureUsages}, core::{extract_macros::ExtractWorld, window::SurfaceResized}};
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, BindGroupLayoutBuilder, WgpuBindGroup}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::WTextureFormat};
+use crate::{assets::{GpuTexture, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, window::SurfaceResized}};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, BindGroupLayoutBuilder, WgpuBindGroup}, instance::WRenderInstance, render_pipeline::WShaderStages, texture::{WTextureFormat, WTextureUsages}};
 
 #[derive(Resource, Default)]
 pub struct PbrDeferredTexturesLayoutRegenerate(pub bool);
@@ -76,7 +76,7 @@ impl PbrDeferredTextures {
         // Create the albedo texture
         let albedo = assets_server.add(Texture {
             label: "pbr-albedo".to_string(),
-            size: (resolution.width() as usize, resolution.height() as usize, 1),
+            size: (resolution.physical_width(), resolution.physical_height()),
             format: WTextureFormat::Rgba8UnormSrgb,
             usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
             ..Default::default()
@@ -85,7 +85,7 @@ impl PbrDeferredTextures {
         // Create the normal texture
         let normal = assets_server.add(Texture {
             label: "pbr-normal".to_string(),
-            size: (resolution.width() as usize, resolution.height() as usize, 1),
+            size: (resolution.physical_width(), resolution.physical_height()),
             format: WTextureFormat::Rgba16Float,
             usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
             ..Default::default()
@@ -94,7 +94,7 @@ impl PbrDeferredTextures {
         // Create the material textures (metallic, roughness, reflectance)
         let material = assets_server.add(Texture {
             label: "pbr-material".to_string(),
-            size: (resolution.width() as usize, resolution.height() as usize, 1),
+            size: (resolution.physical_width(), resolution.physical_height()),
             format: WTextureFormat::Rgba8Unorm,
             usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
             ..Default::default()
@@ -116,7 +116,7 @@ impl PbrDeferredTextures {
             // Recreate the albedo texture
             let albedo = server.add(Texture {
                 label: "pbr-albedo".to_string(),
-                size: (event.width as usize, event.height as usize, 1),
+                size: (event.width, event.height),
                 format: WTextureFormat::Rgba8UnormSrgb,
                 usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
                 ..Default::default()
@@ -125,7 +125,7 @@ impl PbrDeferredTextures {
             // Recreate the normal texture
             let normal = server.add(Texture {
                 label: "pbr-normal".to_string(),
-                size: (event.width as usize, event.height as usize, 1),
+                size: (event.width, event.height),
                 format: WTextureFormat::Rgba16Float,
                 usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
                 ..Default::default()
@@ -134,7 +134,7 @@ impl PbrDeferredTextures {
             // Recreate the material textures
             let material = server.add(Texture {
                 label: "pbr-material".to_string(),
-                size: (event.width as usize, event.height as usize, 1),
+                size: (event.width, event.height),
                 format: WTextureFormat::Rgba8Unorm,
                 usages: WTextureUsages::RENDER_ATTACHMENT | WTextureUsages::TEXTURE_BINDING,
                 ..Default::default()

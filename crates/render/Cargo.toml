@@ -21,10 +21,14 @@ debug = false
 thiserror = "1.0"
 wde-wgpu = { path = "../wgpu" }
 serde = { version = "1.0", features = ["derive"] }
-stb_image = "0.3"
 bytemuck = { version = "1.14", features = [ "derive" ] }
 async-channel = "2.3"
 tobj = "4.0"
+
+[dependencies.image]
+version = "0.25"
+default-features = false
+features = ["png", "jpeg"]
 
 [dependencies.bevy]
 version = "0.14"

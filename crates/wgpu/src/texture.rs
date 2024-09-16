@@ -1,17 +1,18 @@
 //! Contains the texture struct and its implementations.
 
 use bevy::{log::Level, utils::tracing::event};
+use wgpu::TextureFormat;
 
 use crate::instance::WRenderInstanceData;
 
 /// Surface texture.
-pub type SurfaceTexture = wgpu::SurfaceTexture;
+pub type WSurfaceTexture = wgpu::SurfaceTexture;
 
 /// Texture view
-pub type TextureView = wgpu::TextureView;
+pub type WTextureView = wgpu::TextureView;
 
 /// Texture usages.
-pub type TextureUsages = wgpu::TextureUsages;
+pub type WTextureUsages = wgpu::TextureUsages;
 
 /// Texture format.
 pub type WTextureFormat = wgpu::TextureFormat;
@@ -36,7 +37,7 @@ pub struct WTexture {
     pub label: String,
     pub texture: wgpu::Texture,
     pub format: WTextureFormat,
-    pub view: TextureView,
+    pub view: WTextureView,
     pub sampler: wgpu::Sampler,
     pub size: (u32, u32),
 }
@@ -66,7 +67,7 @@ impl WTexture {
     /// * `size` - Size of the texture.
     /// * `format` - Format of the texture.
     /// * `usage` - Usage of the texture.
-    pub fn new(instance: &WRenderInstanceData<'_>, label: &str, size: (u32, u32), format: WTextureFormat, usage: TextureUsages) -> Self {
+    pub fn new(instance: &WRenderInstanceData<'_>, label: &str, size: (u32, u32), format: WTextureFormat, usage: WTextureUsages) -> Self {
         event!(Level::DEBUG, "Creating wgpu texture {}.", label);
         
         // Create texture
@@ -82,7 +83,7 @@ impl WTexture {
             dimension: wgpu::TextureDimension::D2,
             format,
             usage: usage | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[format]
+            view_formats: &[]
         });
 
         // Create texture view
@@ -141,11 +142,16 @@ impl WTexture {
     /// # Arguments
     /// 
     /// * `instance` - Game instance.
+    /// * `texture_format` - The wgpu texture format.
     /// * `buffer` - Image buffer.
-    /// * `depth` - Depth of the image (ex RGB = 3, RGBA = 4).
-    /// * `float_format` - Whether the format is float (true for f32, false for u8).
-    pub fn copy_from_buffer(&self, instance: &WRenderInstanceData, buffer: &[u8], depth: u32, is_float: bool) {
+    pub fn copy_from_buffer(&self, instance: &WRenderInstanceData, texture_format: TextureFormat, buffer: &[u8]) {
         event!(Level::TRACE, "Copying buffer to texture.");
+
+        // Retrieve size corresponding to the texture format
+        let format_size = match texture_format.block_dimensions() {
+            (1, 1) => texture_format.block_copy_size(None).unwrap() as usize,
+            _ => panic!("Using pixel_size for compressed textures is invalid"),
+        };
 
         // Copy buffer to texture
         instance.queue.write_texture(
@@ -158,8 +164,8 @@ impl WTexture {
             buffer,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(if is_float { 4 } else { 1 } * self.size.0 * depth),
-                rows_per_image: Some(self.size.1),
+                bytes_per_row: Some(self.size.0 * format_size as u32),
+                rows_per_image: None,
             },
             wgpu::Extent3d {
                 width: self.size.0,

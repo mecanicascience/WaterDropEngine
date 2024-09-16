@@ -2,7 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
-use examples::ExamplesPugin;
+use examples::{ExamplesPugin, SELECTED_EXAMPLE};
 use game::*;
 use scene::GamePlugin;
 use wde_render::RenderPlugin;
@@ -70,8 +70,19 @@ pub fn start_game() {
     // Add the plugins
     app
         .add_plugins(RenderPlugin)
-        .add_plugins(GamePlugin)
         .add_plugins(ExamplesPugin);
+
+    // Add the game plugin
+    let mut should_add_game_plugin = true;
+    unsafe {
+        if SELECTED_EXAMPLE != examples::Examples::None {
+            should_add_game_plugin = false;
+        }
+    }
+    if should_add_game_plugin {
+        app.add_plugins(GamePlugin);
+    }
+    
 
     // Run the app
     info!("Running game engine.");

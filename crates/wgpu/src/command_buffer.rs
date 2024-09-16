@@ -2,7 +2,7 @@
 use bevy::{log::Level, utils::tracing::event};
 use wgpu::Texture;
 
-use crate::{buffer::WBuffer, compute_pass::WComputePass, instance::WRenderInstanceData, texture::TextureView};
+use crate::{buffer::WBuffer, compute_pass::WComputePass, instance::WRenderInstanceData, texture::WTextureView};
 
 use super::render_pass::WRenderPass;
 
@@ -28,7 +28,7 @@ pub type WStoreOp = wgpu::StoreOp;
 /// Describe the depth texture of a render pass.
 pub struct RenderPassDepth<'pass> {
     /// The depth texture. If `None`, the render pass will not have a depth texture.
-    pub texture: Option<&'pass TextureView>,
+    pub texture: Option<&'pass WTextureView>,
     /// The depth operation when loading the texture. By default, clear the texture to 1.0 (farthest).
     pub load_operation: WLoadOp<f32>,
     /// The depth operation when storing the texture. By default, store the texture.
@@ -47,7 +47,7 @@ impl<'pass> Default for RenderPassDepth<'pass> {
 /// Describe a color attachment of a render pass.
 pub struct RenderPassColorAttachment<'pass> {
     /// The color texture.
-    pub texture: Option<&'pass TextureView>,
+    pub texture: Option<&'pass WTextureView>,
     /// The color load operation. By default, clear the texture to black.
     pub load: WLoadOp<Color>,
     /// The color store operation. By default, store the texture.

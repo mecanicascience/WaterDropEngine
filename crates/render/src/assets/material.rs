@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
-use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WBufferBindingType, WgpuBindGroup}, buffer::BufferUsage, instance::WRenderInstance, render_pipeline::WShaderStages, texture::{WTextureFormat, TextureUsages}};
+use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WBufferBindingType, WgpuBindGroup}, buffer::BufferUsage, instance::WRenderInstance, render_pipeline::WShaderStages, texture::{WTextureFormat, WTextureUsages}};
 
 use super::{Buffer, GpuBuffer, GpuTexture, PrepareAssetError, RenderAsset, RenderAssets, RenderAssetsPlugin, Texture, TextureLoaderSettings};
 
@@ -125,8 +125,7 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
         let dummy_texture = assets_server.load_with_settings(DUMMY_TEXTURE_PATH, |settings: &mut TextureLoaderSettings| {
             settings.label = "dummy-texture".to_string();
             settings.format = WTextureFormat::R8Unorm;
-            settings.force_depth = Some(1);
-            settings.usages = TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST;
+            settings.usages = WTextureUsages::TEXTURE_BINDING | WTextureUsages::COPY_DST;
         });
         for (material_type, material_index) in &material_builder.elements {
             match material_type {

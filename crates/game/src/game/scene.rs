@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use wde_render::{assets::TextureLoaderSettings, components::{Camera, CameraController, CameraView}, renderer::pbr::{PbrBundle, PbrMaterial}};
-use wde_wgpu::texture::{WTextureFormat, TextureUsages};
+use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
 
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
@@ -22,8 +22,8 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
     // Load the assets
     let box_texture = asset_server.load_with_settings("models/box.png", |settings: &mut TextureLoaderSettings| {
         settings.label = "pbr-box".to_string();
-        settings.format = WTextureFormat::Rgba8Unorm;
-        settings.usages = TextureUsages::TEXTURE_BINDING;
+        settings.format = WTextureFormat::Rgba8UnormSrgb;
+        settings.usages = WTextureUsages::TEXTURE_BINDING;
     });
     let red_box = materials.add(PbrMaterial {
         label: "pbr-material-red-box".to_string(),

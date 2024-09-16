@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 use bevy::{ecs::system::SystemState, log::{debug, error, warn, Level}, prelude::*, utils::tracing::{event, span}, window::{PresentMode, PrimaryWindow, RawHandleWrapperHolder}};
 use wgpu::{Device, Limits, Surface, SurfaceConfiguration, SurfaceTexture};
 
-use crate::texture::TextureView;
+use crate::texture::WTextureView;
 
 /// Error type of the renderer.
 #[derive(Debug)]
@@ -38,7 +38,7 @@ pub struct WRenderTexture {
     /// Texture of the render texture.
     pub texture: wgpu::SurfaceTexture,
     /// View of the render texture.
-    pub view: TextureView,
+    pub view: WTextureView,
 }
 
 /// Type of the render event.

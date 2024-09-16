@@ -9,8 +9,8 @@ pub use custom_material::*;
 pub use custom_pipeline::*;
 pub use custom_renderpass::*;
 pub use custom_ssbo::*;
-use wde_render::{assets::{MaterialsPlugin, RenderAssetsPlugin, TextureLoaderSettings, WTextureUsages}, components::{Camera, CameraController, CameraView}, core::{Extract, Render, RenderApp, RenderSet}};
-use wde_wgpu::texture::WTextureFormat;
+use wde_render::{assets::{MaterialsPlugin, RenderAssetsPlugin, TextureLoaderSettings}, components::{Camera, CameraController, CameraView}, core::{Extract, Render, RenderApp, RenderSet}};
+use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
 
 
 /// System to create the scene
