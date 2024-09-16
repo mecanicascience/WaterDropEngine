@@ -56,10 +56,18 @@ pub(crate) fn send_surface_resized(
 ) {
     for _ in events_reader.read() {
         if let Ok(window) = window.get_single() {
-            events_writer.send(SurfaceResized {
-                width: window.resolution.physical_width(),
-                height: window.resolution.physical_height(),
-            });
+            let (width, height) = (
+                window.resolution.physical_width().max(1),
+                window.resolution.physical_height().max(1),
+            );
+
+            // Check if window was minimized
+            if width == 0 && height == 0 {
+                continue
+            }
+
+            // Send the surface resized event
+            events_writer.send(SurfaceResized { width, height });
         }
     }
 }
