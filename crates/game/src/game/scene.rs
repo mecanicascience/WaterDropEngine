@@ -51,7 +51,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
         material: red_box.clone()
     });
     commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(5.0, 0.0, 0.0),
+        transform: Transform::from_xyz(5.0, 0.0, 0.0).with_scale(Vec3::splat(3.0)),
         mesh: cube.clone(),
         material: red_box.clone()
     });

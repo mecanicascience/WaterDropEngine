@@ -27,9 +27,8 @@ fn main(@builtin(instance_index) instance: u32, model: ModelInput) -> VertexOutp
     out.tex_coord = vec2<f32>(model.tex_coord.x, 1.0 - model.tex_coord.y); // Flip Y
 
     // Calculate the view ray in world space
-    var position = in_camera.ndc_to_world * vec4<f32>(model.position, 1.0);
-    position /= position.w;
-    out.view_ray = position.xyz - in_camera.position.xyz;
+    let position = in_camera.ndc_to_world * vec4<f32>(model.position, 1.0);
+    out.view_ray = position.xyz / position.w - in_camera.position.xyz;
     
     return out;
 }
