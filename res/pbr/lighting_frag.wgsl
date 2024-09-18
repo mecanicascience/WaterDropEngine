@@ -30,44 +30,46 @@ fn world_from_screen_coord(uv: vec2<f32>, depth: f32) -> vec3<f32> {
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Pbr material properties
-    let ambient_strength = 0.1;
-    let specular_strength = 0.5;
     let shininess = 32.0;
 
     // Light properties
-    let light_color    = vec3<f32>(1.0, 1.0, 1.0);
-    let light_position = vec3<f32>(3.0, 5.0, 5.0);
+    let light_position = vec3<f32>(1.2, 1.0, 2.0);
+    let light_ambiant  = vec3<f32>(0.2, 0.2, 0.2);
+    let light_diffuse  = vec3<f32>(0.5, 0.5, 0.5);
+    let light_specular = vec3<f32>(1.0, 1.0, 1.0);
 
     // Read position of the object in world space
     let depth = textureSample(in_depth_texture, in_depth_sampler, in.tex_coord);
+    if depth == 1.0 { // Discard background
+        discard;
+    }
     let position = world_from_screen_coord(in.tex_coord, depth);
 
     // Read G-Buffer
-    let albedo   = textureSample(in_albedo_texture,   in_albedo_sampler,   in.tex_coord).xyz;
-    let normal   = textureSample(in_normal_texture,   in_normal_sampler,   in.tex_coord).xyz;
-    let material = textureSample(in_material_texture, in_material_sampler, in.tex_coord);
-    let metallic    = material.r;
-    let roughness   = material.g;
-    let reflectance = material.b;
+    let g_albedo   = textureSample(in_albedo_texture,   in_albedo_sampler,   in.tex_coord).xyz;
+    let g_nor_raw  = textureSample(in_normal_texture,   in_normal_sampler,   in.tex_coord);
+    let g_normal   = g_nor_raw.xyz;
+    let g_specular = g_nor_raw.w;
+    let g_material = textureSample(in_material_texture, in_material_sampler, in.tex_coord);
 
     // General computed values
     let light_dir = normalize(light_position - position);
 
     // Ambient light (light that is scattered in the atmosphere / moon light / ...)
-    let ambient = ambient_strength * light_color;
+    let ambient = g_albedo * light_ambiant;
 
     // Diffused light (direct light from the light source, scattered by the material)
-    let light_angle = max(dot(normal, light_dir), 0.0);
-    let diffused = light_angle * light_color;
+    let light_angle = max(dot(g_normal, light_dir), 0.0);
+    let diffused    = (g_albedo * light_angle) * light_diffuse;
 
     // Specular light (light that is reflected by the material directly to the camera)
-    let view_dir = normalize(in_camera.position.xyz - position);
-    let reflect_dir = reflect(-light_dir, normal);
-    let spec = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
-    let specular = specular_strength * spec * light_color;
+    let view_dir    = normalize(in_camera.position.xyz - position);
+    let reflect_dir = reflect(-light_dir, g_normal);
+    let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+    let specular    = (g_specular * spec_value) * light_specular;
 
     // Light transmitted by the light source through the material
-    let transmitted = (ambient + diffused + specular) * albedo;
+    let transmitted = ambient + diffused + specular;
 
     // Return the final color
     return vec4<f32>(transmitted, 1.0);

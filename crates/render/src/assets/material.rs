@@ -9,7 +9,7 @@ pub trait Material {
     /// Describe the material by adding buffers, textures, etc. to the material builder.
     fn describe(&self, builder: &mut MaterialBuilder);
     /// Get the label of the material
-    fn label(&self) -> &str;
+    fn label(&self) -> String;
 }
 
 const DUMMY_TEXTURE_PATH: &str = "pbr/dummy_texture.png";
@@ -195,7 +195,7 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
         }
 
         // Create bind group layout
-        let layout = BindGroupLayout::new(label, |builder| {
+        let layout = BindGroupLayout::new(&label, |builder| {
             for (material_type, material_index) in &material_builder.elements {
                 match material_type {
                     MaterialBuilderType::Buffer => {
@@ -215,7 +215,7 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
         });
 
         // Create bind group
-        let bind_group = BindGroup::build(label, &render_instance, &layout.build(&render_instance), &bg_entries);
+        let bind_group = BindGroup::build(&label, &render_instance, &layout.build(&render_instance), &bg_entries);
 
         Ok(GpuMaterial {
             phantom: std::marker::PhantomData,

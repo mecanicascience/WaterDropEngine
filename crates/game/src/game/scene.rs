@@ -20,29 +20,30 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
     ));
 
     // Load the assets
-    let box_texture = asset_server.load_with_settings("models/box.png", |settings: &mut TextureLoaderSettings| {
-        settings.label = "pbr-box".to_string();
+    let container_albedo = asset_server.load_with_settings("models/container_albedo.png", |settings: &mut TextureLoaderSettings| {
+        settings.label = "container-albedo".to_string();
         settings.format = WTextureFormat::Rgba8UnormSrgb;
         settings.usages = WTextureUsages::TEXTURE_BINDING;
     });
+    let container_specular = asset_server.load_with_settings("models/container_specular.png", |settings: &mut TextureLoaderSettings| {
+        settings.label = "container-specular".to_string();
+        settings.format = WTextureFormat::R8Unorm;
+        settings.usages = WTextureUsages::TEXTURE_BINDING;
+    });
     let red_box = materials.add(PbrMaterial {
-        label: "pbr-material-red-box".to_string(),
-        albedo: (1.0, 0.0, 0.0),
-        texture: Some(box_texture),
-        metallic: 1.0,
-        roughness: 0.2,
-        reflectance: 0.0,
+        label: "container".to_string(),
+        albedo_t:   Some(container_albedo),
+        specular_t: Some(container_specular),
+        ..Default::default()
     });
     let blue = materials.add(PbrMaterial {
-        label: "pbr-material-blue".to_string(),
-        albedo: (0.0, 0.0, 1.0),
-        texture: None,
-        metallic: 0.0,
-        roughness: 0.5,
-        reflectance: 0.4,
+        label: "blue".to_string(),
+        albedo: (0.0, 0.0, 1.0, 1.0),
+        specular: 0.5,
+        ..Default::default()
     });
     let suzanne = asset_server.load("models/suzanne.obj");
-    let cube = asset_server.load("models/cube.obj");
+    let cube = asset_server.load("models/container.obj");
 
     // Spawn the entities
     commands.spawn(PbrBundle {

@@ -8,26 +8,27 @@ use crate::assets::{Material, MaterialBuilder, Mesh, Texture};
 pub struct PbrMaterial {
     /// The label of the material instance.
     pub label: String,
+
     /// The albedo color of the material instance.
-    pub albedo: (f32, f32, f32),
-    /// The texture of the material instance. If none, a dummy texture is used. If some, the texture is used and replaces the albedo color.
-    pub texture: Option<Handle<Texture>>,
-    /// Metalness of the material instance.
-    pub metallic: f32,
-    /// Roughness of the material instance.
-    pub roughness: f32,
-    /// Reflectance of the material instance.
-    pub reflectance: f32,
+    pub albedo: (f32, f32, f32, f32),
+    /// The albedo texture of the material instance. If `None`, the material will use the albedo color.
+    pub albedo_t: Option<Handle<Texture>>,
+
+    /// The specular intensity of the material instance.
+    pub specular: f32,
+    /// The specular texture of the material instance. If `None`, the material will use the specular intensity.
+    pub specular_t: Option<Handle<Texture>>,
 }
 impl Default for PbrMaterial {
     fn default() -> Self {
         PbrMaterial {
             label: "pbr-material".to_string(),
-            albedo: (1.0, 1.0, 1.0),
-            texture: None,
-            metallic: 0.0,
-            roughness: 0.0,
-            reflectance: 0.0,
+
+            albedo:   (1.0, 1.0, 1.0, 1.0),
+            albedo_t: None,
+
+            specular:   1.0,
+            specular_t: None,
         }
     }
 }
@@ -35,37 +36,42 @@ impl Default for PbrMaterial {
 #[repr(C)]
 #[derive(Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct PbrMaterialUniform {
-    /// RGB color of the material.
-    pub color: [f32; 4],
-    /// Whether the material has a texture (1.0) or not (0.0).
-    pub has_texture: f32,
-    /// Metalness of the material.
-    pub metallic: f32,
-    /// Roughness of the material.
-    pub roughness: f32,
-    /// Reflectance of the material.
-    pub reflectance: f32,
+    /// Flags indicating material textures.
+    pub flags: [f32; 4],
+    /// RGB albedo of the material.
+    pub albedo: [f32; 4],
+    /// Specular intensity of the material.
+    pub specular: f32,
+    /// Unused padding.
+    _padding: [f32; 3]
 }
 impl Material for PbrMaterial {
     fn describe(&self, builder: &mut MaterialBuilder) {
         // Create the uniform buffer
         let uniform = PbrMaterialUniform {
-            color: [self.albedo.0, self.albedo.1, self.albedo.2, 1.0],
-            has_texture: if self.texture.is_some() { 1.0 } else { 0.0 },
-            metallic: self.metallic,
-            roughness: self.roughness,
-            reflectance: self.reflectance
+            flags: [
+                if self.albedo_t.is_some()   { 1.0 } else { 0.0 },
+                if self.specular_t.is_some() { 1.0 } else { 0.0 },
+                0.0, // Unused
+                0.0, // Unused
+            ],
+            albedo: [self.albedo.0, self.albedo.1, self.albedo.2, self.albedo.3],
+            specular: self.specular,
+            _padding: [0.0; 3],
         };
 
         // Build the material
         builder.add_buffer(
             0, WShaderStages::FRAGMENT, WBufferBindingType::Uniform,
             size_of::<PbrMaterialUniform>(), Some(bytemuck::cast_slice(&[uniform]).to_vec()));
-        builder.add_texture_view(1, WShaderStages::FRAGMENT, self.texture.clone());
-        builder.add_texture_sampler( 2, WShaderStages::FRAGMENT, self.texture.clone());
+        builder.add_texture_view(    1, WShaderStages::FRAGMENT, self.albedo_t.clone());
+        builder.add_texture_sampler( 2, WShaderStages::FRAGMENT, self.albedo_t.clone());
+        builder.add_texture_view(    3, WShaderStages::FRAGMENT, self.specular_t.clone());
+        builder.add_texture_sampler( 4, WShaderStages::FRAGMENT, self.specular_t.clone());
     }
-    fn label(&self) -> &str {
-        &self.label
+
+    fn label(&self) -> String {
+        self.label.to_string() + "-material"
     }
 }
 

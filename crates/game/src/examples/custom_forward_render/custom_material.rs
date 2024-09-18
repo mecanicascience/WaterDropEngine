@@ -45,8 +45,8 @@ impl Material for CustomMaterial {
         builder.add_texture_view(1, WShaderStages::FRAGMENT, self.texture.clone());
         builder.add_texture_sampler( 2, WShaderStages::FRAGMENT, self.texture.clone());
     }
-    fn label(&self) -> &str {
-        &self.label
+    fn label(&self) -> String {
+        self.label.clone()
     }
 }
 
