@@ -1,7 +1,7 @@
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) tex_coord: vec2<f32>,
-    @location(1) normal:    vec3<f32>
+    @location(0) tex_coord:    vec2<f32>,
+    @location(1) normal_world: vec3<f32>  // Normal in world space
 };
 
 struct FragOutput {
@@ -31,8 +31,8 @@ fn main(in: VertexOutput) -> FragOutput {
     } else {
         out.albedo = in_material.albedo;
     }
-    out.normal = vec4<f32>(normalize(in.normal), 0.0);
-    out.material = vec4<f32>(in_material.metallic, in_material.roughness, in_material.reflectance, 0.0);
+    out.normal = vec4<f32>(normalize(in.normal_world), 1.0);
+    out.material = vec4<f32>(in_material.metallic, in_material.roughness, in_material.reflectance, 1.0);
 
     return out;
 }

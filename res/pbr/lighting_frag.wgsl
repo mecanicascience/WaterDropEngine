@@ -1,16 +1,12 @@
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) tex_coord: vec2<f32>,
-    @location(1) view_ray: vec3<f32>,
+    @location(0) tex_coord: vec2<f32>
 };
 
 struct Camera {
     world_to_ndc: mat4x4<f32>,
     ndc_to_world: mat4x4<f32>,
-    position: vec4<f32>,
-    z_near: f32,
-    z_far: f32,
-    padding: vec2<f32>,
+    position: vec4<f32>
 }
 @group(0) @binding(0) var<uniform> in_camera: Camera;
 
@@ -24,6 +20,12 @@ struct Camera {
 @group(2) @binding(4) var in_material_texture: texture_2d<f32>;
 @group(2) @binding(5) var in_material_sampler: sampler;
 
+fn world_from_screen_coord(uv: vec2<f32>, depth: f32) -> vec3<f32> {
+    let ndc_position   = vec4<f32>(uv.x * 2.0 - 1.0, (1 - uv.y) * 2.0 - 1.0, depth, 1.0);
+    let view_position  = in_camera.ndc_to_world * ndc_position;
+    let world_position = view_position.xyz / view_position.w;
+    return world_position;
+}
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -38,8 +40,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Read position of the object in world space
     let depth = textureSample(in_depth_texture, in_depth_sampler, in.tex_coord);
-    let distance = in_camera.z_near * in_camera.z_far / (in_camera.z_far + depth * (in_camera.z_near - in_camera.z_far));
-    let position = in_camera.position.xyz + normalize(in.view_ray) * distance;
+    let position = world_from_screen_coord(in.tex_coord, depth);
 
     // Read G-Buffer
     let albedo   = textureSample(in_albedo_texture,   in_albedo_sampler,   in.tex_coord).xyz;

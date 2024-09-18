@@ -14,7 +14,7 @@ impl Default for CameraView {
         Self {
             fov: 60.0,
             znear: 0.1,
-            zfar: 1000.0,
+            zfar: 100.0,
         }
     }
 }
@@ -35,13 +35,7 @@ pub struct CameraUniform {
     // From NDC to world coordinates
     pub ndc_to_world: [[f32; 4]; 4],
     // Camera position
-    pub position: [f32; 4],
-    // Znear
-    pub znear: f32,
-    // Zfar
-    pub zfar: f32,
-    // Padding
-    _padding: [f32; 2],
+    pub position: [f32; 4]
 }
 
 impl CameraUniform {
@@ -63,10 +57,7 @@ impl CameraUniform {
         Self {
             world_to_ndc,
             ndc_to_world,
-            position: [transform.translation.x, transform.translation.y, transform.translation.z, 1.0],
-            znear: camera_view.znear,
-            zfar: camera_view.zfar,
-            _padding: [0.0; 2],
+            position: [transform.translation.x, transform.translation.y, transform.translation.z, 1.0]
         }
     }
 

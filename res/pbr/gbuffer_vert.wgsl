@@ -5,8 +5,8 @@ struct ModelInput {
 };
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) tex_coord: vec2<f32>,
-    @location(1) normal:    vec3<f32>,
+    @location(0) tex_coord:    vec2<f32>,
+    @location(1) normal_world: vec3<f32>, // Normal in world space
 };
 
 // From world space to normalized device coordinates
@@ -37,7 +37,7 @@ fn main(@builtin(instance_index) instance: u32, model: ModelInput) -> VertexOutp
 
     // Only works for uniform scaling
     let normal_matrix = mat3x3<f32>(obj_to_world[0].xyz, obj_to_world[1].xyz, obj_to_world[2].xyz);
-    out.normal = normal_matrix * model.normal;
+    out.normal_world = normal_matrix * model.normal;
 
     return out;
 }
