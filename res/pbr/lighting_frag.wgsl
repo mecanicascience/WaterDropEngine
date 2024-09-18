@@ -20,6 +20,22 @@ struct Camera {
 @group(2) @binding(4) var in_material_texture: texture_2d<f32>;
 @group(2) @binding(5) var in_material_sampler: sampler;
 
+struct Light {
+    /// World space position of the directional light for xyz. If it is the first element, the w component is the number of lights.
+    position_type: vec4<f32>,
+    /// World space direction of the light. The w component is the type of the light: 0 for directional, 1 for point, 2 for spot.
+    direction:     vec4<f32>,
+    /// Ambient color of the light. The w component is the constant attenuation factor if the light is a point light. It is the inner cut-off angle in radians if the light is a spot light.
+    ambient_const_inn: vec4<f32>,
+    /// Diffuse color of the light. The w component is the linear attenuation factor if the light is a point light. It is the outer cut-off angle in radians if the light is a spot light.
+    diffuse_linea_out: vec4<f32>,
+    /// Specular color of the light. The w component is the quadratic attenuation factor if the light is a point light.
+    specular_quadr:    vec4<f32>
+};
+@group(3) @binding(0) var<storage> in_lights: array<Light>;
+
+
+
 fn world_from_screen_coord(uv: vec2<f32>, depth: f32) -> vec3<f32> {
     let ndc_position   = vec4<f32>(uv.x * 2.0 - 1.0, (1 - uv.y) * 2.0 - 1.0, depth, 1.0);
     let view_position  = in_camera.ndc_to_world * ndc_position;
@@ -70,6 +86,9 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Light transmitted by the light source through the material
     let transmitted = ambient + diffused + specular;
+
+    // Read the number of lights
+    let num_lights = i32(in_lights[0].position_type.w);
 
     // Return the final color
     return vec4<f32>(transmitted, 1.0);

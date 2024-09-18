@@ -1,6 +1,6 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
-use crate::{assets::{PrepareAssetError, RenderAsset}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}, renderer::depth::DepthTextureLayout};
+use crate::{assets::{PrepareAssetError, RenderAsset}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}, renderer::depth::DepthTextureLayout};
 
 use super::PbrDeferredTexturesLayout;
 
@@ -14,7 +14,7 @@ impl RenderAsset for GpuPbrLightingRenderPipeline {
     type SourceAsset = PbrLightingRenderPipeline;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>, SRes<PbrDeferredTexturesLayout>,
-        SRes<DepthTextureLayout>, SRes<CameraFeatureRender>
+        SRes<DepthTextureLayout>, SRes<CameraFeatureRender>, SRes<LightsFeatureBuffer>
     );
 
     fn prepare_asset(
@@ -22,7 +22,7 @@ impl RenderAsset for GpuPbrLightingRenderPipeline {
             (
                 assets_server, pipeline_manager,
                 deferred_layout, depth_texture_layout,
-                camera_feature
+                camera_feature, lights_buffer
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         // Get the depth layout
@@ -37,12 +37,18 @@ impl RenderAsset for GpuPbrLightingRenderPipeline {
             None => return Err(PrepareAssetError::RetryNextUpdate(asset))
         };
 
+        // Get the lights buffer layout
+        let lights_layout = match &lights_buffer.bind_group_layout {
+            Some(layout) => layout,
+            None => return Err(PrepareAssetError::RetryNextUpdate(asset))
+        };
+
         // Create the pipeline
         let pipeline_desc = RenderPipelineDescriptor {
             label: "lighting-pbr",
             vert: Some(assets_server.load("pbr/lighting_vert.wgsl")),
             frag: Some(assets_server.load("pbr/lighting_frag.wgsl")),
-            bind_group_layouts: vec![camera_feature.layout.clone(), depth_layout.clone(), deferred_layout.clone()],
+            bind_group_layouts: vec![camera_feature.layout.clone(), depth_layout.clone(), deferred_layout.clone(), lights_layout.clone()],
             depth: WDepthStencilDescriptor {
                 enabled: false,
                 ..Default::default()

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wde_render::{assets::TextureLoaderSettings, components::{Camera, CameraController, CameraView}, renderer::pbr::{PbrBundle, PbrMaterial}};
+use wde_render::{assets::TextureLoaderSettings, components::{Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}, renderer::pbr::{PbrBundle, PbrMaterial}};
 use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
 
 pub struct GamePlugin;
@@ -88,4 +88,24 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
             });
         }
     }
+
+    // Spawn the lights
+    commands.spawn(PointLight {
+        position: Vec3::new(440.0, 30.0, 350.0),
+        ..Default::default()
+    }.with_range(200.0).unwrap());
+    commands.spawn(SpotLight {
+        position: Vec3::new(120.0, 20.0, 56.0),
+        direction: Vec3::new(-0.8, -0.5, 0.0).normalize(),
+        ..Default::default()
+    });
+    commands.spawn(SpotLight {
+        position: Vec3::new(220.0, 20.0, 156.0),
+        direction: Vec3::new(0.8, -0.5, -0.1).normalize(),
+        ..Default::default()
+    });
+    commands.spawn(DirectionalLight {
+        direction: Vec3::new(-0.2, 0.8, -0.3).normalize(),
+        ..Default::default()
+    });
 }

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuMesh, Mesh, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTextureLayout};
+use crate::{assets::{GpuMesh, Mesh, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTextureLayout};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, WCommandBuffer}, instance::WRenderInstance, vertex::WVertex};
 
 use super::{GpuPbrLightingRenderPipeline, PbrDeferredTexturesLayout};
@@ -50,8 +50,8 @@ impl PbrLightingRenderPass {
         (lighting_pipeline, deferred_mesh, ): (
             Res<RenderAssets<GpuPbrLightingRenderPipeline>>, Res<PbrLightingRenderPassMesh>
         ),
-        (camera_layout, depth_texture_layout, textures_layout): (
-            Res<CameraFeatureRender>, Res<DepthTextureLayout>, Res<PbrDeferredTexturesLayout>
+        (camera_layout, depth_texture_layout, textures_layout, lights_layout): (
+            Res<CameraFeatureRender>, Res<DepthTextureLayout>, Res<PbrDeferredTexturesLayout>, Res<LightsFeatureBuffer>
         )
     ) {
         // Get the render instance and swapchain frame
@@ -88,12 +88,14 @@ impl PbrLightingRenderPass {
                 CachedPipelineStatus::Ok(pipeline),
                 Some(camera_bind_group),
                 Some(depth_bind_group),
-                Some(deferred_bind_group)
+                Some(deferred_bind_group),
+                Some(lights_bind_group)
             ) = (
                 pipeline_manager.get_pipeline(lighting_pipeline.cached_pipeline_index),
                 &camera_layout.bind_group,
                 &depth_texture_layout.bind_group,
-                &textures_layout.deferred_bind_group
+                &textures_layout.deferred_bind_group,
+                &lights_layout.bind_group
             ) {
                 // Set the pipeline
                 if render_pass.set_pipeline(pipeline).is_ok() {
@@ -105,7 +107,8 @@ impl PbrLightingRenderPass {
                     render_pass.set_bind_group(0, camera_bind_group);
                     render_pass.set_bind_group(1, depth_bind_group);
                     render_pass.set_bind_group(2, deferred_bind_group);
-
+                    render_pass.set_bind_group(3, lights_bind_group);
+                    
                     // Draw the mesh
                     match render_pass.draw_indexed(0..deferred_mesh.index_count, 0..1) {
                         Ok(_) => {},
