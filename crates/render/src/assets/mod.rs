@@ -4,6 +4,7 @@ mod buffer;
 mod shader;
 mod material;
 mod render_assets;
+pub mod meshes;
 
 use bevy::prelude::*;
 
@@ -21,6 +22,7 @@ impl Plugin for SceneResourcesPlugin {
     fn build(&self, app: &mut App) {
         // Setup the assets
         app
+            .add_plugins(MaterialsPluginRaw)
             .init_asset_loader::<TextureLoader>()
             .init_asset::<Texture>()
             .init_asset_loader::<MeshLoader>()

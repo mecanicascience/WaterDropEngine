@@ -7,23 +7,20 @@ use crate::{buffer::WBuffer, compute_pass::WComputePass, instance::WRenderInstan
 use super::render_pass::WRenderPass;
 
 /// Type of a color.
-pub type Color = wgpu::Color;
+pub type WColor = wgpu::Color;
 
 /// Type of a load operation.
-pub type LoadOp<V> = wgpu::LoadOp<V>;
+pub type WLoadOp<V> = wgpu::LoadOp<V>;
 
 /// Type of a store operation.
-pub type StoreOp = wgpu::StoreOp;
+pub type WStoreOp = wgpu::StoreOp;
 
 /// Load and store operations for the color texture.
 #[derive(Clone, Copy, Debug)]
 pub struct Operations<V> {
-    pub load: LoadOp<V>,
-    pub store: StoreOp,
+    pub load: WLoadOp<V>,
+    pub store: WStoreOp,
 }
-
-pub type WLoadOp<T> = wgpu::LoadOp<T>;
-pub type WStoreOp = wgpu::StoreOp;
 
 /// Describe the depth texture of a render pass.
 pub struct RenderPassDepth<'pass> {
@@ -48,16 +45,17 @@ impl<'pass> Default for RenderPassDepth<'pass> {
 pub struct RenderPassColorAttachment<'pass> {
     /// The color texture.
     pub texture: Option<&'pass WTextureView>,
-    /// The color load operation. By default, clear the texture to a dark gray.
-    pub load: WLoadOp<Color>,
+    /// The color load operation. By default, clear the texture to a dark gray. The color must be in sRGB.
+    pub load: WLoadOp<WColor>,
     /// The color store operation. By default, store the texture.
     pub store: WStoreOp,
 }
 impl<'pass> Default for RenderPassColorAttachment<'pass> {
     fn default() -> Self {
+        let color_srgb = 0.1_f64.powf(2.2);
         Self {
             texture: None,
-            load: wgpu::LoadOp::Clear(Color { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }),
+            load: wgpu::LoadOp::Clear(WColor { r: color_srgb, g: color_srgb, b: color_srgb, a: 1.0 }),
             store: wgpu::StoreOp::Store,
         }
     }

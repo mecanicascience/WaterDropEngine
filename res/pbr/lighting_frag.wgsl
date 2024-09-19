@@ -55,10 +55,10 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let position = world_from_screen_coord(in.tex_coord, depth);
 
     // Read G-Buffer
-    let g_albedo   = textureSample(in_albedo_texture,   in_albedo_sampler,   in.tex_coord).xyz;
-    let g_nor_raw  = textureSample(in_normal_texture,   in_normal_sampler,   in.tex_coord);
-    let g_normal   = g_nor_raw.xyz;
-    let g_specular = g_nor_raw.w;
+    let g_albedo   = textureSample(in_albedo_texture, in_albedo_sampler, in.tex_coord).xyz;
+    let g_norm_raw = textureSample(in_normal_texture, in_normal_sampler, in.tex_coord);
+    let g_normal   = normalize(g_norm_raw.xyz);
+    let g_specular = g_norm_raw.w;
     let g_material = textureSample(in_material_texture, in_material_sampler, in.tex_coord);
 
     // General parameters
@@ -67,83 +67,58 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Compute lighting
     let lights_count = i32(in_lights[0].position_number.w);
-    var transmitted = vec3<f32>(0.0, 0.0, 0.0);
+    var transmitted = pow(vec3<f32>(0.1), vec3<f32>(2.2));
     for (var i = 0; i < lights_count; i = i + 1) {
         let light = in_lights[i];
         let light_type = i32(light.direction_type.w);
 
-        // Directional light
-        if light_type == 0 {
-            let light_dir = normalize(light.direction_type.xyz);
-
-            // Diffused
-            let light_angle = max(dot(g_normal, light_dir), 0.0);
-
-            // Specular
-            let reflect_dir = reflect(-light_dir, g_normal);
-            let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
-
-            // Combine results
-            let ambient  =  g_albedo                 * light.ambient_const.rgb;
-            let diffused = (g_albedo * light_angle)  * light.diffuse_linea.rgb;
-            let specular = (g_specular * spec_value) * light.specular_quadr.rgb;
-            transmitted += ambient + diffused + specular;
+        // Light direction
+        var light_dir = -normalize(vec3<f32>(-0.1, 0.8, -0.2));
+        if light_type == 0 { // Directional light
+            light_dir = -normalize(light.direction_type.xyz);
         }
-        // Point light
-        else if light_type == 1 {
-            let light_dir = normalize(light.position_number.xyz - position);
-
-            // Diffused
-            let light_angle = max(dot(g_normal, light_dir), 0.0);
-
-            // Specular
-            let reflect_dir = reflect(-light_dir, g_normal);
-            let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
-
-            // Attenuation
-            let distance = length(light.position_number.xyz - position);
-            let attenuation = 1.0 / (light.ambient_const.w
-                + light.diffuse_linea.w * distance
-                + light.specular_quadr.w * distance * distance);
-
-            // Combine results
-            let ambient  =  g_albedo                 * light.ambient_const.rgb * attenuation;
-            let diffused = (g_albedo * light_angle)  * light.diffuse_linea.rgb * attenuation;
-            let specular = (g_specular * spec_value) * light.specular_quadr.rgb    * attenuation;
-            transmitted += ambient + diffused + specular;
-        }
-        // Spot light
-        else if light_type == 2 {
-            let light_dir = normalize(light.position_number.xyz - position);
-
-            // Diffused
-            let light_angle = max(dot(g_normal, light_dir), 0.0);
-
-            // Specular
-            let reflect_dir = reflect(-light_dir, g_normal);
-            let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
-
-            // Attenuation
-            let distance = length(light.position_number.xyz - position);
-            let attenuation = 1.0 / (light.ambient_const.w
-                + light.diffuse_linea.w * distance
-                + light.specular_quadr.w * distance * distance);
-
-            // Spot light intensity
-            let theta     = dot(normalize(light.direction_type.xyz), -light.direction_type.xyz);
-            let epsilon   = light.cut_off.x - light.cut_off.y;
-            let intensity = clamp((theta - light.diffuse_linea.w) / epsilon, 0.0, 1.0);
-
-            // Combine results
-            let ambient  =  g_albedo                 * light.ambient_const.rgb * attenuation * intensity;
-            let diffused = (g_albedo * light_angle)  * light.diffuse_linea.rgb * attenuation * intensity;
-            let specular = (g_specular * spec_value) * light.specular_quadr.rgb    * attenuation * intensity;
-            transmitted += ambient + diffused + specular;
+        else if light_type == 1 || light_type == 2 { // Point light or spot light
+            light_dir = normalize(light.position_number.xyz - position);
         }
         else {
             // Error
             return vec4<f32>(1.0, 0.0, 1.0, 1.0);
         }
+
+        // Diffused
+        let light_angle = max(dot(g_normal, light_dir), 0.0);
+
+        // Specular
+        let halfway_dir = normalize(light_dir + view_dir);
+        let spec_value  = pow(max(dot(g_normal, halfway_dir), 0.0), shininess);
+
+        // Combine results
+        let ambient  =  g_albedo                 * light.ambient_const.rgb;
+        var diffused = (g_albedo * light_angle)  * light.diffuse_linea.rgb;
+        var specular = (g_specular * spec_value) * light.specular_quadr.rgb;
+
+        // Point light or spot light
+        if light_type == 1 || light_type == 2 {
+            // Attenuation
+            let distance = length(light.position_number.xyz - position);
+            let attenuation = 1.0 / (light.ambient_const.w
+                + light.diffuse_linea.w * distance
+                + light.specular_quadr.w * distance * distance);
+
+            diffused *= attenuation;
+            specular *= attenuation;
+        }
+
+        // Spot light intensity
+        if light_type == 2 {
+            let theta     = dot(normalize(light.direction_type.xyz), light.direction_type.xyz);
+            let epsilon   = light.cut_off.x - light.cut_off.y;
+            let intensity = clamp((theta - light.diffuse_linea.w) / epsilon, 0.0, 1.0);
+
+            diffused *= intensity;
+            specular *= intensity;
+        }
+        transmitted += ambient + diffused + specular;
     }
 
     // Return the final color

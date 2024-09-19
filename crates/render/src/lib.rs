@@ -7,6 +7,7 @@ pub mod components;
 pub mod core;
 pub mod features;
 pub mod renderer;
+pub mod utils;
 
 use core::RenderCorePlugin;
 

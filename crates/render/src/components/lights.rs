@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
+use crate::utils::Color;
+
 /// Default color values for the lights.
-const AMBIENT_DEFAULT:  f32 = 0.01;
+const AMBIENT_DEFAULT:  f32 = 0.05;
 const DIFFUSE_DEFAULT:  f32 = 0.8;
 const SPECULAR_DEFAULT: f32 = 1.0;
 
@@ -12,20 +14,20 @@ pub struct DirectionalLight {
     pub direction: Vec3,
 
     /// Ambient color of the light.
-    pub ambient:  Vec3,
+    pub ambient:  Color,
     /// Diffuse color of the light.
-    pub diffuse:  Vec3,
+    pub diffuse:  Color,
     /// Specular color of the light.
-    pub specular: Vec3
+    pub specular: Color
 }
 impl Default for DirectionalLight {
     fn default() -> Self {
         Self {
             direction: Vec3::new(0.0, -1.0, 0.0),
 
-            ambient:   Vec3::new(AMBIENT_DEFAULT,  AMBIENT_DEFAULT, AMBIENT_DEFAULT),
-            diffuse:   Vec3::new(DIFFUSE_DEFAULT,  DIFFUSE_DEFAULT, DIFFUSE_DEFAULT),
-            specular:  Vec3::new(SPECULAR_DEFAULT,  SPECULAR_DEFAULT, SPECULAR_DEFAULT)
+            ambient:  Color::from_srgba(AMBIENT_DEFAULT,  AMBIENT_DEFAULT,  AMBIENT_DEFAULT,  1.0),
+            diffuse:  Color::from_srgba(DIFFUSE_DEFAULT,  DIFFUSE_DEFAULT,  DIFFUSE_DEFAULT,  1.0),
+            specular: Color::from_srgba(SPECULAR_DEFAULT, SPECULAR_DEFAULT, SPECULAR_DEFAULT, 1.0)
         }
     }
 }
@@ -33,17 +35,17 @@ impl Default for DirectionalLight {
 #[derive(Component, Clone, Copy)]
 /// A point light is a light that emits light in all directions from a single point.
 /// Use the `set_attenuation` method to set the attenuation factors of the light. By default, the
-/// light has a full attenuation at 50 units.
+/// light has a full attenuation at 100 units.
 pub struct PointLight {
     /// World space position of the light.
     pub position: Vec3,
 
     /// Ambient color of the light.
-    pub ambient:  Vec3,
+    pub ambient:  Color,
     /// Diffuse color of the light.
-    pub diffuse:  Vec3,
+    pub diffuse:  Color,
     /// Specular color of the light.
-    pub specular: Vec3,
+    pub specular: Color,
 
     /// Constant attenuation factor of the light.
     pub constant:  f32,
@@ -55,7 +57,7 @@ pub struct PointLight {
 impl PointLight {
     /// Sets the attenuation factors of the light.
     /// If the range is not a value in {7, 13, 20, 32, 50, 65, 100, 160, 200, 325, 600, 3250},
-    /// the method will return None.
+    /// the method will return None. Note that most of the light will be already attenuated at 20%.
     pub fn with_range(&mut self, range: f32) -> Option<Self> {
         match range {
             3250.0 => {
@@ -128,14 +130,14 @@ impl Default for PointLight {
         Self {
             position: Vec3::new(0.0, 0.0, 0.0),
 
-            ambient:  Vec3::new(AMBIENT_DEFAULT, AMBIENT_DEFAULT, AMBIENT_DEFAULT),
-            diffuse:  Vec3::new(DIFFUSE_DEFAULT, DIFFUSE_DEFAULT, DIFFUSE_DEFAULT),
-            specular: Vec3::new(SPECULAR_DEFAULT, SPECULAR_DEFAULT, SPECULAR_DEFAULT),
+            ambient:  Color::from_srgba(AMBIENT_DEFAULT,  AMBIENT_DEFAULT,  AMBIENT_DEFAULT,  1.0),
+            diffuse:  Color::from_srgba(DIFFUSE_DEFAULT,  DIFFUSE_DEFAULT,  DIFFUSE_DEFAULT,  1.0),
+            specular: Color::from_srgba(SPECULAR_DEFAULT, SPECULAR_DEFAULT, SPECULAR_DEFAULT, 1.0),
 
             constant:  0.0,
             linear:    0.0,
             quadratic: 0.0
-        }.with_range(50.0).unwrap()
+        }.with_range(100.0).unwrap()
     }
 }
 
@@ -150,11 +152,11 @@ pub struct SpotLight {
     pub direction: Vec3,
 
     /// Ambient color of the light.
-    pub ambient:  Vec3,
+    pub ambient:  Color,
     /// Diffuse color of the light.
-    pub diffuse:  Vec3,
+    pub diffuse:  Color,
     /// Specular color of the light.
-    pub specular: Vec3,
+    pub specular: Color,
 
     /// Constant attenuation factor of the light.
     pub constant:  f32,
@@ -243,11 +245,11 @@ impl Default for SpotLight {
     fn default() -> Self {
         Self {
             position:  Vec3::new(0.0,  0.0, 0.0),
-            direction: Vec3::new(0.0, -SPECULAR_DEFAULT, 0.0),
+            direction: Vec3::new(0.0, -1.0, 0.0),
 
-            ambient:   Vec3::new(AMBIENT_DEFAULT, AMBIENT_DEFAULT, AMBIENT_DEFAULT),
-            diffuse:   Vec3::new(DIFFUSE_DEFAULT, DIFFUSE_DEFAULT, DIFFUSE_DEFAULT),
-            specular:  Vec3::new(SPECULAR_DEFAULT, SPECULAR_DEFAULT, SPECULAR_DEFAULT),
+            ambient:  Color::from_srgba(AMBIENT_DEFAULT,  AMBIENT_DEFAULT,  AMBIENT_DEFAULT,  1.0),
+            diffuse:  Color::from_srgba(DIFFUSE_DEFAULT,  DIFFUSE_DEFAULT,  DIFFUSE_DEFAULT,  1.0),
+            specular: Color::from_srgba(SPECULAR_DEFAULT, SPECULAR_DEFAULT, SPECULAR_DEFAULT, 1.0),
 
             constant:  0.0,
             linear:    0.0,
@@ -280,34 +282,43 @@ pub struct LightsStorageElement {
 }
 impl LightsStorageElement {
     pub fn from_directional(light: &DirectionalLight) -> Self {
+        let ambient  = light.ambient.to_linear_rgba();
+        let diffuse  = light.diffuse.to_linear_rgba();
+        let specular = light.specular.to_linear_rgba();
         Self {
-            position_number:    [light.direction.x, light.direction.y, light.direction.z, 0.0],
-            direction_type:     [0.0, 0.0, 0.0, 0.0],
-            ambient_const:      [light.ambient.x, light.ambient.y, light.ambient.z, 0.0],
-            diffuse_linea:      [light.diffuse.x, light.diffuse.y, light.diffuse.z, 0.0],
-            specular_quadr:     [light.specular.x, light.specular.y, light.specular.z, 0.0],
+            position_number:    [0.0, 0.0, 0.0, 0.0],
+            direction_type:     [light.direction.x, light.direction.y, light.direction.z, 0.0],
+            ambient_const:      [ambient.r(),  ambient.g(),  ambient.b(),  0.0],
+            diffuse_linea:      [diffuse.r(),  diffuse.g(),  diffuse.b(),  0.0],
+            specular_quadr:     [specular.r(), specular.g(), specular.b(), 0.0],
             cut_off:            [0.0, 0.0, 0.0, 0.0]
         }
     }
 
     pub fn from_point(light: &PointLight) -> Self {
+        let ambient  = light.ambient.to_linear_rgba();
+        let diffuse  = light.diffuse.to_linear_rgba();
+        let specular = light.specular.to_linear_rgba();
         Self {
             position_number:    [light.position.x, light.position.y, light.position.z, 0.0],
             direction_type:     [0.0, 0.0, 0.0, 1.0],
-            ambient_const:      [light.ambient.x, light.ambient.y, light.ambient.z, light.constant],
-            diffuse_linea:      [light.diffuse.x, light.diffuse.y, light.diffuse.z, light.linear],
-            specular_quadr:     [light.specular.x, light.specular.y, light.specular.z, light.quadratic],
+            ambient_const:      [ambient.r(),  ambient.g(),  ambient.b(),  light.constant],
+            diffuse_linea:      [diffuse.r(),  diffuse.g(),  diffuse.b(),  light.linear],
+            specular_quadr:     [specular.r(), specular.g(), specular.b(), light.quadratic],
             cut_off:            [0.0, 0.0, 0.0, 0.0]
         }
     }
 
     pub fn from_spot(light: &SpotLight) -> Self {
+        let ambient  = light.ambient.to_linear_rgba();
+        let diffuse  = light.diffuse.to_linear_rgba();
+        let specular = light.specular.to_linear_rgba();
         Self {
-            position_number:    [light.position.x, light.position.y, light.position.z, 0.0],
+            position_number:    [light.position.x,  light.position.y,  light.position.z,  0.0],
             direction_type:     [light.direction.x, light.direction.y, light.direction.z, 2.0],
-            ambient_const:      [light.ambient.x, light.ambient.y, light.ambient.z, light.constant],
-            diffuse_linea:      [light.diffuse.x, light.diffuse.y, light.diffuse.z, light.linear],
-            specular_quadr:     [light.specular.x, light.specular.y, light.specular.z, light.quadratic],
+            ambient_const:      [ambient.r(),  ambient.g(),  ambient.b(),  light.constant],
+            diffuse_linea:      [diffuse.r(),  diffuse.g(),  diffuse.b(),  light.linear],
+            specular_quadr:     [specular.r(), specular.g(), specular.b(), light.quadratic],
             cut_off:            [light.inner_cutoff.cos(), light.outer_cutoff.cos(), 0.0, 0.0]
         }
     }

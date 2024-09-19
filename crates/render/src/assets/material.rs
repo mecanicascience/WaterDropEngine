@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WBufferBindingType, WgpuBindGroup}, buffer::BufferUsage, instance::WRenderInstance, render_pipeline::WShaderStages, texture::{WTextureFormat, WTextureUsages}};
 
+use crate::core::RenderApp;
+
 use super::{Buffer, GpuBuffer, GpuTexture, PrepareAssetError, RenderAsset, RenderAssets, RenderAssetsPlugin, Texture, TextureLoaderSettings};
 
 pub trait Material {
@@ -11,8 +13,6 @@ pub trait Material {
     /// Get the label of the material
     fn label(&self) -> String;
 }
-
-const DUMMY_TEXTURE_PATH: &str = "pbr/dummy_texture.png";
 
 
 struct MaterialBuilderBuffer {
@@ -85,12 +85,12 @@ impl MaterialsBuilderCache {
     }
 }
 
-
+#[derive(Resource)]
+pub struct DummyTexture(Handle<Texture>);
 
 pub struct GpuMaterial<M: Material + Sync + Send + Asset + Clone> {
     phantom: std::marker::PhantomData<M>,
     builder: MaterialBuilder,
-    _dummy_texture: Handle<Texture>,
     pub bind_group_layout: BindGroupLayout,
     pub bind_group: WgpuBindGroup
 }
@@ -98,12 +98,12 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
     type SourceAsset = M;
     type Param = (
         SRes<WRenderInstance<'static>>, SResMut<MaterialsBuilderCache>, SRes<AssetServer>,
-        SRes<RenderAssets<GpuBuffer>>, SRes<RenderAssets<GpuTexture>>
+        SRes<DummyTexture>, SRes<RenderAssets<GpuBuffer>>, SRes<RenderAssets<GpuTexture>>
     );
 
     fn prepare_asset(
             asset: Self::SourceAsset,
-            (render_instance, materials_cache, assets_server, buffers, textures):
+            (render_instance, materials_cache, assets_server, dummy_texture, buffers, textures):
                 &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         let render_instance = render_instance.data.read().unwrap();
@@ -122,11 +122,6 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
         // Create bind group entries
         // If a buffer or texture is not ready, retry next update
         let mut bg_entries = Vec::new();
-        let dummy_texture = assets_server.load_with_settings(DUMMY_TEXTURE_PATH, |settings: &mut TextureLoaderSettings| {
-            settings.label = "dummy-texture".to_string();
-            settings.format = WTextureFormat::R8Unorm;
-            settings.usages = WTextureUsages::TEXTURE_BINDING | WTextureUsages::COPY_DST;
-        });
         for (material_type, material_index) in &material_builder.elements {
             match material_type {
                 MaterialBuilderType::Buffer => {
@@ -169,7 +164,7 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
                     }
                     else {
                         // Set dummy texture
-                        material_builder.texture_views[*material_index as usize].texture = Some(dummy_texture.clone());
+                        material_builder.texture_views[*material_index as usize].texture = Some(dummy_texture.0.clone());
                         materials_cache.insert(material_name.to_string(), material_builder);
                         return Err(PrepareAssetError::RetryNextUpdate(asset));
                     }
@@ -186,7 +181,7 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
                     }
                     else {
                         // Set dummy texture
-                        material_builder.texture_samplers[*material_index as usize].texture = Some(dummy_texture.clone());
+                        material_builder.texture_samplers[*material_index as usize].texture = Some(dummy_texture.0.clone());
                         materials_cache.insert(material_name.to_string(), material_builder);
                         return Err(PrepareAssetError::RetryNextUpdate(asset));
                     }
@@ -219,7 +214,6 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
 
         Ok(GpuMaterial {
             phantom: std::marker::PhantomData,
-            _dummy_texture: dummy_texture,
             bind_group_layout: layout,
             bind_group,
             builder: material_builder
@@ -249,5 +243,25 @@ impl<M: Material + Sync + Send + Asset + Clone> Plugin for MaterialsPlugin<M> {
         app
             .init_asset::<M>()
             .add_plugins(RenderAssetsPlugin::<GpuMaterial<M>>::default());
+    }
+}
+
+
+pub(crate) struct MaterialsPluginRaw;
+impl Plugin for MaterialsPluginRaw {
+    fn build(&self, _app: &mut App) {}
+
+    fn finish(&self, app: &mut App) {
+        // Load the dummy texture
+        let assets_server = app.world().get_resource::<AssetServer>().unwrap();
+        let dummy_texture = assets_server.load_with_settings("pbr/dummy_texture.png",
+        |settings: &mut TextureLoaderSettings| {
+            settings.label = "dummy-texture".to_string();
+            settings.format = WTextureFormat::R8Unorm;
+            settings.usages = WTextureUsages::TEXTURE_BINDING | WTextureUsages::COPY_DST;
+        });
+        
+        app.get_sub_app_mut(RenderApp).unwrap()
+            .insert_resource(DummyTexture(dummy_texture));
     }
 }
