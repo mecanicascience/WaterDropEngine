@@ -48,7 +48,7 @@ impl<'pass> Default for RenderPassDepth<'pass> {
 pub struct RenderPassColorAttachment<'pass> {
     /// The color texture.
     pub texture: Option<&'pass WTextureView>,
-    /// The color load operation. By default, clear the texture to black.
+    /// The color load operation. By default, clear the texture to a dark gray.
     pub load: WLoadOp<Color>,
     /// The color store operation. By default, store the texture.
     pub store: WStoreOp,
@@ -57,7 +57,7 @@ impl<'pass> Default for RenderPassColorAttachment<'pass> {
     fn default() -> Self {
         Self {
             texture: None,
-            load: wgpu::LoadOp::Clear(Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }),
+            load: wgpu::LoadOp::Clear(Color { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }),
             store: wgpu::StoreOp::Store,
         }
     }

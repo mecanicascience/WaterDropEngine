@@ -129,9 +129,9 @@ fn extract(
         // Set the number of lights
         let lights_number = offset as f32;
         if let Some(mut first_element) = first_element {
-            first_element.position_type = [
-                first_element.position_type[0], first_element.position_type[1],
-                first_element.position_type[2], lights_number
+            first_element.position_number = [
+                first_element.position_number[0], first_element.position_number[1],
+                first_element.position_number[2], lights_number
             ];
             unsafe { *data.add(0) = first_element; }
         }

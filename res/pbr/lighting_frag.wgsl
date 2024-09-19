@@ -22,15 +22,17 @@ struct Camera {
 
 struct Light {
     /// World space position of the directional light for xyz. If it is the first element, the w component is the number of lights.
-    position_type: vec4<f32>,
+    position_number: vec4<f32>,
     /// World space direction of the light. The w component is the type of the light: 0 for directional, 1 for point, 2 for spot.
-    direction:     vec4<f32>,
-    /// Ambient color of the light. The w component is the constant attenuation factor if the light is a point light. It is the inner cut-off angle in radians if the light is a spot light.
-    ambient_const_inn: vec4<f32>,
-    /// Diffuse color of the light. The w component is the linear attenuation factor if the light is a point light. It is the outer cut-off angle in radians if the light is a spot light.
-    diffuse_linea_out: vec4<f32>,
+    direction_type:  vec4<f32>,
+    /// Ambient color of the light. The w component is the constant attenuation factor if the light is a point light. It is the cos of the inner cut-off angle in radians if the light is a spot light.
+    ambient_const:   vec4<f32>,
+    /// Diffuse color of the light. The w component is the linear attenuation factor if the light is a point light. It is the cos of the outer cut-off angle in radians if the light is a spot light.
+    diffuse_linea:   vec4<f32>,
     /// Specular color of the light. The w component is the quadratic attenuation factor if the light is a point light.
-    specular_quadr:    vec4<f32>
+    specular_quadr:  vec4<f32>,
+    /// Inner and outer cut-off angles in radians if the light is a spot light.
+    cut_off:         vec4<f32>
 };
 @group(3) @binding(0) var<storage> in_lights: array<Light>;
 
@@ -45,15 +47,6 @@ fn world_from_screen_coord(uv: vec2<f32>, depth: f32) -> vec3<f32> {
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Pbr material properties
-    let shininess = 32.0;
-
-    // Light properties
-    let light_position = vec3<f32>(1.2, 1.0, 2.0);
-    let light_ambiant  = vec3<f32>(0.2, 0.2, 0.2);
-    let light_diffuse  = vec3<f32>(0.5, 0.5, 0.5);
-    let light_specular = vec3<f32>(1.0, 1.0, 1.0);
-
     // Read position of the object in world space
     let depth = textureSample(in_depth_texture, in_depth_sampler, in.tex_coord);
     if depth == 1.0 { // Discard background
@@ -68,27 +61,90 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let g_specular = g_nor_raw.w;
     let g_material = textureSample(in_material_texture, in_material_sampler, in.tex_coord);
 
-    // General computed values
-    let light_dir = normalize(light_position - position);
+    // General parameters
+    let shininess = 32.0;
+    let view_dir  = normalize(in_camera.position.xyz - position);
 
-    // Ambient light (light that is scattered in the atmosphere / moon light / ...)
-    let ambient = g_albedo * light_ambiant;
+    // Compute lighting
+    let lights_count = i32(in_lights[0].position_number.w);
+    var transmitted = vec3<f32>(0.0, 0.0, 0.0);
+    for (var i = 0; i < lights_count; i = i + 1) {
+        let light = in_lights[i];
+        let light_type = i32(light.direction_type.w);
 
-    // Diffused light (direct light from the light source, scattered by the material)
-    let light_angle = max(dot(g_normal, light_dir), 0.0);
-    let diffused    = (g_albedo * light_angle) * light_diffuse;
+        // Directional light
+        if light_type == 0 {
+            let light_dir = normalize(light.direction_type.xyz);
 
-    // Specular light (light that is reflected by the material directly to the camera)
-    let view_dir    = normalize(in_camera.position.xyz - position);
-    let reflect_dir = reflect(-light_dir, g_normal);
-    let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
-    let specular    = (g_specular * spec_value) * light_specular;
+            // Diffused
+            let light_angle = max(dot(g_normal, light_dir), 0.0);
 
-    // Light transmitted by the light source through the material
-    let transmitted = ambient + diffused + specular;
+            // Specular
+            let reflect_dir = reflect(-light_dir, g_normal);
+            let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 
-    // Read the number of lights
-    let num_lights = i32(in_lights[0].position_type.w);
+            // Combine results
+            let ambient  =  g_albedo                 * light.ambient_const.rgb;
+            let diffused = (g_albedo * light_angle)  * light.diffuse_linea.rgb;
+            let specular = (g_specular * spec_value) * light.specular_quadr.rgb;
+            transmitted += ambient + diffused + specular;
+        }
+        // Point light
+        else if light_type == 1 {
+            let light_dir = normalize(light.position_number.xyz - position);
+
+            // Diffused
+            let light_angle = max(dot(g_normal, light_dir), 0.0);
+
+            // Specular
+            let reflect_dir = reflect(-light_dir, g_normal);
+            let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+
+            // Attenuation
+            let distance = length(light.position_number.xyz - position);
+            let attenuation = 1.0 / (light.ambient_const.w
+                + light.diffuse_linea.w * distance
+                + light.specular_quadr.w * distance * distance);
+
+            // Combine results
+            let ambient  =  g_albedo                 * light.ambient_const.rgb * attenuation;
+            let diffused = (g_albedo * light_angle)  * light.diffuse_linea.rgb * attenuation;
+            let specular = (g_specular * spec_value) * light.specular_quadr.rgb    * attenuation;
+            transmitted += ambient + diffused + specular;
+        }
+        // Spot light
+        else if light_type == 2 {
+            let light_dir = normalize(light.position_number.xyz - position);
+
+            // Diffused
+            let light_angle = max(dot(g_normal, light_dir), 0.0);
+
+            // Specular
+            let reflect_dir = reflect(-light_dir, g_normal);
+            let spec_value  = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+
+            // Attenuation
+            let distance = length(light.position_number.xyz - position);
+            let attenuation = 1.0 / (light.ambient_const.w
+                + light.diffuse_linea.w * distance
+                + light.specular_quadr.w * distance * distance);
+
+            // Spot light intensity
+            let theta     = dot(normalize(light.direction_type.xyz), -light.direction_type.xyz);
+            let epsilon   = light.cut_off.x - light.cut_off.y;
+            let intensity = clamp((theta - light.diffuse_linea.w) / epsilon, 0.0, 1.0);
+
+            // Combine results
+            let ambient  =  g_albedo                 * light.ambient_const.rgb * attenuation * intensity;
+            let diffused = (g_albedo * light_angle)  * light.diffuse_linea.rgb * attenuation * intensity;
+            let specular = (g_specular * spec_value) * light.specular_quadr.rgb    * attenuation * intensity;
+            transmitted += ambient + diffused + specular;
+        }
+        else {
+            // Error
+            return vec4<f32>(1.0, 0.0, 1.0, 1.0);
+        }
+    }
 
     // Return the final color
     return vec4<f32>(transmitted, 1.0);
