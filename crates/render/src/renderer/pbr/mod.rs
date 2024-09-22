@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 
 mod pbr_material;
@@ -63,6 +65,7 @@ impl Plugin for PbrFeaturesPlugin {
         // Create the render pass
         app.get_sub_app_mut(RenderApp).unwrap()
             .insert_resource(PbrGBufferRenderPass {
+                batches_order: HashMap::new(),
                 batches: Vec::new()
             });
 

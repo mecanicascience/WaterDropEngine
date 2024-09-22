@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 use crate::{assets::{GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::extract_macros::ExtractWorld, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer}, instance::WRenderInstance};
@@ -13,6 +15,9 @@ pub struct PbrGBufferRenderBatch {
 }
 #[derive(Resource)]
 pub struct PbrGBufferRenderPass {
+    /// The order of the batches: (mesh, material) -> [batch index].
+    pub batches_order: HashMap<(AssetId<Mesh>, AssetId<PbrMaterial>), Vec<usize>>,
+    /// The render batches.
     pub batches: Vec<PbrGBufferRenderBatch>,
 }
 impl PbrGBufferRenderPass {
@@ -25,6 +30,7 @@ impl PbrGBufferRenderPass {
     ) {
         // Clear the batches of the previous frame
         pass.batches.clear();
+        pass.batches_order.clear();
 
         // Get the ssbo
         let ssbo_bf = match buffers.get(&ssbo.buffer) {
@@ -75,6 +81,12 @@ impl PbrGBufferRenderPass {
                             }
                         });
 
+                        let batch_index = pass.batches.len() - 1;
+                        pass.batches_order.entry(
+                            (last_mesh_ref.unwrap().id(), last_material_ref.unwrap().id())
+                        ).or_default().push(batch_index);
+
+
                         // Reset the batch
                         first += count;
                         count = 1;
@@ -115,6 +127,11 @@ impl PbrGBufferRenderPass {
                         None => 0
                     }
                 });
+
+                let batch_index = pass.batches.len() - 1;
+                pass.batches_order.entry(
+                    (last_mesh.id(), last_material.id())
+                ).or_default().push(batch_index);
             }
         });
 
@@ -213,40 +230,47 @@ impl PbrGBufferRenderPass {
 
                     let mut old_mesh_id = None;
                     let mut old_material_id = None;
-                    for batch in render_mesh_pass.batches.iter() {
-                        // Set the material
-                        if old_material_id != Some(batch.material.id()) {
-                            let material = match materials.get(&batch.material) {
-                                Some(material) => material,
-                                None => continue // Should not happen
-                            };
 
-                            // Set the material bind group
-                            render_pass.set_bind_group(2, &material.bind_group);
-                            old_material_id = Some(batch.material.id());
-                        }
+                    // For each set of mesh and material
+                    for (_, batch_index) in render_mesh_pass.batches_order.iter() {
+                        // For each batch of the set
+                        for &batch_index in batch_index.iter() {
+                            let batch = render_mesh_pass.batches.get(batch_index).unwrap();
+                        
+                            // Set the material
+                            if old_material_id != Some(batch.material.id()) {
+                                let material = match materials.get(&batch.material) {
+                                    Some(material) => material,
+                                    None => continue // Should not happen
+                                };
 
-                        // Set the mesh
-                        if old_mesh_id != Some(batch.mesh.id()) {
-                            let mesh = match meshes.get(&batch.mesh) {
-                                Some(mesh) => mesh,
-                                None => continue // Should not happen
-                            };
-
-                            // Set the mesh buffers
-                            render_pass.set_vertex_buffer(0, &mesh.vertex_buffer);
-                            render_pass.set_index_buffer(&mesh.index_buffer);
-                            old_mesh_id = Some(batch.mesh.id());
-                        }
-
-                        // Draw the mesh
-                        let instance_indices = batch.first as u32..((batch.first + batch.count) as u32);
-                        match render_pass.draw_indexed(0..batch.index_count as u32, instance_indices) {
-                            Ok(_) => {},
-                            Err(e) => {
-                                error!("Failed to draw: {:?}.", e);
+                                // Set the material bind group
+                                render_pass.set_bind_group(2, &material.bind_group);
+                                old_material_id = Some(batch.material.id());
                             }
-                        };
+
+                            // Set the mesh
+                            if old_mesh_id != Some(batch.mesh.id()) {
+                                let mesh = match meshes.get(&batch.mesh) {
+                                    Some(mesh) => mesh,
+                                    None => continue // Should not happen
+                                };
+
+                                // Set the mesh buffers
+                                render_pass.set_vertex_buffer(0, &mesh.vertex_buffer);
+                                render_pass.set_index_buffer(&mesh.index_buffer);
+                                old_mesh_id = Some(batch.mesh.id());
+                            }
+
+                            // Draw the mesh
+                            let instance_indices = batch.first as u32..((batch.first + batch.count) as u32);
+                            match render_pass.draw_indexed(0..batch.index_count as u32, instance_indices) {
+                                Ok(_) => {},
+                                Err(e) => {
+                                    error!("Failed to draw: {:?}.", e);
+                                }
+                            };
+                        }
                     }
                 } else {
                     error!("Failed to set pipeline.");
