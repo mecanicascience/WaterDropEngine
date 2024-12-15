@@ -50,8 +50,8 @@ fn init(
 
 
     // Create a list of positions in a grid around the origin
-    let chunks_count = 10;
-    let grid_scale = 1.0;
+    let chunks_count = 20;
+    let grid_scale = 10.0;
     let iso_level = 0.0;
 
     // Define the scalar field
@@ -81,6 +81,9 @@ fn init(
     }
 
     // Generate the marching cube meshes
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+    let mut bounding_box = ModelBoundingBox::default();
     for i in 0..chunks_count {
         for j in 0..chunks_count {
             for k in 0..chunks_count {
@@ -88,16 +91,29 @@ fn init(
                 let y = (j as f32 - chunks_count as f32 / 2.0) * grid_scale;
                 let z = (k as f32 - chunks_count as f32 / 2.0) * grid_scale;
                 let position = Vec3::new(x, y, z);
-                if let Some(mesh) = generate_mesh_chunk(iso_level, position, grid_scale, chunks_count, &f) {
-                    commands.spawn(PbrBundle {
-                        mesh: asset_server.add(mesh),
-                        material: blue.clone(),
-                        transform: Transform::IDENTITY
-                    });
+                if let Some((vert, ind, bdbox)) = generate_mesh_chunk(iso_level, position, grid_scale, chunks_count, &f) {
+                    let vertices_count = vertices.len() as u32;
+                    vertices.extend(vert);
+                    indices.extend(ind.iter().map(|i| i + vertices_count));
+                    bounding_box.min = bounding_box.min.min(bdbox.min);
+                    bounding_box.max = bounding_box.max.max(bdbox.max);
                 }
             }
         }
     }
+
+    // Create the mesh
+    let cube_marching_mesh = Mesh {
+        label: "marching-cubes".to_string(),
+        vertices,
+        indices,
+        bounding_box
+    };
+    commands.spawn(PbrBundle {
+        transform: Transform::IDENTITY,
+        mesh: asset_server.add(cube_marching_mesh),
+        material: blue.clone()
+    });
 }
 
 
@@ -116,17 +132,17 @@ fn init(
  * 
  * The generated mesh.
  */
-fn generate_mesh_chunk(iso_level: f32, translation: Vec3, scale: f32, chunks_size: usize, f: &dyn Fn(Vec3) -> f32) -> Option<Mesh> {
+fn generate_mesh_chunk(iso_level: f32, translation: Vec3, scale: f32, chunks_size: usize, f: &dyn Fn(Vec3) -> f32) -> Option<(Vec<WVertex>, Vec<u32>, ModelBoundingBox)> {
     // Generate the grid points
     let mut points = Vec::new();
     for i in 0..chunks_size {
         for j in 0..chunks_size {
             for k in 0..chunks_size {
-                let x = (i as f32 - chunks_size as f32 / 2.0 - 1.0) * scale + translation.x;
-                let y = (j as f32 - chunks_size as f32 / 2.0) * scale + translation.y;
-                let z = (k as f32 - chunks_size as f32 / 2.0) * scale + translation.z;
-                let value = f(Vec3::new(x, y, z));
-                points.push([x, y, z, value]);
+                let x = i as f32 - chunks_size as f32 / 2.0 - 1.0;
+                let y = j as f32 - chunks_size as f32 / 2.0;
+                let z = k as f32 - chunks_size as f32 / 2.0;
+                let value = f(Vec3::new(x + translation.x, y + translation.y, z + translation.z));
+                points.push([x * scale + translation.x, y * scale + translation.y, z * scale + translation.z, value]);
             }
         }
     }
@@ -146,6 +162,11 @@ fn generate_mesh_chunk(iso_level: f32, translation: Vec3, scale: f32, chunks_siz
                 }
             }
         }
+    }
+
+    // If no triangles were generated, return None
+    if triangles.is_empty() {
+        return None;
     }
 
     // Generate the mesh
@@ -196,12 +217,7 @@ fn generate_mesh_chunk(iso_level: f32, translation: Vec3, scale: f32, chunks_siz
         vertices[i2 as usize].normal = [normal.x, normal.y, normal.z];
     }
 
-    Some(Mesh {
-        label: "marching-cube-chunk".to_string(),
-        vertices,
-        indices,
-        bounding_box
-    })
+    Some((vertices, indices, bounding_box))
 }
 
 /**
