@@ -228,17 +228,17 @@ impl<M: Material + Sync + Send + Asset + Clone> RenderAsset for GpuMaterial<M> {
 
 
 
-pub struct MaterialsPlugin<M: Material + Sync + Send + Asset + Clone> {
+pub struct MaterialsPluginRegister<M: Material + Sync + Send + Asset + Clone> {
     phantom: std::marker::PhantomData<M>
 }
-impl<M: Material + Sync + Send + Asset + Clone> Default for MaterialsPlugin<M> {
+impl<M: Material + Sync + Send + Asset + Clone> Default for MaterialsPluginRegister<M> {
     fn default() -> Self {
-        MaterialsPlugin {
+        MaterialsPluginRegister {
             phantom: std::marker::PhantomData
         }
     }
 }
-impl<M: Material + Sync + Send + Asset + Clone> Plugin for MaterialsPlugin<M> {
+impl<M: Material + Sync + Send + Asset + Clone> Plugin for MaterialsPluginRegister<M> {
     fn build(&self, app: &mut App) {
         app
             .init_asset::<M>()

@@ -49,10 +49,7 @@ impl Plugin for PbrFeaturesPlugin {
             .init_resource::<PbrLightingRenderPassMesh>()
             .add_systems(Extract,
                 (PbrLightingRenderPassMesh::extract_mesh, PbrGBufferRenderPass::create_batches)
-            .chain())
-            .add_systems(Render, (
-                PbrGBufferRenderPass::render_g_buffer, PbrLightingRenderPass::render_lighting
-            ).chain().in_set(RenderSet::Render));
+            .chain());
     }
 
     fn finish(&self, app: &mut App) {
