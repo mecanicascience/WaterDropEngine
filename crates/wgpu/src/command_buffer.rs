@@ -153,9 +153,7 @@ impl WCommandBuffer {
     /// # Arguments
     /// 
     /// * `label` - The label of the render pass.
-    /// * `color_texture` - The color texture to render to.
-    /// * `color_operations` - The color operations. If `None`, clear the color texture to black.
-    /// * `depth_texture` - The depth texture to render to if the pipeline has a depth stencil.
+    /// * `builder_func` - The function to build the render pass.
     pub fn create_render_pass<'pass>(
         &'pass mut self, label: &str, builder_func: impl FnOnce(&mut RenderPassBuilder<'pass>)
     ) -> WRenderPass<'pass> {
