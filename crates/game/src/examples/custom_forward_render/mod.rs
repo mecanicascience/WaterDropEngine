@@ -9,7 +9,7 @@ pub use custom_material::*;
 pub use custom_pipeline::*;
 pub use custom_renderpass::*;
 pub use custom_ssbo::*;
-use wde_render::{assets::{MaterialsPlugin, RenderAssetsPlugin, TextureLoaderSettings}, components::{Camera, CameraController, CameraView}, core::{Extract, Render, RenderApp, RenderSet}};
+use wde_render::{assets::{MaterialsPluginRegister, RenderAssetsPlugin, TextureLoaderSettings}, components::{Camera, CameraController, CameraView}, core::{Extract, Render, RenderApp, RenderSet}};
 use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
 
 
@@ -77,7 +77,7 @@ impl Plugin for CustomFeaturesPlugin {
 
         // Add the custom material
         app
-            .add_plugins(MaterialsPlugin::<CustomMaterial>::default());
+            .add_plugins(MaterialsPluginRegister::<CustomMaterial>::default());
 
         // Add the custom ssbo
         app

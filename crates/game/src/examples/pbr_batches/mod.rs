@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wde_render::{assets::TextureLoaderSettings, components::{Camera, CameraController, CameraView}, renderer::pbr::{PbrBundle, PbrMaterial}};
+use wde_render::{assets::{materials::{PbrBundle, PbrMaterial}, TextureLoaderSettings}, components::{Camera, CameraController, CameraView}};
 use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
 
 pub struct PbrBatchesPlugin;
