@@ -16,6 +16,14 @@ pub struct ModelBoundingBox {
     /// The maximum point of the bounding box.
     pub max: Vec3,
 }
+impl Default for ModelBoundingBox {
+    fn default() -> Self {
+        Self {
+            min: Vec3::new(f32::MAX, f32::MAX, f32::MAX),
+            max: Vec3::new(f32::MIN, f32::MIN, f32::MIN),
+        }
+    }
+}
 
 #[derive(Asset, TypePath, Clone)]
 pub struct Mesh {
