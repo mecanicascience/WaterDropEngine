@@ -1,8 +1,8 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
-use crate::{assets::{GpuMaterial, GpuTexture, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
+use crate::{assets::{materials::PbrMaterial, GpuMaterial, GpuTexture, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
 
-use super::{PbrDeferredTextures, PbrMaterial, PbrSsbo};
+use super::{PbrDeferredTextures, PbrSsbo};
 
 
 #[derive(Default, Asset, Clone, TypePath)]

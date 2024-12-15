@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use crate::{assets::{GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::extract_macros::ExtractWorld, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
+use crate::{assets::{materials::PbrMaterial, GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::extract_macros::ExtractWorld, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer}, instance::WRenderInstance};
 
-use super::{GpuPbrGBufferRenderPipeline, PbrDeferredTextures, PbrMaterial, PbrSsbo};
+use super::{GpuPbrGBufferRenderPipeline, PbrDeferredTextures, PbrSsbo};
 
 pub struct PbrGBufferRenderBatch {
     mesh: Handle<Mesh>,

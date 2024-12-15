@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-mod pbr_material;
 mod pbr_pipeline_gbuffer;
 mod pbr_renderpass_gbuffer;
 mod pbr_pipeline_lighting;
@@ -10,7 +9,6 @@ mod pbr_renderpass_lighting;
 mod pbr_ssbo;
 mod pbr_textures;
 
-pub use pbr_material::*;
 pub use pbr_pipeline_gbuffer::*;
 pub use pbr_renderpass_gbuffer::*;
 pub use pbr_pipeline_lighting::*;
@@ -18,15 +16,11 @@ pub use pbr_renderpass_lighting::*;
 pub use pbr_ssbo::*;
 pub use pbr_textures::*;
 
-use crate::{assets::{MaterialsPlugin, RenderAssetsPlugin}, core::{Extract, Render, RenderApp, RenderSet}};
+use crate::{assets::RenderAssetsPlugin, core::{Extract, Render, RenderApp, RenderSet}};
 
 pub(crate) struct PbrFeaturesPlugin;
 impl Plugin for PbrFeaturesPlugin {
     fn build(&self, app: &mut App) {
-        // Add the pbr material
-        app
-            .add_plugins(MaterialsPlugin::<PbrMaterial>::default());
-
         // Add the pbr ssbo
         app
             .add_plugins(PbrSsboPlugin);
