@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup, WgpuBindGroupLayout}, buffer::{BufferBindingType, BufferUsage}, instance::WRenderInstance, render_pipeline::WShaderStages};
 
-use crate::{assets::{RenderAssets, Buffer, GpuBuffer}, components::{CameraUniform, CameraView}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet}};
+use crate::{assets::{Buffer, GpuBuffer, RenderAssets}, components::{ActiveCamera, CameraUniform, CameraView}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet}};
 
 /// Struct to hold the camera uniform layout description.
 #[derive(Resource)]
@@ -81,7 +81,7 @@ fn build_bind_group(
 // Extract the texture handle every frame
 fn extract(
     (cameras, mut camera_uniform): (
-        ExtractWorld<Query<(&Transform, &CameraView)>>, ResMut<CameraUniform>
+        ExtractWorld<Query<(&Transform, &CameraView), With<ActiveCamera>>>, ResMut<CameraUniform>
     ), window: ExtractWorld<Query<&Window>>)
 {
     if let (
