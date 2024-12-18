@@ -264,3 +264,14 @@ pub const MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE: [u32; 12] = [
 pub const MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE: [u32; 12] = [
     1, 2, 3, 0, 5, 6, 7, 4, 4, 5, 6, 7
 ];
+
+pub const MARCHING_CUBES_CORNER_INDICES: [[usize; 3]; 8] = [
+    [0, 0, 0],
+    [1, 0, 0],
+    [1, 0, 1],
+    [0, 0, 1],
+    [0, 1, 0],
+    [1, 1, 0],
+    [1, 1, 1],
+    [0, 1, 1]
+];

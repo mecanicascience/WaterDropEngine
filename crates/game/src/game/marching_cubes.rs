@@ -1,8 +1,9 @@
 use bevy::prelude::*;
-use wde_render::{assets::{materials::*, meshes::CubeGizmoMesh, Mesh, ModelBoundingBox}, components::*};
+use wde_render::{assets::{materials::*, meshes::CubeGizmoMesh, Mesh, ModelBoundingBox}, components::*, utils::Color};
 use wde_wgpu::vertex::WVertex;
 
-use super::marching_cubes_patterns::{MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE, MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE, MARCHING_CUBES_TRIANGLES};
+use super::marching_cubes_patterns::{MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE, MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE, MARCHING_CUBES_CORNER_INDICES, MARCHING_CUBES_TRIANGLES};
+use noise::{NoiseFn, Perlin};
 
 pub struct MarchingCubesPlugin;
 impl Plugin for MarchingCubesPlugin {
@@ -10,6 +11,12 @@ impl Plugin for MarchingCubesPlugin {
         app
             .add_systems(Startup, init);
     }
+}
+
+
+fn generate_perlin_noise(x: f32, y: f32, z: f32, scale: f32, seed: u32) -> f32 {
+    let perlin = Perlin::new(seed);
+    perlin.get([x as f64 * scale as f64, y as f64 * scale as f64, z as f64 * scale as f64]) as f32
 }
 
 /**
@@ -33,6 +40,12 @@ fn init(
     // Light
     commands.spawn(DirectionalLight {
         direction: Vec3::new(0.1, -0.8, 0.2),
+        ambient: Color::from_srgba(0.3, 0.3, 0.3, 1.0),
+        ..Default::default()
+    });
+    commands.spawn(DirectionalLight {
+        direction: Vec3::new(-0.3, 0.8, -0.5),
+        ambient: Color::from_srgba(0.1, 0.1, 0.1, 1.0),
         ..Default::default()
     });
 
@@ -50,70 +63,70 @@ fn init(
 
 
     // Create a list of positions in a grid around the origin
-    let chunks_count = 20;
-    let grid_scale = 10.0;
-    let iso_level = 0.0;
+    let chunks_count = 4;
+    let chunk_length = 2.0;
+    let chunk_sub_count = 30;
 
     // Define the scalar field
-    let center_tr = -0.5;
-    let circle_radius = 2.0;
+    let iso_level = 0.0;
     let f = |p: Vec3| -> f32 {
-        (p.x - center_tr) * (p.x - center_tr) + (p.y - center_tr) * (p.y - center_tr)
-        + (p.z - center_tr) * (p.z - center_tr) - circle_radius * circle_radius
+        generate_perlin_noise(p.x, p.y, p.z, 1.0, 0)
+        // p.x * p.x + p.y * p.y + p.z * p.z - 2.0
     };
 
     // Generate the gizmo cubes
-    let cube = asset_server.add(CubeGizmoMesh::from("Marching cubes", 1.0));
-    for i in 0..chunks_count {
-        for j in 0..chunks_count {
-            for k in 0..chunks_count {
-                let x = (i as f32 - chunks_count as f32 / 2.0) * grid_scale;
-                let y = (j as f32 - chunks_count as f32 / 2.0) * grid_scale;
-                let z = (k as f32 - chunks_count as f32 / 2.0) * grid_scale;
-                let position = Vec3::new(x, y, z);
-                commands.spawn(GizmoBundle {
-                    transform: Transform::from_translation(position).with_scale(Vec3::splat(grid_scale)),
-                    mesh: cube.clone(),
-                    material: gizmo_edges.clone()
-                });
-            }
-        }
-    }
+    // let cube = asset_server.add(CubeGizmoMesh::from("Marching cubes", 1.0));
+    // for i in 0..chunks_count {
+    //     for j in 0..chunks_count {
+    //         for k in 0..chunks_count {
+    //             for x in 0..chunks_size {
+    //                 for y in 0..chunks_size {
+    //                     for z in 0..chunks_size {
+    //                         let translation = Vec3::new(
+    //                             (i as f32 - chunks_count as f32 / 2.0) * (chunks_size as f32) + x as f32,
+    //                             (j as f32 - chunks_count as f32 / 2.0) * (chunks_size as f32) + y as f32,
+    //                             (k as f32 - chunks_count as f32 / 2.0) * (chunks_size as f32) + z as f32
+    //                         );
+    //                         commands.spawn(GizmoBundle {
+    //                             transform: Transform::from_translation(translation),
+    //                             mesh: cube.clone(),
+    //                             material: gizmo_edges.clone()
+    //                         });
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     // Generate the marching cube meshes
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-    let mut bounding_box = ModelBoundingBox::default();
+    let mut meshes = Vec::new();
     for i in 0..chunks_count {
         for j in 0..chunks_count {
             for k in 0..chunks_count {
-                let x = (i as f32 - chunks_count as f32 / 2.0) * grid_scale;
-                let y = (j as f32 - chunks_count as f32 / 2.0) * grid_scale;
-                let z = (k as f32 - chunks_count as f32 / 2.0) * grid_scale;
-                let position = Vec3::new(x, y, z);
-                if let Some((vert, ind, bdbox)) = generate_mesh_chunk(iso_level, position, grid_scale, chunks_count, &f) {
-                    let vertices_count = vertices.len() as u32;
-                    vertices.extend(vert);
-                    indices.extend(ind.iter().map(|i| i + vertices_count));
-                    bounding_box.min = bounding_box.min.min(bdbox.min);
-                    bounding_box.max = bounding_box.max.max(bdbox.max);
-                }
+                // Compute the position of the chunk
+                let tot_scale = chunk_length * (chunks_count as f32) / 2.0;
+                let translation = Vec3::new(
+                    -tot_scale / 2.0 + i as f32 * tot_scale / (chunks_count as f32 - 1.0),
+                    -tot_scale / 2.0 + j as f32 * tot_scale / (chunks_count as f32 - 1.0),
+                    -tot_scale / 2.0 + k as f32 * tot_scale / (chunks_count as f32 - 1.0)
+                );
+
+                // Generate the mesh
+                let mesh = generate_mesh_chunk(iso_level, translation, chunk_length, chunk_sub_count, &f);
+                info!("Generated mesh at {:?} with {} vertices", translation, mesh.vertices.len());
+                meshes.push(mesh);
             }
         }
     }
 
-    // Create the mesh
-    let cube_marching_mesh = Mesh {
-        label: "marching-cubes".to_string(),
-        vertices,
-        indices,
-        bounding_box
-    };
-    commands.spawn(PbrBundle {
-        transform: Transform::IDENTITY,
-        mesh: asset_server.add(cube_marching_mesh),
-        material: blue.clone()
-    });
+    for mesh in meshes {
+        commands.spawn(PbrBundle {
+            transform: Transform::default(),
+            mesh: asset_server.add(mesh),
+            material: blue.clone()
+        });
+    }
 }
 
 
@@ -124,100 +137,46 @@ fn init(
  * 
  * `iso_level` - The value of the isosurface.
  * `translation` - The translation of the mesh.
- * `scale` - The scale of the mesh.
- * `chunks_size` - The size of the chunk in each dimension.
+ * `scale` - The length of a grid cell.
+ * `chunk_sub_count` - The number of grid cells in each dimension.
  * `f` - The function to evaluate the scalar field at a given point.
  * 
  * # Returns
  * 
  * The generated mesh.
  */
-fn generate_mesh_chunk(iso_level: f32, translation: Vec3, scale: f32, chunks_size: usize, f: &dyn Fn(Vec3) -> f32) -> Option<(Vec<WVertex>, Vec<u32>, ModelBoundingBox)> {
+fn generate_mesh_chunk(iso_level: f32, translation: Vec3, chunk_length: f32, chunk_sub_count: usize, f: &dyn Fn(Vec3) -> f32) -> Mesh {
     // Generate the grid points
-    let mut points = Vec::new();
-    for i in 0..chunks_size {
-        for j in 0..chunks_size {
-            for k in 0..chunks_size {
-                let x = i as f32 - chunks_size as f32 / 2.0 - 1.0;
-                let y = j as f32 - chunks_size as f32 / 2.0;
-                let z = k as f32 - chunks_size as f32 / 2.0;
-                let value = f(Vec3::new(x + translation.x, y + translation.y, z + translation.z));
-                points.push([x * scale + translation.x, y * scale + translation.y, z * scale + translation.z, value]);
+    let mut points = Vec::with_capacity(chunk_sub_count * chunk_sub_count * chunk_sub_count);
+    for i in 0..chunk_sub_count {
+        for j in 0..chunk_sub_count {
+            for k in 0..chunk_sub_count {
+                let x = translation.x - chunk_length / 2.0 + i as f32 * chunk_length / (chunk_sub_count as f32 - 1.0);
+                let y = translation.y - chunk_length / 2.0 + j as f32 * chunk_length / (chunk_sub_count as f32 - 1.0);
+                let z = translation.z - chunk_length / 2.0 + k as f32 * chunk_length / (chunk_sub_count as f32 - 1.0);
+                points.push([x, y, z, f(Vec3::new(x, y, z))]);
             }
         }
     }
     
-    // Generate the triangles
-    let mut triangles = Vec::new();
-    for i in 0..chunks_size-1 {
-        for j in 0..chunks_size-1 {
-            for k in 0..chunks_size-1 {
-                // Generate the mesh
-                let new_triangles = generate_mesh_cube(&points, iso_level, i, j, k, chunks_size);
-                if new_triangles.is_none() {
-                    continue;
-                }
-                for triangle in new_triangles.unwrap().iter() {
-                    triangles.push(*triangle);
-                }
+    // Generate the vertices
+    let mut vertices: Vec<WVertex> = vec![WVertex::default(); 3 * 5 * chunk_sub_count * chunk_sub_count * chunk_sub_count];
+    let mut count = 0;
+    for i in 0..chunk_sub_count-1 {
+        for j in 0..chunk_sub_count-1 {
+            for k in 0..chunk_sub_count-1 {
+                generate_mesh_cube(&points, iso_level, i, j, k, chunk_sub_count, &mut vertices, &mut count);
             }
         }
     }
 
-    // If no triangles were generated, return None
-    if triangles.is_empty() {
-        return None;
+    // Create the mesh
+    Mesh {
+        label: format!("marching-cubes-{:?}", translation),
+        vertices: vertices[..count].to_vec(),
+        indices:  (0..count as u32).collect(),
+        bounding_box: ModelBoundingBox::default()
     }
-
-    // Generate the mesh
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-    let mut bounding_box = ModelBoundingBox::default();
-    for triangle in triangles.iter() {
-        // Add the vertices
-        let i0 = vertices.len() as u32;
-        vertices.push(WVertex {
-            position: [triangle[0][0], triangle[0][1], triangle[0][2]],
-            normal: [0.0, 0.0, 0.0],
-            uv: [0.0, 0.0]
-        });
-        let i1 = vertices.len() as u32;
-        vertices.push(WVertex {
-            position: [triangle[1][0], triangle[1][1], triangle[1][2]],
-            normal: [0.0, 0.0, 0.0],
-            uv: [0.0, 0.0]
-        });
-        let i2 = vertices.len() as u32;
-        vertices.push(WVertex {
-            position: [triangle[2][0], triangle[2][1], triangle[2][2]],
-            normal: [0.0, 0.0, 0.0],
-            uv: [0.0, 0.0]
-        });
-        indices.push(i0);
-        indices.push(i1);
-        indices.push(i2);
-
-        // Update the bounding box
-        (0..3).for_each(|i| {
-            bounding_box.min[i] = bounding_box.min[i].min(triangle[i][0]);
-            bounding_box.min[i] = bounding_box.min[i].min(triangle[i][1]);
-            bounding_box.min[i] = bounding_box.min[i].min(triangle[i][2]);
-            bounding_box.max[i] = bounding_box.max[i].max(triangle[i][0]);
-            bounding_box.max[i] = bounding_box.max[i].max(triangle[i][1]);
-            bounding_box.max[i] = bounding_box.max[i].max(triangle[i][2]);
-        });
-
-        // Compute the normal
-        let v0 = Vec3::new(triangle[0][0], triangle[0][1], triangle[0][2]);
-        let v1 = Vec3::new(triangle[1][0], triangle[1][1], triangle[1][2]);
-        let v2 = Vec3::new(triangle[2][0], triangle[2][1], triangle[2][2]);
-        let normal = (v1 - v0).cross(v2 - v0).normalize();
-        vertices[i0 as usize].normal = [normal.x, normal.y, normal.z];
-        vertices[i1 as usize].normal = [normal.x, normal.y, normal.z];
-        vertices[i2 as usize].normal = [normal.x, normal.y, normal.z];
-    }
-
-    Some((vertices, indices, bounding_box))
 }
 
 /**
@@ -231,75 +190,70 @@ fn generate_mesh_chunk(iso_level: f32, translation: Vec3, scale: f32, chunks_siz
  * `j` - The y coordinate of the grid cell.
  * `k` - The z coordinate of the grid cell.
  * `chunks_size` - The size of the chunk in each dimension.
- * 
- * # Returns
- * 
- * The generated mesh.
+ * `vertices` - The list of vertices to fill.
+ * `count` - The number of vertices in the list.
  */
-fn generate_mesh_cube(points: &[[f32; 4]], iso_level: f32, i: usize, j: usize, k: usize, chunks_size: usize) -> Option<Vec<[[f32; 3]; 3]>> {
+#[allow(clippy::too_many_arguments)]
+fn generate_mesh_cube(points: &[[f32; 4]], iso_level: f32, i: usize, j: usize, k: usize, chunk_sub_count: usize, vertices: &mut [WVertex], count: &mut usize) {
     // Compute the values of the vertices of the cube
-    let cube_corners = [
-        points[index_from_coord(i, j, k, chunks_size)],
-        points[index_from_coord(i + 1, j, k, chunks_size)],
-        points[index_from_coord(i + 1, j, k + 1, chunks_size)],
-        points[index_from_coord(i, j, k + 1, chunks_size)],
-        points[index_from_coord(i, j + 1, k, chunks_size)],
-        points[index_from_coord(i + 1, j + 1, k, chunks_size)],
-        points[index_from_coord(i + 1, j + 1, k + 1, chunks_size)],
-        points[index_from_coord(i, j + 1, k + 1, chunks_size)]
-    ];
+    let mut cube_corners = [[0.0; 4]; 8];
+    MARCHING_CUBES_CORNER_INDICES.iter().enumerate().for_each(|(l, [di, dj, dk])| {
+        cube_corners[l] = points[index_from_coord(i + di, j + dj, k + dk, chunk_sub_count)];
+    });
 
     // Compute cube index based on the values of the vertices
     let mut cube_index = 0;
-    if cube_corners[0][3] < iso_level { cube_index |= 1; }
-    if cube_corners[1][3] < iso_level { cube_index |= 2; }
-    if cube_corners[2][3] < iso_level { cube_index |= 4; }
-    if cube_corners[3][3] < iso_level { cube_index |= 8; }
-    if cube_corners[4][3] < iso_level { cube_index |= 16; }
-    if cube_corners[5][3] < iso_level { cube_index |= 32; }
-    if cube_corners[6][3] < iso_level { cube_index |= 64; }
-    if cube_corners[7][3] < iso_level { cube_index |= 128; }
-
-    // Discard the case where the cube is entirely inside or outside the surface
-    if cube_index == 0 || cube_index == 255 {
-        return None;
-    }
+    (0..8).for_each(|l| {
+        if cube_corners[l][3] < iso_level {
+            cube_index |= 1 << l;
+        }
+    });
 
     // Polygonise the cube
-    let mut i = 0;
-    let mut triangles = Vec::new();
-    loop {
+    for i in (0..16).step_by(3) {
         if MARCHING_CUBES_TRIANGLES[cube_index][i] == -1 {
             break;
         }
 
-        // Get indices of corner points A and B for each of the three edges
-        // of the cube that need to be joined to form the triangle.
-        let a0 = MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i] as usize];
-        let b0 = MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i] as usize];
+        // Get the triangle vertices
+        let mut position = [[0.0; 3]; 3];
+        for j in 0..3 {
+            let a = MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i+(2-j)] as usize];
+            let b = MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i+(2-j)] as usize];
+            let interp = vertex_interpolate(iso_level, cube_corners[a as usize], cube_corners[b as usize]);
+            position[j] = interp;
+        }
 
-        let a1 = MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i+1] as usize];
-        let b1 = MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i+1] as usize];
+        // Compute the normal
+        let v0 = Vec3::new(position[0][0], position[0][1], position[0][2]);
+        let v1 = Vec3::new(position[1][0], position[1][1], position[1][2]);
+        let v2 = Vec3::new(position[2][0], position[2][1], position[2][2]);
+        let normal = (v1 - v0).cross(v2 - v0).normalize();
 
-        let a2 = MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i+2] as usize];
-        let b2 = MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE[MARCHING_CUBES_TRIANGLES[cube_index][i+2] as usize];
-
-        // Interpolate the vertices
-        triangles.push([
-            vertex_interpolate(iso_level, cube_corners[a0 as usize], cube_corners[b0 as usize]),
-            vertex_interpolate(iso_level, cube_corners[a2 as usize], cube_corners[b2 as usize]),
-            vertex_interpolate(iso_level, cube_corners[a1 as usize], cube_corners[b1 as usize])
-        ]);
-        i += 3;
+        // Add the triangle
+        for j in 0..3 {
+            vertices[*count + j] = WVertex {
+                position: [position[j][0], position[j][1], position[j][2]],
+                normal: [normal.x, normal.y, normal.z],
+                uv: [0.0, 0.0]
+            };
+        }
+        *count += 3;
     }
-    Some(triangles)
 }
 
 /**
  * Get the index of a point in the grid from its coordinates.
+ * 
+ * # Arguments
+ * 
+ * * `x` - The x coordinate.
+ * * `y` - The y coordinate.
+ * * `z` - The z coordinate.
+ * * `chunk_sub_count` - The number of grid cells in each dimension.
  */
-fn index_from_coord(x: usize, y: usize, z: usize, chunks_size: usize) -> usize {
-    z * chunks_size * chunks_size + y * chunks_size + x
+fn index_from_coord(x: usize, y: usize, z: usize, chunk_sub_count: usize) -> usize {
+    z * chunk_sub_count * chunk_sub_count + y * chunk_sub_count + x
 }
 
 /**

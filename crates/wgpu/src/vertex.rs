@@ -8,7 +8,7 @@
 /// * `uv`       - The texture UV of the vertex (location 1).
 /// * `normal`   - The normal of the vertex (location 2).
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
 pub struct WVertex {
     /// The position of the vertex.
     pub position: [f32; 3],
