@@ -79,14 +79,17 @@ impl WComputePipeline {
         self
     }
 
-    /// Add a bind group via its layout to the compute pipeline.
-    /// Note that the order of the bind groups will be the same as the order of the bindings in the shader.
+    /// Add a set of bind groups via its layout to the compute pipeline.
+    /// Note that the order of the bind groups will be the same as the order of the bindings in the shaders.
     /// 
     /// # Arguments
     /// 
-    /// * `layout` - The bind group layout to add to the pipeline.
-    pub fn add_bind_group(&mut self, layout: BindGroupLayout) -> &mut Self {
-        self.config.bind_groups.push(layout);
+    /// * `layout` - The bind group layout.
+    pub fn set_bind_groups(&mut self, layout: Vec<BindGroupLayout>) -> &mut Self {
+        for l in layout {
+            self.config.bind_groups.push(l);
+        }
+        
         self
     }
 

@@ -85,7 +85,7 @@ impl PbrLightingRenderPass {
 
             // Render the mesh
             if let (
-                CachedPipelineStatus::Ok(pipeline),
+                CachedPipelineStatus::OkRender(pipeline),
                 Some(camera_bind_group),
                 Some(depth_bind_group),
                 Some(deferred_bind_group),

@@ -37,7 +37,6 @@ pub struct RenderPipelineDescriptor {
     /// The culling mode that the pipeline will use (default: Back). None will disable culling.
     pub cull_mode: Option<WFace>,
 }
-
 impl Default for RenderPipelineDescriptor {
     fn default() -> Self {
         Self {
@@ -54,3 +53,26 @@ impl Default for RenderPipelineDescriptor {
     }
 }
 
+
+#[derive(Resource, Clone)]
+/// Describes a compute pipeline.
+pub struct ComputePipelineDescriptor {
+    /// The label of the pipeline for debugging (default: "Compute Pipeline").
+    pub label: &'static str,
+    /// The compute shader of the pipeline (default: None).
+    pub comp: Option<Handle<Shader>>,
+    /// The bind group layouts that the pipeline will use.
+    pub bind_group_layouts: Vec<BindGroupLayout>,
+    /// The push constants that the pipeline will use.
+    pub push_constants: Vec<PushConstantDescriptor>,
+}
+impl Default for ComputePipelineDescriptor {
+    fn default() -> Self {
+        Self {
+            label: "Compute Pipeline",
+            comp: None,
+            bind_group_layouts: vec![],
+            push_constants: vec![]
+        }
+    }
+}

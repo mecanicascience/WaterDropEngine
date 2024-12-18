@@ -146,7 +146,7 @@ fn render_texture(
 
         if display_texture_holders.texture.is_some() {
             if let (
-                CachedPipelineStatus::Ok(pipeline),
+                CachedPipelineStatus::OkRender(pipeline),
                 Some(mesh),
                 Some(bind_group)
             ) = (

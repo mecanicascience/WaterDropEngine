@@ -194,7 +194,7 @@ impl GizmoRenderPass {
 
             // Render the mesh
             if let (
-                CachedPipelineStatus::Ok(pipeline),
+                CachedPipelineStatus::OkRender(pipeline),
                 Some(camera_bg),
                 Some(ssbo_bind_group)
             ) = (
