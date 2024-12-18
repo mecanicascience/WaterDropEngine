@@ -63,41 +63,15 @@ fn init(
 
 
     // Create a list of positions in a grid around the origin
-    let chunks_count = 4;
+    let chunks_count = 2;
     let chunk_length = 2.0;
-    let chunk_sub_count = 30;
+    let chunk_sub_count = 100;
 
     // Define the scalar field
     let iso_level = 0.0;
     let f = |p: Vec3| -> f32 {
         generate_perlin_noise(p.x, p.y, p.z, 1.0, 0)
-        // p.x * p.x + p.y * p.y + p.z * p.z - 2.0
     };
-
-    // Generate the gizmo cubes
-    // let cube = asset_server.add(CubeGizmoMesh::from("Marching cubes", 1.0));
-    // for i in 0..chunks_count {
-    //     for j in 0..chunks_count {
-    //         for k in 0..chunks_count {
-    //             for x in 0..chunks_size {
-    //                 for y in 0..chunks_size {
-    //                     for z in 0..chunks_size {
-    //                         let translation = Vec3::new(
-    //                             (i as f32 - chunks_count as f32 / 2.0) * (chunks_size as f32) + x as f32,
-    //                             (j as f32 - chunks_count as f32 / 2.0) * (chunks_size as f32) + y as f32,
-    //                             (k as f32 - chunks_count as f32 / 2.0) * (chunks_size as f32) + z as f32
-    //                         );
-    //                         commands.spawn(GizmoBundle {
-    //                             transform: Transform::from_translation(translation),
-    //                             mesh: cube.clone(),
-    //                             material: gizmo_edges.clone()
-    //                         });
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 
     // Generate the marching cube meshes
     let mut meshes = Vec::new();
@@ -105,11 +79,11 @@ fn init(
         for j in 0..chunks_count {
             for k in 0..chunks_count {
                 // Compute the position of the chunk
-                let tot_scale = chunk_length * (chunks_count as f32) / 2.0;
+                let tot_scale = chunk_length * (chunks_count as f32);
                 let translation = Vec3::new(
-                    -tot_scale / 2.0 + i as f32 * tot_scale / (chunks_count as f32 - 1.0),
-                    -tot_scale / 2.0 + j as f32 * tot_scale / (chunks_count as f32 - 1.0),
-                    -tot_scale / 2.0 + k as f32 * tot_scale / (chunks_count as f32 - 1.0)
+                    -tot_scale / 2.0 + i as f32 * chunk_length,
+                    -tot_scale / 2.0 + j as f32 * chunk_length,
+                    -tot_scale / 2.0 + k as f32 * chunk_length
                 );
 
                 // Generate the mesh
@@ -118,6 +92,20 @@ fn init(
                 meshes.push(mesh);
             }
         }
+    }
+
+    // Draw a gizmo corresponding to each bounding box
+    for mesh in &meshes {
+        let min = mesh.bounding_box.min;
+        let max = mesh.bounding_box.max;
+        let center = (min + max) / 2.0;
+        let size = max - min;
+        let cube = asset_server.add(CubeGizmoMesh::from("Marching cubes", size.x));
+        commands.spawn(GizmoBundle {
+            transform: Transform::from_translation(center),
+            mesh: cube,
+            material: gizmo_edges.clone()
+        });
     }
 
     for mesh in meshes {
@@ -170,12 +158,23 @@ fn generate_mesh_chunk(iso_level: f32, translation: Vec3, chunk_length: f32, chu
         }
     }
 
+    // Compute the bounding box (BAD : @TODO to change)
+    let mut bounding_box = ModelBoundingBox::default();
+    for vertex in &vertices[..count] {
+        bounding_box.min.x = bounding_box.min.x.min(vertex.position[0]);
+        bounding_box.min.y = bounding_box.min.y.min(vertex.position[1]);
+        bounding_box.min.z = bounding_box.min.z.min(vertex.position[2]);
+        bounding_box.max.x = bounding_box.max.x.max(vertex.position[0]);
+        bounding_box.max.y = bounding_box.max.y.max(vertex.position[1]);
+        bounding_box.max.z = bounding_box.max.z.max(vertex.position[2]);
+    }
+
     // Create the mesh
     Mesh {
         label: format!("marching-cubes-{:?}", translation),
         vertices: vertices[..count].to_vec(),
         indices:  (0..count as u32).collect(),
-        bounding_box: ModelBoundingBox::default()
+        bounding_box
     }
 }
 
