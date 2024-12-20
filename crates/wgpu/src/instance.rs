@@ -7,6 +7,8 @@ use wgpu::{Device, Limits, Surface, SurfaceConfiguration, SurfaceTexture};
 
 use crate::texture::WTextureView;
 
+pub type WLimits = Limits;
+
 /// Error type of the renderer.
 #[derive(Debug)]
 pub enum WRenderError {

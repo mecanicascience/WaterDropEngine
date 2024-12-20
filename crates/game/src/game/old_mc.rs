@@ -2,14 +2,15 @@ use bevy::prelude::*;
 use wde_render::{assets::{materials::*, meshes::CubeGizmoMesh, Mesh, ModelBoundingBox}, components::*, utils::Color};
 use wde_wgpu::vertex::WVertex;
 
-use super::marching_cubes_patterns::{MARCHING_CUBES_CORNER_INDEX_A_FROM_EDGE, MARCHING_CUBES_CORNER_INDEX_B_FROM_EDGE, MARCHING_CUBES_CORNER_INDICES, MARCHING_CUBES_TRIANGLES};
+use super::{mc_compute_core::MarchingCubesPluginCompute, old_mc_patterns::*};
 use noise::{NoiseFn, Perlin};
 
 pub struct MarchingCubesPlugin;
 impl Plugin for MarchingCubesPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Startup, init);
+        // app.add_systems(Startup, init);
+
+        app.add_plugins(MarchingCubesPluginCompute);
     }
 }
 
@@ -65,7 +66,7 @@ fn init(
     // Create a list of positions in a grid around the origin
     let chunks_count = 2;
     let chunk_length = 2.0;
-    let chunk_sub_count = 100;
+    let chunk_sub_count = 10;
 
     // Define the scalar field
     let iso_level = 0.0;

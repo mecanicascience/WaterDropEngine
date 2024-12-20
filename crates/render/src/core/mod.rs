@@ -11,7 +11,7 @@ use bevy::{app::AppLabel, ecs::schedule::{ScheduleBuildSettings, ScheduleLabel},
 use extract::{apply_extract_commands, main_extract};
 use render_manager::{init_main_world, init_surface, prepare, present};
 use render_multithread::PipelinedRenderingPlugin;
-use wde_wgpu::instance::{create_instance, WRenderTexture};
+use wde_wgpu::instance::{create_instance, WLimits, WRenderTexture};
 use window::{extract_surface_size, send_surface_resized, SurfaceResized, WindowPlugins};
 use std::ops::{Deref, DerefMut};
 
@@ -88,6 +88,9 @@ impl Render {
     }
 }
 
+#[derive(Resource, Default)]
+pub struct DeviceLimits(pub WLimits);
+
 
 #[derive(Resource, Default)]
 pub struct SwapchainFrame {
@@ -119,10 +122,13 @@ impl Plugin for RenderCorePlugin {
 
         // === RENDER APP ===
         let mut render_app = SubApp::new();
+        let mut gpu_limits = None;
         {
             // Create the wgpu instance
             render_app.insert_resource(futures_lite::future::block_on(async {
-                create_instance("wde_renderer", app).await
+                let instance = create_instance("wde_renderer", app).await;
+                gpu_limits = Some(instance.data.read().unwrap().device.limits());
+                instance
             }));
 
             // Copy the asset server from the main app
@@ -162,6 +168,9 @@ impl Plugin for RenderCorePlugin {
 
         // Register the render app
         app.insert_sub_app(RenderApp, render_app);
+
+        // Add the GPU limits
+        app.insert_resource(DeviceLimits(gpu_limits.unwrap()));
 
         // Add the render pipeline plugins
         app
