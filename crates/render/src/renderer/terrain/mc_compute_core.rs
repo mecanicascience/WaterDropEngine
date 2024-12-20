@@ -1,5 +1,5 @@
 use bevy::{prelude::*, utils::HashMap};
-use wde_render::{assets::{Buffer, GpuBuffer, RenderAssets, RenderAssetsPlugin}, core::{extract_macros::ExtractWorld, DeviceLimits, Extract, Render, RenderApp, RenderSet}, pipelines::{CachedPipelineStatus, PipelineManager}};
+use crate::{assets::{Buffer, GpuBuffer, RenderAssets, RenderAssetsPlugin}, core::{extract_macros::ExtractWorld, DeviceLimits, Extract, Render, RenderApp, RenderSet}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::{BindGroup, WgpuBindGroup}, buffer::BufferUsage, command_buffer::WCommandBuffer, instance::WRenderInstance, vertex::WVertex};
 
 use super::mc_compute_pipeline::{GpuMarchingCubesComputePipeline, MarchingCubesComputePipeline};
@@ -78,8 +78,8 @@ pub struct MarchingCubesHandlerGPU {
 }
 
 
-pub struct MarchingCubesPluginCompute;
-impl Plugin for MarchingCubesPluginCompute {
+pub struct MarchingCubesComputePass;
+impl Plugin for MarchingCubesComputePass {
     fn build(&self, app: &mut App) {
         // Manage chunks creation / deletion
         app

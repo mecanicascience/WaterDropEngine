@@ -1,5 +1,5 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
-use wde_render::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, ComputePipelineDescriptor, PipelineManager}};
+use crate::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, ComputePipelineDescriptor, PipelineManager}};
 use wde_wgpu::{bind_group::BindGroupLayout, buffer::BufferBindingType, render_pipeline::WShaderStages};
 
 #[derive(Default, Asset, Clone, TypePath)]

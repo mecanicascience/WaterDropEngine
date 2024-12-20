@@ -1,22 +1,11 @@
 pub mod scene;
-pub mod mc_compute_core;
-pub mod mc_compute_pipeline;
-pub mod mc_render_core;
-pub mod mc_render_pipeline;
 
 use bevy::prelude::*;
-use mc_compute_core::MarchingCubesPluginCompute;
-use mc_render_core::MarchingCubesPluginRender;
 use wde_render::{components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight}, utils::Color};
 
 pub struct MarchingCubesPlugin;
 impl Plugin for MarchingCubesPlugin {
     fn build(&self, app: &mut App) {
-        // Add the plugins
-        app
-            .add_plugins(MarchingCubesPluginCompute)
-            .add_plugins(MarchingCubesPluginRender);
-
         // Add the systems
         app.add_systems(Startup, init);
     }
