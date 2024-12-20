@@ -1,31 +1,24 @@
 use bevy::prelude::*;
-use wde_render::{assets::{materials::{PbrBundle, PbrMaterial}, meshes::PlaneMesh, TextureLoaderSettings}, components::{ActiveCamera, Camera, CameraController, CameraView, ChunkSpawner, DirectionalLight, PointLight, SpotLight}};
+use wde_render::{assets::{materials::{PbrBundle, PbrMaterial}, meshes::PlaneMesh, TextureLoaderSettings}, components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}};
 use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
-
-use super::MarchingCubesPlugin;
 
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app
-            // .add_systems(Startup, init)
-            .add_plugins(MarchingCubesPlugin);
+        app.add_systems(Startup, init);
     }
 }
 
 fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: ResMut<Assets<PbrMaterial>>) {
-    // Creates a camera
+    // Main camera
     commands.spawn(
         (Camera {
-            transform: Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(5.0, 5.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
             view: CameraView::default()
         },
         CameraController::default(),
         ActiveCamera
     ));
-
-    // Creates the chunks spawner
-    commands.spawn(ChunkSpawner::default());
 
     // Load the materials
     let container_albedo = asset_server.load_with_settings("models/container_albedo.png", |settings: &mut TextureLoaderSettings| {

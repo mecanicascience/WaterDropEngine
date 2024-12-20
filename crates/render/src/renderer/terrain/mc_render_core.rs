@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::{assets::{GpuBuffer, GpuTexture, RenderAssets, RenderAssetsPlugin}, core::{RenderApp, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
-use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp, WStoreOp}, instance::WRenderInstance};
+use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp}, instance::WRenderInstance};
 
 use super::{mc_compute_core::MarchingCubesHandlerGPU, mc_render_pipeline::{GpuMarchingCubesRenderPipeline, MarchingCubesRenderPipeline}};
 
@@ -63,12 +63,13 @@ impl MarchingCubesRenderPass {
             let mut render_pass = command_buffer.create_render_pass("marching-cubes", |builder: &mut RenderPassBuilder| {
                 builder.add_color_attachment(RenderPassColorAttachment {
                     texture: Some(&swapchain_frame.view),
+                    load: WLoadOp::Load,
                     ..Default::default()
                 });
                 builder.set_depth_texture(RenderPassDepth {
                     texture: Some(&depth_texture.texture.view),
-                    load_operation: WLoadOp::Clear(1.0),
-                    store_operation: WStoreOp::Store,
+                    load_operation: WLoadOp::Load,
+                    ..Default::default()
                 });
             });
 
