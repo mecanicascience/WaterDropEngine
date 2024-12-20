@@ -244,7 +244,12 @@ impl WRenderPipeline {
                 }
             },
             Err(e) => {
-                error!(self.label, "Vertex shader compilation failed: {:?}.", e);
+                let mut error = format!("Vertex shader parsing failed \"{}\".\n", e);
+                for (span, message) in e.labels() {
+                    let location = span.location(&self.config.vertex_shader);
+                    error.push_str(&format!(" - Error on line {} at position {}: \"{}\"\n", location.line_number, location.line_position, message));
+                }
+                error!(self.label, "{}", error);
                 return Err(WRenderError::ShaderCompilationError);
             }
         };
@@ -269,7 +274,12 @@ impl WRenderPipeline {
                 }
             },
             Err(e) => {
-                error!(self.label, "Fragment shader compilation failed: {:?}.", e);
+                let mut error = format!("Fragment shader parsing failed \"{}\".\n", e);
+                for (span, message) in e.labels() {
+                    let location = span.location(&self.config.fragment_shader);
+                    error.push_str(&format!(" - Error on line {} at position {}: \"{}\"\n", location.line_number, location.line_position, message));
+                }
+                error!(self.label, "{}", error);
                 return Err(WRenderError::ShaderCompilationError);
             }
         };

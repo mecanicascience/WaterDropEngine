@@ -169,6 +169,7 @@ pub async fn create_instance(label: &str, app: &mut App) -> WRenderInstance<'sta
     // Set limits
     let required_limits = Limits {
         max_push_constant_size: 128,
+        max_compute_invocations_per_workgroup: 1024,
         ..Default::default()
     };
 

@@ -86,16 +86,14 @@ impl<'a> WComputePass<'a> {
         self
     }
 
-    /// Add a set bind groups of the compute pass at a binding.
+    /// Set a bind group of the compute pass at a binding.
     /// 
     /// # Arguments
     /// 
     /// * `binding` - The binding of the bind group.
     /// * `bind_group` - The bind group to set.
-    pub fn set_bind_groups(&mut self, binding: u32, bind_group: &'a Vec<wgpu::BindGroup>) -> &mut Self {
-        for bg in bind_group {
-            self.compute_pass.set_bind_group(binding, bg, &[]);
-        }
+    pub fn set_bind_group(&mut self, binding: u32, bind_group: &'a wgpu::BindGroup) -> &mut Self {
+        self.compute_pass.set_bind_group(binding, bind_group, &[]);
         self
     }
 
