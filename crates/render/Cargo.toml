@@ -24,6 +24,7 @@ serde = { version = "1.0", features = ["derive"] }
 bytemuck = { version = "1.14", features = [ "derive" ] }
 async-channel = "2.3"
 tobj = "4.0"
+noise = "0.9"
 
 [dependencies.image]
 version = "0.25"

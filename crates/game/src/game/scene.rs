@@ -20,98 +20,108 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
         ActiveCamera
     ));
 
-    // Load the materials
-    let container_albedo = asset_server.load_with_settings("models/container_albedo.png", |settings: &mut TextureLoaderSettings| {
-        settings.label = "container-albedo".to_string();
-        settings.format = WTextureFormat::Rgba8UnormSrgb;
-        settings.usages = WTextureUsages::TEXTURE_BINDING;
-    });
-    let container_specular = asset_server.load_with_settings("models/container_specular.png", |settings: &mut TextureLoaderSettings| {
-        settings.label = "container-specular".to_string();
-        settings.format = WTextureFormat::R8Unorm;
-        settings.usages = WTextureUsages::TEXTURE_BINDING;
-    });
-    let red_box = materials.add(PbrMaterial {
-        label: "container".to_string(),
-        albedo_t:   Some(container_albedo),
-        specular_t: Some(container_specular),
-        ..Default::default()
-    });
-    let blue = materials.add(PbrMaterial {
-        label: "blue".to_string(),
-        albedo: (0.0, 0.0, 1.0, 1.0),
-        specular: 0.5,
-        ..Default::default()
+    // Dummy pbr object
+    commands.spawn(PbrBundle {
+        transform: Transform::IDENTITY.with_scale(Vec3::splat(0.0)),
+        mesh: asset_server.add(PlaneMesh::from("dummy", [1.0, 1.0])),
+        material: materials.add(PbrMaterial {
+            label: "dummy".to_string(),
+            ..Default::default()
+        })
     });
 
-    // Load the models
-    let suzanne = asset_server.load("models/suzanne.obj");
-    let cube = asset_server.load("models/container.obj");
+    // // Load the materials
+    // let container_albedo = asset_server.load_with_settings("models/container_albedo.png", |settings: &mut TextureLoaderSettings| {
+    //     settings.label = "container-albedo".to_string();
+    //     settings.format = WTextureFormat::Rgba8UnormSrgb;
+    //     settings.usages = WTextureUsages::TEXTURE_BINDING;
+    // });
+    // let container_specular = asset_server.load_with_settings("models/container_specular.png", |settings: &mut TextureLoaderSettings| {
+    //     settings.label = "container-specular".to_string();
+    //     settings.format = WTextureFormat::R8Unorm;
+    //     settings.usages = WTextureUsages::TEXTURE_BINDING;
+    // });
+    // let red_box = materials.add(PbrMaterial {
+    //     label: "container".to_string(),
+    //     albedo_t:   Some(container_albedo),
+    //     specular_t: Some(container_specular),
+    //     ..Default::default()
+    // });
+    // let blue = materials.add(PbrMaterial {
+    //     label: "blue".to_string(),
+    //     albedo: (0.0, 0.0, 1.0, 1.0),
+    //     specular: 0.5,
+    //     ..Default::default()
+    // });
 
-    // Spawn the entities
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        mesh: cube.clone(),
-        material: red_box.clone()
-    });
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(5.0, 0.0, 0.0).with_scale(Vec3::splat(3.0)),
-        mesh: cube.clone(),
-        material: red_box.clone()
-    });
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(10.0, 0.0, 0.0),
-        mesh: cube.clone(),
-        material: blue.clone()
-    });
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(15.0, 0.0, 0.0),
-        mesh: suzanne.clone(),
-        material: blue.clone()
-    });
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(20.0,0.0, 0.0),
-        mesh: cube.clone(),
-        material: blue.clone()
-    });
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(25.0, 0.0, 0.0),
-        mesh: cube.clone(),
-        material: red_box.clone()
-    });
-    for i in 1..100 {
-        for j in 1..100 {
-            let angle = i as f32 * 0.05;
-            let axis = if i % 2 == 0 { Vec3::Y } else if i % 3 == 0 { Vec3::Z } else { Vec3::X };
-            commands.spawn(PbrBundle {
-                transform: Transform::from_xyz(i as f32 * 5.0, 0.0, j as f32 * 5.0 + 5.0)
-                    .with_rotation(Quat::from_axis_angle(axis, angle)),
-                mesh: cube.clone(),
-                material: red_box.clone()
-            });
-        }
-    }
+    // // Load the models
+    // let suzanne = asset_server.load("models/suzanne.obj");
+    // let cube = asset_server.load("models/container.obj");
+
+    // // Spawn the entities
+    // commands.spawn(PbrBundle {
+    //     transform: Transform::from_xyz(0.0, 0.0, 0.0),
+    //     mesh: cube.clone(),
+    //     material: red_box.clone()
+    // });
+    // commands.spawn(PbrBundle {
+    //     transform: Transform::from_xyz(5.0, 0.0, 0.0).with_scale(Vec3::splat(3.0)),
+    //     mesh: cube.clone(),
+    //     material: red_box.clone()
+    // });
+    // commands.spawn(PbrBundle {
+    //     transform: Transform::from_xyz(10.0, 0.0, 0.0),
+    //     mesh: cube.clone(),
+    //     material: blue.clone()
+    // });
+    // commands.spawn(PbrBundle {
+    //     transform: Transform::from_xyz(15.0, 0.0, 0.0),
+    //     mesh: suzanne.clone(),
+    //     material: blue.clone()
+    // });
+    // commands.spawn(PbrBundle {
+    //     transform: Transform::from_xyz(20.0,0.0, 0.0),
+    //     mesh: cube.clone(),
+    //     material: blue.clone()
+    // });
+    // commands.spawn(PbrBundle {
+    //     transform: Transform::from_xyz(25.0, 0.0, 0.0),
+    //     mesh: cube.clone(),
+    //     material: red_box.clone()
+    // });
+    // for i in 1..100 {
+    //     for j in 1..100 {
+    //         let angle = i as f32 * 0.05;
+    //         let axis = if i % 2 == 0 { Vec3::Y } else if i % 3 == 0 { Vec3::Z } else { Vec3::X };
+    //         commands.spawn(PbrBundle {
+    //             transform: Transform::from_xyz(i as f32 * 5.0, 0.0, j as f32 * 5.0 + 5.0)
+    //                 .with_rotation(Quat::from_axis_angle(axis, angle)),
+    //             mesh: cube.clone(),
+    //             material: red_box.clone()
+    //         });
+    //     }
+    // }
     
-    // Load the materials
-    let planks_albedo = asset_server.load_with_settings("models/planks_albedo.jpg", |settings: &mut TextureLoaderSettings| {
-        settings.label = "planks-albedo".to_string();
-        settings.format = WTextureFormat::Rgba8UnormSrgb;
-        settings.usages = WTextureUsages::TEXTURE_BINDING;
-    });
-    let planks = materials.add(PbrMaterial {
-        label: "planks".to_string(),
-        albedo_t: Some(planks_albedo),
-        specular: 0.8,
-        ..Default::default()
-    });
+    // // Load the materials
+    // let planks_albedo = asset_server.load_with_settings("models/planks_albedo.jpg", |settings: &mut TextureLoaderSettings| {
+    //     settings.label = "planks-albedo".to_string();
+    //     settings.format = WTextureFormat::Rgba8UnormSrgb;
+    //     settings.usages = WTextureUsages::TEXTURE_BINDING;
+    // });
+    // let planks = materials.add(PbrMaterial {
+    //     label: "planks".to_string(),
+    //     albedo_t: Some(planks_albedo),
+    //     specular: 0.8,
+    //     ..Default::default()
+    // });
 
-    // Spawn the ground
-    let ground = asset_server.add(PlaneMesh::from("ground", [200.0, 200.0]));
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        mesh: ground,
-        material: planks
-    });
+    // // Spawn the ground
+    // let ground = asset_server.add(PlaneMesh::from("ground", [200.0, 200.0]));
+    // commands.spawn(PbrBundle {
+    //     transform: Transform::from_xyz(0.0, 0.0, 0.0),
+    //     mesh: ground,
+    //     material: planks
+    // });
 
     // Spawn the lights
     commands.spawn(PointLight {

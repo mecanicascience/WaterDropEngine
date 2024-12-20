@@ -3,7 +3,7 @@ use crate::{assets::{Buffer, GpuBuffer, RenderAssets, RenderAssetsPlugin}, core:
 use wde_wgpu::{bind_group::{BindGroup, WgpuBindGroup}, buffer::BufferUsage, command_buffer::WCommandBuffer, instance::WRenderInstance, vertex::WVertex};
 
 use super::mc_compute_pipeline::{GpuMarchingCubesComputePipeline, MarchingCubesComputePipeline};
-
+use noise::{NoiseFn, Perlin};
 
 pub type ChunkIndex = (i32, i32, i32);
 
@@ -123,12 +123,16 @@ impl Plugin for MarchingCubesComputePass {
  */
 fn manage_chunks(mut handler: ResMut<MarchingCubesHandler>, mut buffers: ResMut<Assets<Buffer>>, gpu_limits: Res<DeviceLimits>) {
     // TODO : Automatically generate the chunks
+    fn generate_perlin_noise(x: f32, y: f32, z: f32, scale: f32, seed: u32) -> f32 {
+        // Perlin::new(seed).get([x as f64 * scale as f64, y as f64 * scale as f64, z as f64 * scale as f64]) as f32
+        x * x + y * y + z * z - 3.0
+    }
     let desc = MarchingCubesChunkDescription {
-        index: (1, 0, 2),
-        translation: Vec3::new(2.0, -3.0, 4.0),
+        index: (0, 0, 0),
+        translation: Vec3::new(0.0, 0.0, 0.0),
         chunk_length: 10.0,
-        chunk_sub_count: 50,
-        f: |pos| pos.x * pos.x + pos.y * pos.y + pos.z * pos.z - 2.0
+        chunk_sub_count: 10,
+        f: |pos| generate_perlin_noise(pos.x, pos.y, pos.z, 1.0, 0)
     };
     generate_new_chunk(desc, &mut buffers, &mut handler, &gpu_limits);
 }

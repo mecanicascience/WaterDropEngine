@@ -21,7 +21,6 @@ debug = false
 wde-render = { path = "../render" }
 wde-wgpu = { path = "../wgpu" }
 bytemuck = { version = "1.14", features = [ "derive" ] }
-noise = "0.9"
 
 [dependencies.bevy]
 version = "0.14"

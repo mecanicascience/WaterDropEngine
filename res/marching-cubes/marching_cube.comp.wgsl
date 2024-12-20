@@ -14,9 +14,8 @@ struct MarchingCubesDescription {
 
 // List of vertices and indices to store the mesh
 struct Vertex {
-    position: vec3<f32>, // Position of the vertex (x, y, z)
-    normal:   vec3<f32>, // Normal of the vertex (x, y, z)
-    uv:       vec2<f32>  // UV of the vertex (u, v)
+    position_tex_u: vec4<f32>, // Position of the vertex (x, y, z) - U of the vertex
+    tex_v_normal:   vec4<f32>, // V of the vertex - Normal of the vertex (x, y, z)
 }
 @group(2) @binding(0) var<storage, read_write> out_vertices: array<Vertex>;
 @group(2) @binding(1) var<storage, read_write> out_indices:  array<u32>;
@@ -346,7 +345,7 @@ fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
         // Add the triangles
         for (var j = 0u; j < 3; j = j + 1) {
             // Index of the vertex
-            out_vertices[index + j] = Vertex(position[j], normal, vec2<f32>(0.0, 0.0));
+            out_vertices[index + j] = Vertex(vec4<f32>(position[j], 0.0), vec4<f32>(0.0, normal));
 
             // Index of the triangle
             out_indices[index + j] = index + j;
