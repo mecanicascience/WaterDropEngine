@@ -24,7 +24,7 @@ struct Vertex {
 @compute @workgroup_size(10, 10, 10)
 fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
     // Check if out of bounds
-    if thread_id.x >= in_desc.chunk_sub_count || thread_id.y >= in_desc.chunk_sub_count || thread_id.z >= in_desc.chunk_sub_count {
+    if thread_id.x >= in_desc.chunk_sub_count - 1 || thread_id.y >= in_desc.chunk_sub_count - 1 || thread_id.z >= in_desc.chunk_sub_count - 1 {
         return;
     }
 

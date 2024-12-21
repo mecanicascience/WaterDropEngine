@@ -6,7 +6,7 @@ struct VertexOutput {
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let light_dir = normalize(vec3<f32>(0.5, 0.5, 1.0));
-    let ambiant = 0.01;
+    let ambiant = 0.03;
 
     let intensity = max(dot(in.normal, light_dir), 0.0) + ambiant;
     var color = vec4<f32>(0.3, 0.3, 0.8, 1.0);

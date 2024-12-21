@@ -24,6 +24,7 @@ pub struct MarchingCubesChunkDescription {
     pub translation: Vec3,
     pub chunk_length: f32,
     pub chunk_sub_count: usize,
+    pub iso_level: f32,
     pub f: fn(Vec3) -> f32
 }
 
@@ -122,19 +123,54 @@ impl Plugin for MarchingCubesComputePass {
  * Main function : Should generate chunks around the player. Note : It should reuse the chunks that are not visible anymore.
  */
 fn manage_chunks(mut handler: ResMut<MarchingCubesHandler>, mut buffers: ResMut<Assets<Buffer>>, gpu_limits: Res<DeviceLimits>) {
-    // TODO : Automatically generate the chunks
-    fn generate_perlin_noise(x: f32, y: f32, z: f32, scale: f32, seed: u32) -> f32 {
-        // Perlin::new(seed).get([x as f64 * scale as f64, y as f64 * scale as f64, z as f64 * scale as f64]) as f32
-        x * x + y * y + z * z - 3.0
+    // Terrain function
+    fn generate_perlin_noise(x: f32, y: f32, z: f32) -> f32 {
+        // Perlin noise parameters
+        let terrain_scale = 1.0 / 500.0;
+        let terrain_seed = 0;
+
+        // Generate the perlin noise
+        let perlin = Perlin::new(terrain_seed);
+        perlin.get([x as f64 * terrain_scale, y as f64 * terrain_scale, z as f64 * terrain_scale]) as f32
+
+        // // Sphere
+        // x * x + y * y + z * z - 3.0
     }
-    let desc = MarchingCubesChunkDescription {
-        index: (0, 0, 0),
-        translation: Vec3::new(0.0, 0.0, 0.0),
-        chunk_length: 10.0,
-        chunk_sub_count: 10,
-        f: |pos| generate_perlin_noise(pos.x, pos.y, pos.z, 1.0, 0)
-    };
-    generate_new_chunk(desc, &mut buffers, &mut handler, &gpu_limits);
+
+    // Chunks grid
+    let chunks_count = 3;
+    let chunk_length = 500.0;
+    let chunk_sub_count = 50;
+    let iso_level = 0.0;
+
+    // Generate the chunks
+    for i in 0..chunks_count {
+        for j in 0..chunks_count {
+            for k in 0..chunks_count {
+                // Compute the position of the chunk
+                let tot_scale = chunk_length * (chunks_count as f32);
+                let translation = Vec3::new(
+                    -tot_scale / 2.0 + i as f32 * chunk_length,
+                    -tot_scale / 2.0 + j as f32 * chunk_length,
+                    -tot_scale / 2.0 + k as f32 * chunk_length
+                );
+
+                // Generate the mesh
+                let desc = MarchingCubesChunkDescription {
+                    index: (i, j, k),
+                    translation,
+                    chunk_length,
+                    chunk_sub_count,
+                    f: |pos| generate_perlin_noise(pos.x, pos.y, pos.z),
+                    iso_level
+                };
+
+                // Generate the mesh
+                trace!("Generating chunk {:?}.", desc.index);
+                generate_new_chunk(desc, &mut buffers, &mut handler, &gpu_limits);
+            }
+        }
+    }
 }
 
 
@@ -305,13 +341,14 @@ fn generate_chunks(
         }
 
         // Update the description buffer
+        trace!("Generating chunk {:?} with marching cubes.", index);
         let desc_buff = GpuMarchingCubesDescription {
             index: [chunk.description.index.0 as f32, chunk.description.index.1 as f32, chunk.description.index.2 as f32, 0.0],
             translation: [chunk.description.translation.x, chunk.description.translation.y, chunk.description.translation.z, 0.0],
             chunk_length: chunk.description.chunk_length,
             chunk_sub_count: chunk.description.chunk_sub_count as u32,
             indices_counter: 0,
-            iso_level: 0.0
+            iso_level: chunk.description.iso_level
         };
         let render_instance = render_instance.data.read().unwrap();
         buffers.get_mut(&chunk.desc_gpu).unwrap().buffer.write(&render_instance, bytemuck::cast_slice(&[desc_buff]), 0);
