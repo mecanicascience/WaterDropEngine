@@ -6,31 +6,31 @@ use crate::assets::{Mesh, ModelBoundingBox};
 pub struct CubeGizmoMesh;
 impl CubeGizmoMesh {
     /// Create a new cube gizmo mesh.
-    /// The cube goes from (-length/2) to (length/2) in all directions.
+    /// The cube goes from (-scale/2) to (scale/2) in all directions.
     /// 
     /// # Arguments
     /// 
     /// * `label` - The label for the mesh.
-    /// * `length` - The length of the cube's sides.
+    /// * `scale` - The scale of the cube's sides.
     /// 
     /// # Returns
     /// 
     /// The cube gizmo mesh.
-    pub fn from(label: &str, length: f32) -> Mesh {
-        let half_length = length / 2.0;
+    pub fn from(label: &str, scale: Vec3) -> Mesh {
+        let half_scale = scale / 2.0;
 
         // Create vertices
         let positions = [
             // Front face
-            -half_length, -half_length,  half_length,
-             half_length, -half_length,  half_length,
-             half_length,  half_length,  half_length,
-            -half_length,  half_length,  half_length,
+            -half_scale.x, -half_scale.y,  half_scale.z,
+             half_scale.x, -half_scale.y,  half_scale.z,
+             half_scale.x,  half_scale.y,  half_scale.z,
+            -half_scale.x,  half_scale.y,  half_scale.z,
             // Back face
-            -half_length, -half_length, -half_length,
-             half_length, -half_length, -half_length,
-             half_length,  half_length, -half_length,
-            -half_length,  half_length, -half_length,
+            -half_scale.x, -half_scale.y, -half_scale.z,
+             half_scale.x, -half_scale.y, -half_scale.z,
+             half_scale.x,  half_scale.y, -half_scale.z,
+            -half_scale.x,  half_scale.y, -half_scale.z,
         ];
 
         let mut vertices = Vec::new();
@@ -59,8 +59,8 @@ impl CubeGizmoMesh {
 
         // Create bounding box
         let bounding_box = ModelBoundingBox {
-            min: Vec3::new(-half_length, -half_length, -half_length),
-            max: Vec3::new( half_length,  half_length,  half_length),
+            min: -half_scale,
+            max:  half_scale,
         };
 
         Mesh {

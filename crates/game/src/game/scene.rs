@@ -13,7 +13,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
     // Main camera
     commands.spawn(
         (Camera {
-            transform: Transform::from_xyz(5.0, 5.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(5.0, 20.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
             view: CameraView {
                 zfar: 10000.0,
                 ..Default::default()

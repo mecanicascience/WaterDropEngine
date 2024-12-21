@@ -2,10 +2,12 @@
 struct MarchingCubesDescription {
     index:           vec4<f32>,   // Index of the current chunk (x, y, z, 0)
     translation:     vec4<f32>,   // Translation in world space of the current chunk (x, y, z, 0)
-    chunk_length:    f32,         // Length of the chunk
-    chunk_sub_count: u32,         // Number of sub-chunks
+    chunk_length:    vec4<f32>,   // Length of the chunk
+    chunk_sub_count: vec4<u32>,   // Number of sub-chunks
     indices_counter: atomic<u32>, // Counter of the indices
-    iso_level:       f32          // Iso level
+    iso_level:       f32,         // Iso level
+    padding:         f32,         // Padding
+    padding2:        f32,         // Padding
 }
 @group(0) @binding(0) var<storage, read_write> in_desc: MarchingCubesDescription;
 
@@ -24,7 +26,7 @@ struct Vertex {
 @compute @workgroup_size(10, 10, 10)
 fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
     // Check if out of bounds
-    if thread_id.x >= in_desc.chunk_sub_count - 1 || thread_id.y >= in_desc.chunk_sub_count - 1 || thread_id.z >= in_desc.chunk_sub_count - 1 {
+    if thread_id.x >= in_desc.chunk_sub_count.x - 1 || thread_id.y >= in_desc.chunk_sub_count.y - 1 || thread_id.z >= in_desc.chunk_sub_count.z - 1 {
         return;
     }
 
@@ -311,7 +313,7 @@ fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
     var cube_corners: array<vec4<f32>, 8>;
     for (var l = 0; l < 8; l = l + 1) {
         var corner = MARCHING_CUBES_CORNER_INDICES[l];
-        cube_corners[l] = in_points[index_from_coord(thread_id + corner, in_desc.chunk_sub_count)];
+        cube_corners[l] = in_points[index_from_coord(thread_id + corner, in_desc.chunk_sub_count.xyz)];
     }
 
     // Compute cube index based on the values of the vertices
@@ -363,8 +365,8 @@ fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
  * * `z` - The z coordinate.
  * * `chunk_sub_count` - The number of grid cells in each dimension.
  */
-fn index_from_coord(coord: vec3<u32>, chunk_sub_count: u32) -> u32 {
-    return coord.x + coord.y * chunk_sub_count + coord.z * chunk_sub_count * chunk_sub_count;
+fn index_from_coord(coord: vec3<u32>, chunk_sub_count: vec3<u32>) -> u32 {
+    return coord.x + chunk_sub_count.x * (coord.y + chunk_sub_count.y * coord.z);
 }
 
 /**

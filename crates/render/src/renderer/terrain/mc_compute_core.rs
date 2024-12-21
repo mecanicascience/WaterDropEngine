@@ -1,9 +1,9 @@
 use bevy::{ecs::world::CommandQueue, prelude::*, tasks::{block_on, futures_lite::future, AsyncComputeTaskPool, Task}, utils::HashMap};
-use crate::{assets::{Buffer, GpuBuffer, RenderAssets, RenderAssetsPlugin}, core::{extract_macros::ExtractWorld, DeviceLimits, Extract, Render, RenderApp, RenderSet}, pipelines::{CachedPipelineStatus, PipelineManager}};
+use crate::{assets::{materials::{GizmoBundle, GizmoMaterial}, meshes::CubeGizmoMesh, Buffer, GpuBuffer, RenderAssets, RenderAssetsPlugin}, core::{extract_macros::ExtractWorld, DeviceLimits, Extract, Render, RenderApp, RenderSet}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::{BindGroup, WgpuBindGroup}, buffer::BufferUsage, command_buffer::WCommandBuffer, instance::WRenderInstance, vertex::WVertex};
 
 use super::mc_compute_pipeline::{GpuMarchingCubesComputePipeline, MarchingCubesComputePipeline};
-use noise::{NoiseFn, Perlin};
+use noise::NoiseFn;
 
 pub type ChunkIndex = (i32, i32, i32);
 
@@ -12,18 +12,19 @@ pub type ChunkIndex = (i32, i32, i32);
 pub struct GpuMarchingCubesDescription {
     pub index: [f32; 4], // (x, y, z, 0)
     pub translation: [f32; 4], // (x, y, z, 0)
-    pub chunk_length: f32,
-    pub chunk_sub_count: u32,
+    pub chunk_length: [f32; 4], // (x, y, z, 0)
+    pub chunk_sub_count: [u32; 4], // (x, y, z, 0)
     pub indices_counter: u32,
     pub iso_level: f32,
+    pub padding: [f32; 2]
 }
 
 #[derive(Clone)]
 pub struct MarchingCubesChunkDescription {
     pub index: ChunkIndex,
     pub translation: Vec3,
-    pub chunk_length: f32,
-    pub chunk_sub_count: usize,
+    pub chunk_length: Vec3,
+    pub chunk_sub_count: UVec3,
     pub iso_level: f32,
     pub f: fn(Vec3) -> f32
 }
@@ -127,62 +128,107 @@ struct MarchingCubesComputeTask(Task<CommandQueue>);
  * This create a task for each chunk to generate the mesh.
  * This will then generate the points, vertices and indices buffers, and add the chunk to the loading chunks.
  */
-fn manage_chunks(mut commands: Commands, gpu_limits: Res<DeviceLimits>) {
+fn manage_chunks(
+    mut commands: Commands,
+    gpu_limits: Res<DeviceLimits>,
+    asset_server: Res<AssetServer>,
+    mut gizmo_materials: ResMut<Assets<GizmoMaterial>>
+) {
+    // Chunks grid
+    let chunks_count = 5;
+    let chunk_length = [500.0, 200.0, 500.0];
+    let chunk_sub_count = [150, 20, 150];
+    let iso_level = 0.0;
+
     // Terrain function
     fn generate_perlin_noise(x: f32, y: f32, z: f32) -> f32 {
-        // Perlin noise parameters
-        let terrain_scale = 1.0 / 500.0;
-        let terrain_seed = 0;
+        let mut amplitude = 150.0;
+        let mut frequency = 0.005;
+        let ground_percent = 0.1;
 
-        // Generate the perlin noise
-        let perlin = Perlin::new(terrain_seed);
-        perlin.get([x as f64 * terrain_scale, y as f64 * terrain_scale, z as f64 * terrain_scale]) as f32
+        let octaves = 8;
+        let persistence = 0.5;
+        let lacunarity = 2.0;
+
+        let seed = 0;
+        let simplex_noise = noise::OpenSimplex::new(seed);
+
+        // Perlin noise parameters
+        let chunk_length = [500.0, 100.0, 500.0];
+        let mut height = 0.0;
+        for _ in 0..octaves {
+            height += amplitude * simplex_noise.get([x as f64 * frequency, y as f64 * frequency, z as f64 * frequency]);
+            amplitude *= persistence;
+            frequency *= lacunarity;
+        }
+        let ground = y + ground_percent * chunk_length[1];
+        ground + height as f32
+
+        // // Perlin noise parameters
+        // let terrain_scale = 1.0 / 500.0;
+        // let terrain_seed = 0;
+        // // Generate the perlin noise
+        // let perlin = Perlin::new(terrain_seed);
+        // perlin.get([x as f64 * terrain_scale, y as f64 * terrain_scale, z as f64 * terrain_scale]) as f32
 
         // // Sphere
         // x * x + y * y + z * z - 3.0
     }
 
-    // Chunks grid
-    let chunks_count = 7;
-    let chunk_length = 500.0;
-    let chunk_sub_count = 20;
-    let iso_level = 0.0;
-
     // Generate the chunks
     let thread_pool = AsyncComputeTaskPool::get();
     let max_buffer_size = gpu_limits.0.max_storage_buffer_binding_size as usize;
     for i in 0..chunks_count {
-        for j in 0..chunks_count {
-            for k in 0..chunks_count {
-                // Spawn the task
-                let task_entity = commands.spawn_empty().id();
-                let task = thread_pool.spawn(async move {
-                    // Compute the position of the chunk
-                    let tot_scale = chunk_length * (chunks_count as f32);
-                    let translation = Vec3::new(
-                        -tot_scale / 2.0 + i as f32 * chunk_length,
-                        -tot_scale / 2.0 + j as f32 * chunk_length,
-                        -tot_scale / 2.0 + k as f32 * chunk_length
-                    );
+        for k in 0..chunks_count {
+            // Spawn the task
+            let task_entity = commands.spawn_empty().id();
+            let task = thread_pool.spawn(async move {
+                // Compute the position of the chunk
+                let tot_scale = [chunk_length[0] * chunks_count as f32, chunk_length[1], chunk_length[2] * chunks_count as f32];
+                let translation = Vec3::new(
+                    -tot_scale[0] / 2.0 + i as f32 * chunk_length[0],
+                    0.0,
+                    -tot_scale[2] / 2.0 + k as f32 * chunk_length[2]
+                );
 
-                    // Generate the mesh
-                    let desc = MarchingCubesChunkDescription {
-                        index: (i, j, k),
-                        translation,
-                        chunk_length,
-                        chunk_sub_count,
-                        f: |pos| generate_perlin_noise(pos.x, pos.y, pos.z),
-                        iso_level
-                    };
+                // Generate the mesh
+                let desc = MarchingCubesChunkDescription {
+                    index: (i, 0, k),
+                    translation,
+                    chunk_length: chunk_length.into(),
+                    chunk_sub_count: chunk_sub_count.into(),
+                    f: |pos| generate_perlin_noise(pos.x, pos.y, pos.z),
+                    iso_level
+                };
 
-                    // Generate the mesh
-                    generate_new_chunk(task_entity, desc, max_buffer_size)
-                });
-                debug!("Task spawned for generating chunk {:?}.", (i, j, k));
+                // Generate the mesh
+                generate_new_chunk(task_entity, desc, max_buffer_size)
+            });
+            debug!("Task spawned for generating chunk {:?}.", (i, 0, k));
 
-                // Spawn new entity and add our new task as a component
-                commands.entity(task_entity).insert(MarchingCubesComputeTask(task));
-            }
+            // Spawn new entity and add our new task as a component
+            commands.entity(task_entity).insert(MarchingCubesComputeTask(task));
+        }
+    }
+
+    // Draw a gizmo corresponding to each bounding box
+    let gizmo_edges = gizmo_materials.add(GizmoMaterial {
+        label: "gizmo-edges".to_string(),
+        color: [0.0, 1.0, 0.0, 1.0]
+    });
+    let cube = asset_server.add(CubeGizmoMesh::from("Marching cubes", chunk_length.into()));
+    for i in 0..chunks_count {
+        for k in 0..chunks_count {
+            let translation = Vec3::new(
+                -chunk_length[0] * (chunks_count as f32) / 2.0 + i as f32 * chunk_length[0],
+                0.0,
+                -chunk_length[2] * (chunks_count as f32) / 2.0 + k as f32 * chunk_length[2]
+            );
+            commands.spawn(GizmoBundle {
+                transform: Transform::from_translation(translation),
+                mesh: cube.clone(),
+                material: gizmo_edges.clone()
+            });
         }
     }
 }
@@ -202,20 +248,20 @@ fn generate_new_chunk(task_entity: Entity, desc: MarchingCubesChunkDescription, 
 
     // Generate the grid points
     let c_sub_count = desc.chunk_sub_count;
-    let mut points = Vec::with_capacity(c_sub_count * c_sub_count * c_sub_count);
-    for i in 0..c_sub_count {
-        for j in 0..c_sub_count {
-            for k in 0..c_sub_count {
-                let x = desc.translation.x - desc.chunk_length / 2.0 + i as f32 * desc.chunk_length / (c_sub_count as f32 - 1.0);
-                let y = desc.translation.y - desc.chunk_length / 2.0 + j as f32 * desc.chunk_length / (c_sub_count as f32 - 1.0);
-                let z = desc.translation.z - desc.chunk_length / 2.0 + k as f32 * desc.chunk_length / (c_sub_count as f32 - 1.0);
+    let mut points = Vec::with_capacity((c_sub_count[0] * c_sub_count[1] * c_sub_count[2]) as usize);
+    for i in 0..c_sub_count[0] {
+        for j in 0..c_sub_count[1] {
+            for k in 0..c_sub_count[2] {
+                let x = desc.translation.x - desc.chunk_length[0] / 2.0 + i as f32 * desc.chunk_length[0] / (c_sub_count[0] as f32 - 1.0);
+                let y = desc.translation.y - desc.chunk_length[1] / 2.0 + j as f32 * desc.chunk_length[1] / (c_sub_count[1] as f32 - 1.0);
+                let z = desc.translation.z - desc.chunk_length[2] / 2.0 + k as f32 * desc.chunk_length[2] / (c_sub_count[2] as f32 - 1.0);
                 points.push([x, y, z, (desc.f)(Vec3::new(x, y, z))]);
             }
         }
     }
     let points_buffer = Buffer {
         label: format!("marching-cubes-points-{:?}", desc.index),
-        size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * c_sub_count * c_sub_count * c_sub_count, max_buffer_size),
+        size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * (c_sub_count[0] * c_sub_count[1] * c_sub_count[2]) as usize, max_buffer_size),
         usage: BufferUsage::STORAGE,
         content: Some(bytemuck::cast_slice(&points).to_vec())
     };
@@ -223,13 +269,13 @@ fn generate_new_chunk(task_entity: Entity, desc: MarchingCubesChunkDescription, 
     // Generate the vertices and indices buffers
     let vertex_buffer = Buffer {
         label: format!("marching-cubes-vertices-{:?}", desc.index),
-        size: std::cmp::min(std::mem::size_of::<WVertex>() * 3 * 5 * c_sub_count * c_sub_count * c_sub_count, max_buffer_size),
+        size: std::cmp::min(std::mem::size_of::<WVertex>() * 3 * 5 * (c_sub_count[0] * c_sub_count[1] * c_sub_count[2]) as usize, max_buffer_size),
         usage: BufferUsage::VERTEX | BufferUsage::STORAGE,
         content: None
     };
     let index_buffer = Buffer {
         label: format!("marching-cubes-indices-{:?}", desc.index),
-        size: std::cmp::min(std::mem::size_of::<u32>() * 3 * 5 * c_sub_count * c_sub_count * c_sub_count, max_buffer_size),
+        size: std::cmp::min(std::mem::size_of::<u32>() * 3 * 5 * (c_sub_count[0] * c_sub_count[1] * c_sub_count[2]) as usize, max_buffer_size),
         usage: BufferUsage::INDEX | BufferUsage::STORAGE,
         content: None
     };
@@ -378,10 +424,11 @@ fn generate_chunks_compute(
         let desc_buff = GpuMarchingCubesDescription {
             index: [chunk.description.index.0 as f32, chunk.description.index.1 as f32, chunk.description.index.2 as f32, 0.0],
             translation: [chunk.description.translation.x, chunk.description.translation.y, chunk.description.translation.z, 0.0],
-            chunk_length: chunk.description.chunk_length,
-            chunk_sub_count: chunk.description.chunk_sub_count as u32,
+            chunk_length: [chunk.description.chunk_length.x, chunk.description.chunk_length.y, chunk.description.chunk_length.z, 0.0],
+            chunk_sub_count: [chunk.description.chunk_sub_count.x, chunk.description.chunk_sub_count.y, chunk.description.chunk_sub_count.z, 0],
             indices_counter: 0,
-            iso_level: chunk.description.iso_level
+            iso_level: chunk.description.iso_level,
+            padding: [0.0; 2]
         };
         let render_instance = render_instance.data.read().unwrap();
         buffers.get_mut(&chunk.desc_gpu).unwrap().buffer.write(&render_instance, bytemuck::cast_slice(&[desc_buff]), 0);
@@ -414,9 +461,11 @@ fn generate_chunks_compute(
 
                 // Dispatch the compute pass
                 let num_threads = 10;
-                let dispatch_count = ((chunk.description.chunk_sub_count as f32) / num_threads as f32).ceil() as u32;
-                debug!("Dispatching the compute pass for generating chunk {:?} with marching cubes with {} threads and {} dispatches.", index, num_threads, dispatch_count);
-                if let Err(e) = compute_pass.dispatch(dispatch_count, dispatch_count, dispatch_count) {
+                let dispatch_count_x = (chunk.description.chunk_sub_count.x as f32 / num_threads as f32).ceil() as u32;
+                let dispatch_count_y = (chunk.description.chunk_sub_count.y as f32 / num_threads as f32).ceil() as u32;
+                let dispatch_count_z = (chunk.description.chunk_sub_count.z as f32 / num_threads as f32).ceil() as u32;
+                debug!("Dispatching the compute pass for generating chunk {:?} with marching cubes with {} threads and {:?} dispatches.", index, num_threads, [dispatch_count_x, dispatch_count_y, dispatch_count_z]);
+                if let Err(e) = compute_pass.dispatch(dispatch_count_x, dispatch_count_y, dispatch_count_z) {
                     error!("Failed to dispatch the compute pass for generating chunk {:?} with marching cubes: {:?}", index, e);
                     continue;
                 }
@@ -431,17 +480,17 @@ fn generate_chunks_compute(
 
         // Read the indices counter
         let mut indices_counter = 0;
-        let mut c_sub_count = 0;
+        let mut c_sub_count = [0, 0, 0];
         buffers.get(&desc_buffer_cpu).unwrap().buffer.copy_from_buffer(&render_instance, &buffers.get(&chunk.desc_gpu).unwrap().buffer);
         buffers.get(&desc_buffer_cpu).unwrap().buffer.map_read(&render_instance, |data| {
             let desc = bytemuck::from_bytes::<GpuMarchingCubesDescription>(&data);
             indices_counter = desc.indices_counter;
-            c_sub_count = desc.chunk_sub_count as usize;
+            c_sub_count = [desc.chunk_sub_count[0] as usize, desc.chunk_sub_count[1] as usize, desc.chunk_sub_count[2] as usize];
         });
         debug!("Chunk {:?} generated with {} indices.", index, indices_counter);
 
         // Warn if the indices counter is too high
-        let vertex_buffer_size = std::mem::size_of::<WVertex>() * 3 * 5 * c_sub_count * c_sub_count * c_sub_count;
+        let vertex_buffer_size = std::mem::size_of::<WVertex>() * 3 * 5 * c_sub_count[0] * c_sub_count[1] * c_sub_count[2];
         if std::mem::size_of::<WVertex>() * (indices_counter as usize) > vertex_buffer_size {
             error!("In the marching cubes algorithm, there is too much vertices overflowing the vertices buffer. The buffer size is {} and the indices counter is {}.", vertex_buffer_size, indices_counter);
             continue;
