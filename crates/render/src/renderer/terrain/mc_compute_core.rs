@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{ecs::world::CommandQueue, prelude::*, tasks::{block_on, futures_lite::future, AsyncComputeTaskPool, Task}, utils::HashMap};
 use crate::{assets::{Buffer, GpuBuffer, RenderAssets, RenderAssetsPlugin}, core::{extract_macros::ExtractWorld, DeviceLimits, Extract, Render, RenderApp, RenderSet}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::{BindGroup, WgpuBindGroup}, buffer::BufferUsage, command_buffer::WCommandBuffer, instance::WRenderInstance, vertex::WVertex};
 
@@ -85,7 +85,7 @@ impl Plugin for MarchingCubesComputePass {
         // Manage chunks creation / deletion
         app
             .init_resource::<MarchingCubesHandler>()
-            .add_systems(Update, manage_chunks.run_if(run_once()));
+            .add_systems(Update, (manage_chunks.run_if(run_once()), handle_tasks));
 
         // Manage chunks data extraction to the render thread
         app.get_sub_app_mut(RenderApp).unwrap()
@@ -97,7 +97,7 @@ impl Plugin for MarchingCubesComputePass {
             .init_asset::<MarchingCubesComputePipeline>()
             .add_plugins(RenderAssetsPlugin::<GpuMarchingCubesComputePipeline>::default());
         app.get_sub_app_mut(RenderApp).unwrap()
-            .add_systems(Render, generate_chunks.in_set(RenderSet::PrepareAssets));
+            .add_systems(Render, generate_chunks_compute.in_set(RenderSet::PrepareAssets));
     }
 
     fn finish(&self, app: &mut App) {
@@ -119,10 +119,15 @@ impl Plugin for MarchingCubesComputePass {
 }
 
 
+#[derive(Component)]
+struct MarchingCubesComputeTask(Task<CommandQueue>);
+
 /**
- * Main function : Should generate chunks around the player. Note : It should reuse the chunks that are not visible anymore.
+ * Manage the chunks creation / deletion.
+ * This create a task for each chunk to generate the mesh.
+ * This will then generate the points, vertices and indices buffers, and add the chunk to the loading chunks.
  */
-fn manage_chunks(mut handler: ResMut<MarchingCubesHandler>, mut buffers: ResMut<Assets<Buffer>>, gpu_limits: Res<DeviceLimits>) {
+fn manage_chunks(mut commands: Commands, gpu_limits: Res<DeviceLimits>) {
     // Terrain function
     fn generate_perlin_noise(x: f32, y: f32, z: f32) -> f32 {
         // Perlin noise parameters
@@ -138,51 +143,55 @@ fn manage_chunks(mut handler: ResMut<MarchingCubesHandler>, mut buffers: ResMut<
     }
 
     // Chunks grid
-    let chunks_count = 3;
+    let chunks_count = 7;
     let chunk_length = 500.0;
-    let chunk_sub_count = 50;
+    let chunk_sub_count = 20;
     let iso_level = 0.0;
 
     // Generate the chunks
+    let thread_pool = AsyncComputeTaskPool::get();
+    let max_buffer_size = gpu_limits.0.max_storage_buffer_binding_size as usize;
     for i in 0..chunks_count {
         for j in 0..chunks_count {
             for k in 0..chunks_count {
-                // Compute the position of the chunk
-                let tot_scale = chunk_length * (chunks_count as f32);
-                let translation = Vec3::new(
-                    -tot_scale / 2.0 + i as f32 * chunk_length,
-                    -tot_scale / 2.0 + j as f32 * chunk_length,
-                    -tot_scale / 2.0 + k as f32 * chunk_length
-                );
+                // Spawn the task
+                let task_entity = commands.spawn_empty().id();
+                let task = thread_pool.spawn(async move {
+                    // Compute the position of the chunk
+                    let tot_scale = chunk_length * (chunks_count as f32);
+                    let translation = Vec3::new(
+                        -tot_scale / 2.0 + i as f32 * chunk_length,
+                        -tot_scale / 2.0 + j as f32 * chunk_length,
+                        -tot_scale / 2.0 + k as f32 * chunk_length
+                    );
 
-                // Generate the mesh
-                let desc = MarchingCubesChunkDescription {
-                    index: (i, j, k),
-                    translation,
-                    chunk_length,
-                    chunk_sub_count,
-                    f: |pos| generate_perlin_noise(pos.x, pos.y, pos.z),
-                    iso_level
-                };
+                    // Generate the mesh
+                    let desc = MarchingCubesChunkDescription {
+                        index: (i, j, k),
+                        translation,
+                        chunk_length,
+                        chunk_sub_count,
+                        f: |pos| generate_perlin_noise(pos.x, pos.y, pos.z),
+                        iso_level
+                    };
 
-                // Generate the mesh
-                trace!("Generating chunk {:?}.", desc.index);
-                generate_new_chunk(desc, &mut buffers, &mut handler, &gpu_limits);
+                    // Generate the mesh
+                    generate_new_chunk(task_entity, desc, max_buffer_size)
+                });
+                debug!("Task spawned for generating chunk {:?}.", (i, j, k));
+
+                // Spawn new entity and add our new task as a component
+                commands.entity(task_entity).insert(MarchingCubesComputeTask(task));
             }
         }
     }
 }
 
-
 /**
  * Generate a new chunk with the given description (chunk id).
  * This will generate the points, vertices and indices buffers, and add the chunk to the loading chunks.
  */
-fn generate_new_chunk(
-    desc: MarchingCubesChunkDescription,
-    buffers: &mut Assets<Buffer>, handler: &mut MarchingCubesHandler,
-    gpu_limits: &DeviceLimits
-) {
+fn generate_new_chunk(task_entity: Entity, desc: MarchingCubesChunkDescription, max_buffer_size: usize) -> CommandQueue {
     // Generate the description buffer for the GPU
     let desc_buffer_gpu = Buffer {
         label: format!("marching-cubes-desc-gpu-{:?}", desc.index),
@@ -190,9 +199,6 @@ fn generate_new_chunk(
         usage: BufferUsage::STORAGE | BufferUsage::COPY_DST | BufferUsage::COPY_SRC,
         content: None
     };
-
-    // Find the max buffer size
-    let max_buffer_size = gpu_limits.0.max_storage_buffer_binding_size as usize;
 
     // Generate the grid points
     let c_sub_count = desc.chunk_sub_count;
@@ -228,24 +234,51 @@ fn generate_new_chunk(
         content: None
     };
     
-    // Create the chunk
-    let chunk = MarchingCubesChunk {
-        description: desc,
-        generated: false,
-        indices_counter: 0,
+    // Register the buffers and add the chunk to the active chunks
+    let mut command_queue = CommandQueue::default();
+    command_queue.push(move |world: &mut World| {
+        debug!("Registering chunk {:?} with marching cubes in main thread.", desc.index);
+        
+        // Create the chunk
+        let mut buffers = world.get_resource_mut::<Assets<Buffer>>().unwrap();
+        let chunk = MarchingCubesChunk {
+            description: desc,
+            generated: false,
+            indices_counter: 0,
 
-        desc_gpu: buffers.add(desc_buffer_gpu),
-        points: buffers.add(points_buffer),
-        vertices: buffers.add(vertex_buffer),
-        indices: buffers.add(index_buffer),
+            desc_gpu: buffers.add(desc_buffer_gpu),
+            points: buffers.add(points_buffer),
+            vertices: buffers.add(vertex_buffer),
+            indices: buffers.add(index_buffer),
 
-        desc_gpu_group: None,
-        points_group: None,
-        triangles_group: None
-    };
-    handler.active_chunks.push(chunk);
+            desc_gpu_group: None,
+            points_group: None,
+            triangles_group: None
+        };
+
+        // Add the chunk to the active chunks
+        let mut handler = world.get_resource_mut::<MarchingCubesHandler>().unwrap();
+        handler.active_chunks.push(chunk);
+
+        // Despawn the entity
+        world.commands().entity(task_entity).despawn();
+    });
+    command_queue
 }
 
+/**
+ * Check if the tasks are done.
+ * If so, run the command queue that will add the buffers and the chunk to the loading chunks.
+ * If the task is done, despawn the entity.
+ */
+fn handle_tasks(mut commands: Commands, mut tasks: Query<&mut MarchingCubesComputeTask>) {
+    for mut task in &mut tasks {
+        if let Some(mut commands_queue) = block_on(future::poll_once(&mut task.0)) {
+            // Add the commands to the main thread for the next frame
+            commands.append(&mut commands_queue);
+        }
+    }
+}
 
 /**
  * Extract the new chunks in the main thread and add them to the loading chunks in the render thread.
@@ -265,9 +298,9 @@ fn extract_chunks_data(
 }
 
 /**
- * Generate the chunks data on the render thread.
+ * Run the compute pass to generate the chunks.
  */
-fn generate_chunks(
+fn generate_chunks_compute(
     mut handler: ResMut<MarchingCubesHandlerGPU>, mut buffers: ResMut<RenderAssets<GpuBuffer>>,
     render_instance: Res<WRenderInstance<'static>>, pipeline: Res<RenderAssets<GpuMarchingCubesComputePipeline>>,
     pipeline_manager: ResMut<PipelineManager>

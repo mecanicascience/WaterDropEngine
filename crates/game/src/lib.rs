@@ -31,18 +31,18 @@ pub fn start_game() {
                 min_total_threads: 1,
                 max_total_threads: usize::MAX,
 
-                // Use 25% of cores for IO, at least 1, no more than 4
+                // Use 1 core for IO
                 io: TaskPoolThreadAssignmentPolicy {
                     min_threads: 1,
-                    max_threads: 4,
+                    max_threads: 1,
                     percent: 0.25,
                 },
 
-                // Do not use async compute
+                // Use 1 core for async compute
                 async_compute: TaskPoolThreadAssignmentPolicy {
-                    min_threads: 0,
-                    max_threads: 0,
-                    percent: 0.0,
+                    min_threads: 1,
+                    max_threads: 1,
+                    percent: 0.25,
                 },
 
                 // Use all remaining cores for compute (at least 1)
