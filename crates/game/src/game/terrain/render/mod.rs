@@ -6,9 +6,7 @@ use mc_render_core::MarchingCubesRenderPass;
 use mc_render_pipeline::{GpuMarchingCubesRenderPipeline, MarchingCubesRenderPipeline, MarchingCubesRenderPipelineAsset};
 use wde_wgpu::buffer::BufferUsage;
 
-use crate::{assets::{Buffer, RenderAssetsPlugin}, core::{Extract, Render, RenderApp, RenderSet}};
-
-use super::render_graph::RenderGraph;
+use wde_render::{assets::{Buffer, RenderAssetsPlugin}, core::{Extract, Render, RenderApp, RenderSet}, passes::render_graph::RenderGraph};
 
 pub mod mc_compute_core;
 pub mod mc_compute_pipeline;
@@ -22,10 +20,7 @@ impl Plugin for TerrainFeaturesPlugin {
         // Manage chunks creation / deletion
         app
             .init_resource::<MarchingCubesHandler>()
-            .add_systems(Update, (
-                MarchingCubesComputeTask::manage_chunks.run_if(run_once),
-                MarchingCubesComputeTask::handle_tasks
-            ));
+            .add_systems(Update, MarchingCubesComputeTask::handle_tasks);
 
         // Manage chunks data extraction to the render thread
         app.get_sub_app_mut(RenderApp).unwrap()

@@ -2,14 +2,12 @@ use bevy::prelude::*;
 use depth::{DepthTexture, DepthTextureLayout};
 use gizmo::GizmoFeaturesPlugin;
 use pbr::PbrFeaturesPlugin;
-use terrain::TerrainFeaturesPlugin;
 
 use crate::core::{Extract, Render, RenderApp, RenderSet};
 
 pub mod pbr;
 pub mod depth;
 pub mod gizmo;
-pub mod terrain;
 pub mod render_graph;
 
 pub(crate) struct RendererPlugin;
@@ -27,7 +25,6 @@ impl Plugin for RendererPlugin {
         // Add the different render passes to the app
         app
             .add_plugins(PbrFeaturesPlugin)
-            .add_plugins(GizmoFeaturesPlugin)
-            .add_plugins(TerrainFeaturesPlugin);
+            .add_plugins(GizmoFeaturesPlugin);
     }
 }

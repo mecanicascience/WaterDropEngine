@@ -4,7 +4,6 @@
 use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
 use examples::{ExamplesPugin, SELECTED_EXAMPLE};
 use game::*;
-use scene::GamePlugin;
 use wde_render::RenderPlugin;
 
 mod game;

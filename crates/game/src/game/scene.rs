@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use wde_render::{assets::{materials::{PbrMaterial, PbrMaterialAsset}, meshes::PlaneMesh, Mesh}, components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}};
 
-pub struct GamePlugin;
-impl Plugin for GamePlugin {
+pub struct ScenePlugin;
+impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, init);
     }

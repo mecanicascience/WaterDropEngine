@@ -1,11 +1,12 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
-use crate::{assets::{PrepareAssetError, RenderAsset}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
+use wde_render::{assets::{PrepareAssetError, RenderAsset}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
 
 
 #[derive(Default, Asset, Clone, TypePath)]
 pub struct MarchingCubesRenderPipelineAsset;
 #[derive(Component, Default)]
+#[allow(dead_code)]
 pub struct MarchingCubesRenderPipeline(pub Handle<MarchingCubesRenderPipelineAsset>);
 pub struct GpuMarchingCubesRenderPipeline {
     pub cached_pipeline_index: CachedPipelineIndex

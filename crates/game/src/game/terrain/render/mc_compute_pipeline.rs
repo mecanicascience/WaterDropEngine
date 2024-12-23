@@ -1,10 +1,11 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
-use crate::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, ComputePipelineDescriptor, PipelineManager}};
+use wde_render::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, ComputePipelineDescriptor, PipelineManager}};
 use wde_wgpu::{bind_group::BindGroupLayout, buffer::BufferBindingType, render_pipeline::WShaderStages};
 
 #[derive(Default, Asset, Clone, TypePath)]
 pub struct MarchingCubesComputePipelineAsset;
 #[derive(Component)]
+#[allow(dead_code)]
 pub struct MarchingCubesComputePipeline(pub Handle<MarchingCubesComputePipelineAsset>);
 pub struct GpuMarchingCubesComputePipeline {
     pub cached_pipeline_index: CachedPipelineIndex,
