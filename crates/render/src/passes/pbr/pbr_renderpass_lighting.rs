@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuMesh, MeshAsset, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTextureLayout};
+use crate::{assets::{GpuMesh, MeshAsset, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineStatus, PipelineManager}, passes::depth::DepthTextureLayout};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, WCommandBuffer}, instance::WRenderInstance, vertex::WVertex};
 
 use super::{GpuPbrLightingRenderPipeline, PbrDeferredTexturesLayout};

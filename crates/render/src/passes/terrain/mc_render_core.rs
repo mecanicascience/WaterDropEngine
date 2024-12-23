@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuBuffer, GpuTexture, RenderAssets, RenderAssetsPlugin}, core::{RenderApp, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
+use crate::{assets::{GpuBuffer, GpuTexture, RenderAssets, RenderAssetsPlugin}, core::{RenderApp, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, passes::depth::DepthTexture};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp}, instance::WRenderInstance};
 
 use super::{mc_compute_core::MarchingCubesHandlerGPU, mc_render_pipeline::{GpuMarchingCubesRenderPipeline, MarchingCubesRenderPipeline, MarchingCubesRenderPipelineAsset}};

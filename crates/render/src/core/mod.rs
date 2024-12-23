@@ -15,7 +15,7 @@ use wde_wgpu::instance::{create_instance, WLimits, WRenderTexture};
 use window::{extract_surface_size, send_surface_resized, SurfaceResized, WindowPlugins};
 use std::ops::{Deref, DerefMut};
 
-use crate::{components:: RenderComponentsPlugin, features::RenderFeaturesPlugin, pipelines::PipelineManagerPlugin, renderer::RendererPlugin};
+use crate::{components:: RenderComponentsPlugin, features::RenderFeaturesPlugin, pipelines::PipelineManagerPlugin, passes::RendererPlugin};
 
 
 /// Stores the main world for rendering as a resource.
