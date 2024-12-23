@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufReader};
 
-use bevy::{asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext}, ecs::system::lifetimeless::SRes, prelude::*, utils::tracing::error};
+use bevy::{asset::{io::Reader, AssetLoader, LoadContext}, ecs::system::lifetimeless::SRes, prelude::*};
 use thiserror::Error;
 use serde::{Deserialize, Serialize};
 use tobj::LoadError;
@@ -25,8 +25,10 @@ impl Default for ModelBoundingBox {
     }
 }
 
+#[derive(Component, Default)]
+pub struct Mesh(pub Handle<MeshAsset>);
 #[derive(Asset, TypePath, Clone)]
-pub struct Mesh {
+pub struct MeshAsset {
     /// The label of the texture.
     pub label: String,
     /// The list of vertices
@@ -59,15 +61,15 @@ pub enum MeshLoaderError {
 }
 
 impl AssetLoader for MeshLoader {
-    type Asset = Mesh;
+    type Asset = MeshAsset;
     type Settings = MeshLoaderSettings;
     type Error = MeshLoaderError;
 
-    async fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader<'_>,
-        settings: &'a MeshLoaderSettings,
-        load_context: &'a mut LoadContext<'_>,
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        settings: &Self::Settings,
+        load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         info!("Loading mesh on the CPU from {}.", load_context.asset_path());
 
@@ -166,7 +168,7 @@ impl AssetLoader for MeshLoader {
         }
 
         // Return the mesh
-        Ok(Mesh {
+        Ok(MeshAsset {
             label,
             vertices, indices, bounding_box
         })
@@ -192,7 +194,7 @@ pub struct GpuMesh {
     pub bounding_box: ModelBoundingBox,
 }
 impl RenderAsset for GpuMesh {
-    type SourceAsset = Mesh;
+    type SourceAsset = MeshAsset;
     type Param = SRes<WRenderInstance<'static>>;
 
     fn prepare_asset(

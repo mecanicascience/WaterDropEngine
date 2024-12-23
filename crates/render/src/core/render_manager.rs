@@ -1,6 +1,7 @@
 //! Rendering system for the WDE renderer. Handle the initialization and presentation of the wgpu renderer.
 
-use bevy::{prelude::*, window::{PrimaryWindow, RawHandleWrapperHolder}};
+use bevy::window::{PrimaryWindow, RawHandleWrapperHolder};
+use bevy::prelude::*;
 use wde_wgpu::instance::{self, setup_surface, WRenderEvent, WRenderInstance};
 
 use super::SwapchainFrame;

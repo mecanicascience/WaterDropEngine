@@ -9,18 +9,18 @@ pub use custom_material::*;
 pub use custom_pipeline::*;
 pub use custom_renderpass::*;
 pub use custom_ssbo::*;
-use wde_render::{assets::{MaterialsPluginRegister, RenderAssetsPlugin, TextureLoaderSettings}, components::{Camera, CameraController, CameraView}, core::{Extract, Render, RenderApp, RenderSet}};
+use wde_render::{assets::{MaterialsPluginRegister, Mesh, RenderAssetsPlugin, TextureLoaderSettings}, components::{Camera, CameraController}, core::{Extract, Render, RenderApp, RenderSet}};
 use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
 
 
 /// System to create the scene
-fn create_scene(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: ResMut<Assets<CustomMaterial>>) {
+fn create_scene(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: ResMut<Assets<CustomMaterialAsset>>) {
     // Creates a camera
-    commands.spawn(
-        (Camera {
-            transform: Transform::from_xyz(2.0, 2.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
-            view: CameraView::default()
-        },
+    commands.spawn((
+        (
+            Camera,
+            Transform::from_xyz(2.0, 2.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y)
+        ),
         CameraController::default()
     ));
 
@@ -31,12 +31,12 @@ fn create_scene(mut commands: Commands, asset_server: Res<AssetServer>, mut mate
         settings.format = WTextureFormat::Rgba8Unorm;
         settings.usages = WTextureUsages::TEXTURE_BINDING;
     });
-    let red_box = materials.add(CustomMaterial {
+    let red_box = materials.add(CustomMaterialAsset {
         label: "custom-material-red-box".to_string(),
         color: (1.0, 0.0, 0.0),
         texture: Some(box_texture),
     });
-    let blue = materials.add(CustomMaterial {
+    let blue = materials.add(CustomMaterialAsset {
         label: "custom-material-blue".to_string(),
         color: (0.0, 0.0, 1.0),
         texture: None,
@@ -45,26 +45,26 @@ fn create_scene(mut commands: Commands, asset_server: Res<AssetServer>, mut mate
     let cube = asset_server.load("examples/custom_forward_render/cube.obj");
 
     // Spawn the entities
-    commands.spawn(CustomBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        mesh: cube.clone(),
-        material: blue.clone()
-    });
-    commands.spawn(CustomBundle {
-        transform: Transform::from_xyz(5.0, 0.0, 0.0),
-        mesh: cube.clone(),
-        material: blue.clone()
-    });
-    commands.spawn(CustomBundle {
-        transform: Transform::from_xyz(10.0, 0.0, 0.0),
-        mesh: cube.clone(),
-        material: red_box.clone()
-    });
-    commands.spawn(CustomBundle {
-        transform: Transform::from_xyz(15.0, 0.0, 0.0),
-        mesh: suzanne.clone(),
-        material: red_box.clone()
-    });
+    commands.spawn((
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        Mesh(cube.clone()),
+        CustomMaterial(blue.clone())
+    ));
+    commands.spawn((
+        Transform::from_xyz(5.0, 0.0, 0.0),
+        Mesh(cube.clone()),
+        CustomMaterial(blue.clone())
+    ));
+    commands.spawn((
+        Transform::from_xyz(10.0, 0.0, 0.0),
+        Mesh(cube.clone()),
+        CustomMaterial(red_box.clone())
+    ));
+    commands.spawn((
+        Transform::from_xyz(15.0, 0.0, 0.0),
+        Mesh(suzanne.clone()),
+        CustomMaterial(red_box.clone())
+    ));
 }
 
 /// Plugin to add the custom forward render pass, pipeline and material
@@ -77,7 +77,7 @@ impl Plugin for CustomFeaturesPlugin {
 
         // Add the custom material
         app
-            .add_plugins(MaterialsPluginRegister::<CustomMaterial>::default());
+            .add_plugins(MaterialsPluginRegister::<CustomMaterialAsset>::default());
 
         // Add the custom ssbo
         app
@@ -85,7 +85,7 @@ impl Plugin for CustomFeaturesPlugin {
 
         // Add the custom pipeline
         app
-            .init_asset::<CustomRenderPipeline>()
+            .init_asset::<CustomRenderPipelineAsset>()
             .add_plugins(RenderAssetsPlugin::<GpuCustomRenderPipeline>::default());
 
         // Add the custom render pass
@@ -102,9 +102,9 @@ impl Plugin for CustomFeaturesPlugin {
             });
 
         // Create the pipeline
-        let pipeline: Handle<CustomRenderPipeline> = app.world_mut()
-            .get_resource::<AssetServer>().unwrap().add(CustomRenderPipeline);
-        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(pipeline);
+        let pipeline = app.world_mut()
+            .get_resource::<AssetServer>().unwrap().add(CustomRenderPipelineAsset);
+        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(CustomRenderPipeline(pipeline));
     }
 }
 

@@ -1,18 +1,18 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuMesh, Mesh, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTextureLayout};
+use crate::{assets::{GpuMesh, MeshAsset, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTextureLayout};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, WCommandBuffer}, instance::WRenderInstance, vertex::WVertex};
 
 use super::{GpuPbrLightingRenderPipeline, PbrDeferredTexturesLayout};
 
 #[derive(Resource, Default)]
 pub struct PbrLightingRenderPassMesh {
-    pub deferred_mesh: Option<Handle<Mesh>>
+    pub deferred_mesh: Option<Handle<MeshAsset>>
 }
 impl PbrLightingRenderPassMesh {
     // Creates the rendering mesh.
     pub fn init(assets_server: Res<AssetServer>, mut render_pass: ResMut<PbrLightingRenderPassMesh>) {
         // Create the 2d quad mesh
-        let deferred_mesh: Handle<Mesh> = assets_server.add(Mesh {
+        let deferred_mesh: Handle<MeshAsset> = assets_server.add(MeshAsset {
             label: "deferred-lighting-pass".to_string(),
             vertices: vec![
                 WVertex { position: [-1.0, 1.0, 0.0], uv: [0.0, 1.0], normal: [0.0, 0.0, 0.0] },

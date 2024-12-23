@@ -3,7 +3,9 @@ use crate::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipeline
 use wde_wgpu::{bind_group::BindGroupLayout, buffer::BufferBindingType, render_pipeline::WShaderStages};
 
 #[derive(Default, Asset, Clone, TypePath)]
-pub struct MarchingCubesComputePipeline;
+pub struct MarchingCubesComputePipelineAsset;
+#[derive(Component)]
+pub struct MarchingCubesComputePipeline(pub Handle<MarchingCubesComputePipelineAsset>);
 pub struct GpuMarchingCubesComputePipeline {
     pub cached_pipeline_index: CachedPipelineIndex,
     pub desc_gpu_layout: Option<BindGroupLayout>,
@@ -11,7 +13,7 @@ pub struct GpuMarchingCubesComputePipeline {
     pub vertices_layout: Option<BindGroupLayout>
 }
 impl RenderAsset for GpuMarchingCubesComputePipeline {
-    type SourceAsset = MarchingCubesComputePipeline;
+    type SourceAsset = MarchingCubesComputePipelineAsset;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>
     );

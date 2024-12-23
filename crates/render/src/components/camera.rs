@@ -23,12 +23,10 @@ impl Default for CameraView {
     }
 }
 
-/// Camera bundle with a position and a view.
-#[derive(Bundle, Default, Clone, Debug)]
-pub struct Camera {
-    pub transform: Transform,
-    pub view: CameraView,
-}
+/// Camera is defined by a position and a view.
+#[derive(Component, Default, Clone, Debug)]
+#[require(Transform, CameraView)]
+pub struct Camera;
 
 /// Camera uniform buffer.
 #[repr(C)]

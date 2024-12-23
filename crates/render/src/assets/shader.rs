@@ -1,4 +1,4 @@
-use bevy::{asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext}, prelude::*};
+use bevy::{asset::{io::Reader, AssetLoader, LoadContext}, prelude::*};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -26,11 +26,11 @@ impl AssetLoader for ShaderLoader {
     type Settings = ();
     type Error = ShaderLoaderError;
 
-    async fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader<'_>,
-        _settings: &'a Self::Settings,
-        load_context: &'a mut LoadContext<'_>,
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        _settings: &Self::Settings,
+        load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         debug!("Loading shader on the CPU from {}.", load_context.asset_path());
 

@@ -36,9 +36,9 @@ impl Plugin for PbrFeaturesPlugin {
 
         // Add the pbr pipelines
         app
-            .init_asset::<PbrGBufferRenderPipeline>()
+            .init_asset::<PbrGBufferRenderPipelineAsset>()
             .add_plugins(RenderAssetsPlugin::<GpuPbrGBufferRenderPipeline>::default())
-            .init_asset::<PbrLightingRenderPipeline>()
+            .init_asset::<PbrLightingRenderPipelineAsset>()
             .add_plugins(RenderAssetsPlugin::<GpuPbrLightingRenderPipeline>::default());
 
         // Add the pbr render passes
@@ -61,14 +61,14 @@ impl Plugin for PbrFeaturesPlugin {
             });
 
         // Create the gbuffer pipeline
-        let pipeline: Handle<PbrGBufferRenderPipeline> = app.world_mut()
-            .get_resource::<AssetServer>().unwrap().add(PbrGBufferRenderPipeline);
-        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(pipeline);
+        let pipeline = app.world_mut()
+            .get_resource::<AssetServer>().unwrap().add(PbrGBufferRenderPipelineAsset);
+        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(PbrGBufferRenderPipeline(pipeline));
 
         // Create the lighting pipeline
-        let pipeline: Handle<PbrLightingRenderPipeline> = app.world_mut()
-            .get_resource::<AssetServer>().unwrap().add(PbrLightingRenderPipeline);
-        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(pipeline);
+        let pipeline = app.world_mut()
+            .get_resource::<AssetServer>().unwrap().add(PbrLightingRenderPipelineAsset);
+        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(PbrLightingRenderPipeline(pipeline));
     }
 }
 

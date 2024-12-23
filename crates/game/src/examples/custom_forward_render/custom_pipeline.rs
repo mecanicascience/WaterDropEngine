@@ -2,21 +2,26 @@ use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
 use wde_render::{assets::{GpuMaterial, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
 
-use super::{CustomMaterial, CustomSsbo};
+use super::{CustomMaterialAsset, CustomSsbo};
 
 
 #[derive(Default, Asset, Clone, TypePath)]
 /// Render the entities with a custom material and a mesh.
-pub struct CustomRenderPipeline;
+pub struct CustomRenderPipelineAsset;
+
+#[allow(dead_code)]
+#[derive(Component)]
+pub struct CustomRenderPipeline(pub Handle<CustomRenderPipelineAsset>);
+
 /// Represents the gpu custom render pipeline.
 pub struct GpuCustomRenderPipeline {
     pub cached_pipeline_index: CachedPipelineIndex
 }
 impl RenderAsset for GpuCustomRenderPipeline {
-    type SourceAsset = CustomRenderPipeline;
+    type SourceAsset = CustomRenderPipelineAsset;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>,
-        SRes<CameraFeatureRender>, SRes<RenderAssets<GpuMaterial<CustomMaterial>>>, SRes<CustomSsbo>
+        SRes<CameraFeatureRender>, SRes<RenderAssets<GpuMaterial<CustomMaterialAsset>>>, SRes<CustomSsbo>
     );
 
     fn prepare_asset(

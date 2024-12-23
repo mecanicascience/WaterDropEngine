@@ -15,8 +15,8 @@ impl Plugin for MaterialsPlugin {
     fn build(&self, app: &mut App) {
         // Register the extract commands of the materials
         app
-            .add_plugins(MaterialsPluginRegister::<PbrMaterial>::default())
+            .add_plugins(MaterialsPluginRegister::<PbrMaterialAsset>::default())
             .add_plugins(MaterialsPluginRegister::<TerrainChunkMaterial>::default())
-            .add_plugins(MaterialsPluginRegister::<GizmoMaterial>::default());
+            .add_plugins(MaterialsPluginRegister::<GizmoMaterialAsset>::default());
     }
 }

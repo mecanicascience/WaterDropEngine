@@ -1,7 +1,7 @@
 use bevy::math::Vec3;
 use wde_wgpu::vertex::WVertex;
 
-use crate::assets::{Mesh, ModelBoundingBox};
+use crate::assets::{MeshAsset, ModelBoundingBox};
 
 pub struct CubeGizmoMesh;
 impl CubeGizmoMesh {
@@ -16,7 +16,7 @@ impl CubeGizmoMesh {
     /// # Returns
     /// 
     /// The cube gizmo mesh.
-    pub fn from(label: &str, scale: Vec3) -> Mesh {
+    pub fn from(label: &str, scale: Vec3) -> MeshAsset {
         let half_scale = scale / 2.0;
 
         // Create vertices
@@ -63,7 +63,7 @@ impl CubeGizmoMesh {
             max:  half_scale,
         };
 
-        Mesh {
+        MeshAsset {
             label: label.to_string(),
             vertices,
             indices,

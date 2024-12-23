@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wde_render::{assets::{materials::{PbrBundle, PbrMaterial}, meshes::PlaneMesh}, components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}};
+use wde_render::{assets::{materials::{PbrMaterial, PbrMaterialAsset}, meshes::PlaneMesh, Mesh}, components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}};
 
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
@@ -8,29 +8,30 @@ impl Plugin for GamePlugin {
     }
 }
 
-fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: ResMut<Assets<PbrMaterial>>) {
+fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: ResMut<Assets<PbrMaterialAsset>>) {
     // Main camera
-    commands.spawn(
-        (Camera {
-            transform: Transform::from_xyz(5.0, 20.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-            view: CameraView {
+    commands.spawn((
+        (
+            Camera,
+            Transform::from_xyz(5.0, 20.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+            CameraView {
                 zfar: 10000.0,
                 ..Default::default()
             }
-        },
+        ),
         CameraController::default(),
         ActiveCamera
     ));
 
     // Dummy pbr object
-    commands.spawn(PbrBundle {
-        transform: Transform::IDENTITY.with_scale(Vec3::splat(0.0)),
-        mesh: asset_server.add(PlaneMesh::from("dummy", [1.0, 1.0])),
-        material: materials.add(PbrMaterial {
+    commands.spawn((
+        Transform::IDENTITY.with_scale(Vec3::splat(0.0)),
+        Mesh(asset_server.add(PlaneMesh::from("dummy", [1.0, 1.0]))),
+        PbrMaterial(materials.add(PbrMaterialAsset {
             label: "dummy".to_string(),
             ..Default::default()
-        })
-    });
+        }))
+    ));
 
     // // Load the materials
     // let container_albedo = asset_server.load_with_settings("models/container_albedo.png", |settings: &mut TextureLoaderSettings| {

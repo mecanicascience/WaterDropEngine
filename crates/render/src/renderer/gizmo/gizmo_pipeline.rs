@@ -1,20 +1,22 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
-use crate::{assets::{materials::GizmoMaterial, GpuMaterial, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
+use crate::{assets::{materials::GizmoMaterialAsset, GpuMaterial, PrepareAssetError, RenderAsset, RenderAssets}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
 
 use super::GizmoSsbo;
 
 
 #[derive(Default, Asset, Clone, TypePath)]
-pub struct GizmoRenderPipeline;
+pub struct GizmoRenderPipelineAsset;
+#[derive(Component)]
+pub struct GizmoRenderPipeline(pub Handle<GizmoRenderPipelineAsset>);
 pub struct GpuGizmoRenderPipeline {
     pub cached_pipeline_index: CachedPipelineIndex
 }
 impl RenderAsset for GpuGizmoRenderPipeline {
-    type SourceAsset = GizmoRenderPipeline;
+    type SourceAsset = GizmoRenderPipelineAsset;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>, SRes<CameraFeatureRender>,
-        SRes<RenderAssets<GpuMaterial<GizmoMaterial>>>, SRes<GizmoSsbo>
+        SRes<RenderAssets<GpuMaterial<GizmoMaterialAsset>>>, SRes<GizmoSsbo>
     );
 
     fn prepare_asset(

@@ -6,12 +6,14 @@ use super::PbrDeferredTexturesLayout;
 
 
 #[derive(Default, Asset, Clone, TypePath)]
-pub struct PbrLightingRenderPipeline;
+pub struct PbrLightingRenderPipelineAsset;
+#[derive(Component)]
+pub struct PbrLightingRenderPipeline(pub Handle<PbrLightingRenderPipelineAsset>);
 pub struct GpuPbrLightingRenderPipeline {
     pub cached_pipeline_index: CachedPipelineIndex
 }
 impl RenderAsset for GpuPbrLightingRenderPipeline {
-    type SourceAsset = PbrLightingRenderPipeline;
+    type SourceAsset = PbrLightingRenderPipelineAsset;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>, SRes<PbrDeferredTexturesLayout>,
         SRes<DepthTextureLayout>, SRes<CameraFeatureRender>, SRes<LightsFeatureBuffer>

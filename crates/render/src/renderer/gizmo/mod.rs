@@ -19,7 +19,7 @@ impl Plugin for GizmoFeaturesPlugin {
 
         // Add the pbr pipelines
         app
-            .init_asset::<GizmoRenderPipeline>()
+            .init_asset::<GizmoRenderPipelineAsset>()
             .add_plugins(RenderAssetsPlugin::<GpuGizmoRenderPipeline>::default());
 
         // Add the pbr render passes
@@ -36,9 +36,9 @@ impl Plugin for GizmoFeaturesPlugin {
             });
 
         // Create the gizmo pipeline
-        let pipeline: Handle<GizmoRenderPipeline> = app.world_mut()
-            .get_resource::<AssetServer>().unwrap().add(GizmoRenderPipeline);
-        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(pipeline);
+        let pipeline: Handle<GizmoRenderPipelineAsset> = app.world_mut()
+            .get_resource::<AssetServer>().unwrap().add(GizmoRenderPipelineAsset);
+        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(GizmoRenderPipeline(pipeline));
     }
 }
 

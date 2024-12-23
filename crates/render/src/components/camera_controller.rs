@@ -75,7 +75,7 @@ fn update(
     (mut mouse_events, mut mouse_scroll_events): (EventReader<MouseMotion>, EventReader<MouseWheel>),
     (mut toggle_cursor_grab, mut mouse_cursor_grab): (Local<bool>, Local<bool>),
 ) {
-    let dt = time.delta_seconds();
+    let dt = time.delta_secs();
 
     if let Ok((mut transform, mut controller)) = camera_query.get_single_mut() {
         if !controller.initialized {
@@ -166,13 +166,13 @@ fn update(
                         continue;
                     }
 
-                    window.cursor.grab_mode = CursorGrabMode::Locked;
-                    window.cursor.visible = false;
+                    window.cursor_options.grab_mode = CursorGrabMode::Locked;
+                    window.cursor_options.visible = false;
                 }
             } else {
                 for mut window in &mut windows {
-                    window.cursor.grab_mode = CursorGrabMode::None;
-                    window.cursor.visible = true;
+                    window.cursor_options.grab_mode = CursorGrabMode::None;
+                    window.cursor_options.visible = true;
                 }
             }
         }

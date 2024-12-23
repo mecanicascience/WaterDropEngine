@@ -32,12 +32,13 @@ default-features = false
 features = ["png", "jpeg"]
 
 [dependencies.bevy]
-version = "0.14"
+version = "0.15"
 default-features = false
 features = [
     "multi_threaded",
     "bevy_asset",
     "bevy_winit",
+    "bevy_window"
 ]
 
 [features]

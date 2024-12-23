@@ -1,7 +1,7 @@
 use bevy::math::Vec3;
 use wde_wgpu::vertex::WVertex;
 
-use crate::assets::{Mesh, ModelBoundingBox};
+use crate::assets::{MeshAsset, ModelBoundingBox};
 
 pub struct CubeMesh;
 impl CubeMesh {
@@ -16,7 +16,7 @@ impl CubeMesh {
     /// # Returns
     /// 
     /// The cube mesh.
-    pub fn from(label: &str, length: f32) -> Mesh {
+    pub fn from(label: &str, length: f32) -> MeshAsset {
         let half_length = length / 2.0;
 
         // Create vertices
@@ -119,7 +119,7 @@ impl CubeMesh {
             max: Vec3::new( half_length,  half_length,  half_length),
         };
 
-        Mesh {
+        MeshAsset {
             label: label.to_string(),
             vertices,
             indices,

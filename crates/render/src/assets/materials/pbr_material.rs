@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 use wde_wgpu::{bind_group::WBufferBindingType, render_pipeline::WShaderStages};
 
-use crate::assets::{Material, MaterialBuilder, Mesh, Texture};
+use crate::assets::{Material, MaterialBuilder, Texture};
 
 #[derive(Asset, Clone, TypePath)]
 /// Describes a physically based rendering material.
-pub struct PbrMaterial {
+pub struct PbrMaterialAsset {
     /// The label of the material instance.
     pub label: String,
 
@@ -19,9 +19,9 @@ pub struct PbrMaterial {
     /// The specular texture of the material instance. If `None`, the material will use the specular intensity.
     pub specular_t: Option<Handle<Texture>>,
 }
-impl Default for PbrMaterial {
+impl Default for PbrMaterialAsset {
     fn default() -> Self {
-        PbrMaterial {
+        PbrMaterialAsset {
             label: "pbr-material".to_string(),
 
             albedo:   (1.0, 1.0, 1.0, 1.0),
@@ -32,6 +32,10 @@ impl Default for PbrMaterial {
         }
     }
 }
+#[derive(Component)]
+/// Describes a physically based rendering material.
+pub struct PbrMaterial(pub Handle<PbrMaterialAsset>);
+
 
 #[repr(C)]
 #[derive(Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -45,7 +49,7 @@ pub(crate) struct PbrMaterialUniform {
     /// Unused padding.
     _padding: [f32; 3]
 }
-impl Material for PbrMaterial {
+impl Material for PbrMaterialAsset {
     fn describe(&self, builder: &mut MaterialBuilder) {
         // Create the uniform buffer
         let uniform = PbrMaterialUniform {
@@ -73,12 +77,4 @@ impl Material for PbrMaterial {
     fn label(&self) -> String {
         self.label.to_string() + "-material"
     }
-}
-
-#[derive(Bundle)]
-/// A bundle of components for a physically based rendering entity.
-pub struct PbrBundle {
-    pub transform: Transform,
-    pub mesh: Handle<Mesh>,
-    pub material: Handle<PbrMaterial>,
 }

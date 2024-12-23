@@ -1,8 +1,8 @@
 use bevy::{ecs::world::CommandQueue, prelude::*, tasks::{block_on, futures_lite::future, AsyncComputeTaskPool, Task}, utils::HashMap};
-use crate::{assets::{materials::{GizmoBundle, GizmoMaterial}, meshes::CubeGizmoMesh, Buffer, GpuBuffer, RenderAssets, RenderAssetsPlugin}, core::{extract_macros::ExtractWorld, DeviceLimits, Extract, Render, RenderApp, RenderSet}, pipelines::{CachedPipelineStatus, PipelineManager}};
+use crate::{assets::{materials::{GizmoMaterial, GizmoMaterialAsset}, meshes::CubeGizmoMesh, Buffer, GpuBuffer, Mesh, RenderAssets, RenderAssetsPlugin}, core::{extract_macros::ExtractWorld, DeviceLimits, Extract, Render, RenderApp, RenderSet}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::{BindGroup, WgpuBindGroup}, buffer::BufferUsage, command_buffer::WCommandBuffer, instance::WRenderInstance, vertex::WVertex};
 
-use super::mc_compute_pipeline::{GpuMarchingCubesComputePipeline, MarchingCubesComputePipeline};
+use super::mc_compute_pipeline::{GpuMarchingCubesComputePipeline, MarchingCubesComputePipeline, MarchingCubesComputePipelineAsset};
 use noise::NoiseFn;
 
 pub type ChunkIndex = (i32, i32, i32);
@@ -86,7 +86,7 @@ impl Plugin for MarchingCubesComputePass {
         // Manage chunks creation / deletion
         app
             .init_resource::<MarchingCubesHandler>()
-            .add_systems(Update, (manage_chunks.run_if(run_once()), handle_tasks));
+            .add_systems(Update, (manage_chunks.run_if(run_once), handle_tasks));
 
         // Manage chunks data extraction to the render thread
         app.get_sub_app_mut(RenderApp).unwrap()
@@ -95,7 +95,7 @@ impl Plugin for MarchingCubesComputePass {
 
         // Manage chunks data generation on the render thread
         app
-            .init_asset::<MarchingCubesComputePipeline>()
+            .init_asset::<MarchingCubesComputePipelineAsset>()
             .add_plugins(RenderAssetsPlugin::<GpuMarchingCubesComputePipeline>::default());
         app.get_sub_app_mut(RenderApp).unwrap()
             .add_systems(Render, generate_chunks_compute.in_set(RenderSet::PrepareAssets));
@@ -103,9 +103,11 @@ impl Plugin for MarchingCubesComputePass {
 
     fn finish(&self, app: &mut App) {
         // Create the compute pipeline
-        let pipeline: Handle<MarchingCubesComputePipeline> = app.world_mut()
-            .get_resource::<AssetServer>().unwrap().add(MarchingCubesComputePipeline);
-        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(pipeline);
+        let pipeline = app.world_mut()
+            .get_resource::<AssetServer>().unwrap().add(MarchingCubesComputePipelineAsset);
+        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(MarchingCubesComputePipeline(pipeline));
+
+        
 
         // Create the staging buffer
         let staging_buffer = Buffer {
@@ -132,7 +134,7 @@ fn manage_chunks(
     mut commands: Commands,
     gpu_limits: Res<DeviceLimits>,
     asset_server: Res<AssetServer>,
-    mut gizmo_materials: ResMut<Assets<GizmoMaterial>>
+    mut gizmo_materials: ResMut<Assets<GizmoMaterialAsset>>
 ) {
     // Chunks grid
     let chunks_count = 5;
@@ -212,7 +214,7 @@ fn manage_chunks(
     }
 
     // Draw a gizmo corresponding to each bounding box
-    let gizmo_edges = gizmo_materials.add(GizmoMaterial {
+    let gizmo_edges = gizmo_materials.add(GizmoMaterialAsset {
         label: "gizmo-edges".to_string(),
         color: [0.0, 1.0, 0.0, 1.0]
     });
@@ -224,11 +226,11 @@ fn manage_chunks(
                 0.0,
                 -chunk_length[2] * (chunks_count as f32) / 2.0 + k as f32 * chunk_length[2]
             );
-            commands.spawn(GizmoBundle {
-                transform: Transform::from_translation(translation),
-                mesh: cube.clone(),
-                material: gizmo_edges.clone()
-            });
+            commands.spawn((
+                Transform::from_translation(translation),
+                Mesh(cube.clone()),
+                GizmoMaterial(gizmo_edges.clone())
+            ));
         }
     }
 }

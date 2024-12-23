@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use crate::{assets::{materials::PbrMaterial, GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::extract_macros::ExtractWorld, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
+use crate::{assets::{materials::{PbrMaterial, PbrMaterialAsset}, GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, MeshAsset, RenderAssets}, components::TransformUniform, core::extract_macros::ExtractWorld, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer}, instance::WRenderInstance};
 
 use super::{GpuPbrGBufferRenderPipeline, PbrDeferredTextures, PbrSsbo};
 
 pub struct PbrGBufferRenderBatch {
-    mesh: Handle<Mesh>,
-    material: Handle<PbrMaterial>,
+    mesh: Handle<MeshAsset>,
+    material: Handle<PbrMaterialAsset>,
     first: usize,
     count: usize,
     index_count: usize,
@@ -16,7 +16,7 @@ pub struct PbrGBufferRenderBatch {
 #[derive(Resource)]
 pub struct PbrGBufferRenderPass {
     /// The order of the batches: (mesh, material) -> [batch index].
-    pub batches_order: HashMap<(AssetId<Mesh>, AssetId<PbrMaterial>), Vec<usize>>,
+    pub batches_order: HashMap<(AssetId<MeshAsset>, AssetId<PbrMaterialAsset>), Vec<usize>>,
     /// The render batches.
     pub batches: Vec<PbrGBufferRenderBatch>,
 }
@@ -24,8 +24,8 @@ impl PbrGBufferRenderPass {
     /// Create the batches with the correct mesh and material.
     pub fn create_batches(
         mut pass: ResMut<PbrGBufferRenderPass>, render_instance: Res<WRenderInstance<'static>>,
-        entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>, &Handle<PbrMaterial>)>>,
-        meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<PbrMaterial>>>,
+        entities: ExtractWorld<Query<(&Transform, &Mesh, &PbrMaterial)>>,
+        meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<PbrMaterialAsset>>>,
         buffers: Res<RenderAssets<GpuBuffer>>, ssbo: Res<PbrSsbo>
     ) {
         // Clear the batches of the previous frame
@@ -48,16 +48,16 @@ impl PbrGBufferRenderPass {
         ssbo_bf.buffer.map_write(&render_instance, |mut view| {
             let mut first = 0;
             let mut count = 1;
-            let mut last_mesh: Option<Handle<Mesh>> = None;
-            let mut last_material: Option<Handle<PbrMaterial>> = None;
+            let mut last_mesh: Option<Handle<MeshAsset>> = None;
+            let mut last_material: Option<Handle<PbrMaterialAsset>> = None;
             let data = view.as_mut_ptr() as *mut TransformUniform;
 
-            for (transform, mesh_handle, material_handle) in entities.iter() {
+            for (transform, mesh, material) in entities.iter() {
                 // Check if new element in same batch
                 let last_mesh_ref = last_mesh.as_ref();
                 let last_material_ref = last_material.as_ref();
                 if last_mesh_ref.is_some() && last_material_ref.is_some() {
-                    if mesh_handle.id() == last_mesh_ref.unwrap().id() && material_handle.id() == last_material_ref.unwrap().id() {
+                    if mesh.0.id() == last_mesh_ref.unwrap().id() && material.0.id() == last_material_ref.unwrap().id() {
                         // Update the ssbo
                         let transform = TransformUniform::new(transform);
                         unsafe {
@@ -98,12 +98,12 @@ impl PbrGBufferRenderPass {
                 // Update the last mesh and ssbo if loaded
                 let mut updated_mesh = false;
                 let mut updated_material = false;
-                if meshes.get(mesh_handle).is_some() {
-                    last_mesh = Some(mesh_handle.clone_weak());
+                if meshes.get(&mesh.0).is_some() {
+                    last_mesh = Some(mesh.0.clone_weak());
                     updated_mesh = true;
                 }
-                if materials.get(material_handle).is_some() {
-                    last_material = Some(material_handle.clone_weak());
+                if materials.get(&material.0).is_some() {
+                    last_material = Some(material.0.clone_weak());
                     updated_material = true;
                 }
                 if updated_mesh && updated_material {
@@ -151,7 +151,7 @@ impl PbrGBufferRenderPass {
         ),
         (camera_layout, ssbo) : (Res<CameraFeatureRender>, Res<PbrSsbo>),
         (meshes, textures, materials): (
-            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<PbrMaterial>>>
+            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<PbrMaterialAsset>>>
         ),
         (gbuffer_pipeline, render_mesh_pass, depth_texture): (
             Res<RenderAssets<GpuPbrGBufferRenderPipeline>>, Res<PbrGBufferRenderPass>, Res<DepthTexture>

@@ -29,7 +29,7 @@ impl Plugin for SceneResourcesPlugin {
             .init_asset_loader::<TextureLoader>()
             .init_asset::<Texture>()
             .init_asset_loader::<MeshLoader>()
-            .init_asset::<Mesh>()
+            .init_asset::<MeshAsset>()
             .init_asset_loader::<ShaderLoader>()
             .init_asset::<Shader>()
             .init_asset::<Buffer>();

@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use wde_wgpu::{bind_group::WBufferBindingType, render_pipeline::WShaderStages};
-use wde_render::assets::{Material, MaterialBuilder, Mesh, Texture};
+use wde_render::assets::{Material, MaterialBuilder, Texture};
 
 #[derive(Asset, Clone, TypePath)]
 /// Describes a physically based rendering material.
-pub struct CustomMaterial {
+pub struct CustomMaterialAsset {
     /// The label of the material instance.
     pub label: String,
     /// The color of the material instance.
@@ -12,9 +12,9 @@ pub struct CustomMaterial {
     /// The texture of the material instance. If none, a dummy texture is used.
     pub texture: Option<Handle<Texture>>,
 }
-impl Default for CustomMaterial {
+impl Default for CustomMaterialAsset {
     fn default() -> Self {
-        CustomMaterial {
+        CustomMaterialAsset {
             label: "custom-material".to_string(),
             color: (1.0, 1.0, 1.0),
             texture: None,
@@ -30,7 +30,7 @@ pub(crate) struct CustomMaterialUniform {
     /// Whether the material has a texture (1.0) or not (0.0).
     pub has_texture: f32,
 }
-impl Material for CustomMaterial {
+impl Material for CustomMaterialAsset {
     fn describe(&self, builder: &mut MaterialBuilder) {
         // Create the uniform buffer
         let uniform = CustomMaterialUniform {
@@ -50,10 +50,6 @@ impl Material for CustomMaterial {
     }
 }
 
-#[derive(Bundle)]
-/// A bundle of components for a custom material entity.
-pub struct CustomBundle {
-    pub transform: Transform,
-    pub mesh: Handle<Mesh>,
-    pub material: Handle<CustomMaterial>,
-}
+#[derive(Component)]
+/// A component that holds a handle to a custom material asset.
+pub struct CustomMaterial(pub Handle<CustomMaterialAsset>);

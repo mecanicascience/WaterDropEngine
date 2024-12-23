@@ -154,7 +154,7 @@ impl Plugin for RenderCorePlugin {
                 .set_extract(main_extract); // Register the extract commands
 
             // Init wgpu instance
-            render_app.add_systems(Extract, (init_surface.run_if(run_once()), extract_surface_size).chain());
+            render_app.add_systems(Extract, (init_surface.run_if(run_once), extract_surface_size).chain());
 
             // Add present system
             render_app

@@ -1,12 +1,12 @@
 use bevy::prelude::*;
-use wde_render::{assets::{GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, RenderAssets}, components::TransformUniform, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
+use wde_render::{assets::{GpuBuffer, GpuMaterial, GpuMesh, GpuTexture, Mesh, MeshAsset, RenderAssets}, components::TransformUniform, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer}, instance::WRenderInstance};
 
-use super::{GpuCustomRenderPipeline, CustomMaterial, CustomSsbo};
+use super::{CustomMaterial, CustomMaterialAsset, CustomSsbo, GpuCustomRenderPipeline};
 
 pub struct CustomRenderBatch {
-    mesh: Handle<Mesh>,
-    material: Handle<CustomMaterial>,
+    mesh: Handle<MeshAsset>,
+    material: Handle<CustomMaterialAsset>,
     first: usize,
     count: usize,
     index_count: usize,
@@ -20,8 +20,8 @@ impl CustomRenderPass {
     /// Create the batches with the correct mesh and material.
     pub fn create_batches(
         mut pass: ResMut<CustomRenderPass>, render_instance: Res<WRenderInstance<'static>>,
-        entities: ExtractWorld<Query<(&Transform, &Handle<Mesh>, &Handle<CustomMaterial>)>>,
-        meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<CustomMaterial>>>,
+        entities: ExtractWorld<Query<(&Transform, &Mesh, &CustomMaterial)>>,
+        meshes: Res<RenderAssets<GpuMesh>>, materials: Res<RenderAssets<GpuMaterial<CustomMaterialAsset>>>,
         buffers: Res<RenderAssets<GpuBuffer>>, ssbo: Res<CustomSsbo>
     ) {
         // Clear the batches of the previous frame
@@ -43,16 +43,16 @@ impl CustomRenderPass {
         ssbo_bf.buffer.map_write(&render_instance, |mut view| {
             let mut first = 0;
             let mut count = 1;
-            let mut last_mesh: Option<Handle<Mesh>> = None;
-            let mut last_material: Option<Handle<CustomMaterial>> = None;
+            let mut last_mesh: Option<Handle<MeshAsset>> = None;
+            let mut last_material: Option<Handle<CustomMaterialAsset>> = None;
             let data = view.as_mut_ptr() as *mut TransformUniform;
 
-            for (transform, mesh_handle, material_handle) in entities.iter() {
+            for (transform, mesh, material) in entities.iter() {
                 // Check if new element in same batch
                 let last_mesh_ref = last_mesh.as_ref();
                 let last_material_ref = last_material.as_ref();
                 if last_mesh_ref.is_some() && last_material_ref.is_some() {
-                    if mesh_handle.id() == last_mesh_ref.unwrap().id() && material_handle.id() == last_material_ref.unwrap().id() {
+                    if mesh.0.id() == last_mesh_ref.unwrap().id() && material.0.id() == last_material_ref.unwrap().id() {
                         // Update the ssbo
                         let transform = TransformUniform::new(transform);
                         unsafe {
@@ -87,12 +87,12 @@ impl CustomRenderPass {
                 // Update the last mesh and ssbo if loaded
                 let mut updated_mesh = false;
                 let mut updated_material = false;
-                if meshes.get(mesh_handle).is_some() {
-                    last_mesh = Some(mesh_handle.clone_weak());
+                if meshes.get(&mesh.0).is_some() {
+                    last_mesh = Some(mesh.0.clone_weak());
                     updated_mesh = true;
                 }
-                if materials.get(material_handle).is_some() {
-                    last_material = Some(material_handle.clone_weak());
+                if materials.get(&material.0).is_some() {
+                    last_material = Some(material.0.clone_weak());
                     updated_material = true;
                 }
                 if updated_mesh && updated_material {
@@ -135,7 +135,7 @@ impl CustomRenderPass {
         ),
         (camera_layout, ssbo) : (Res<CameraFeatureRender>, Res<CustomSsbo>),
         (meshes, textures, materials): (
-            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<CustomMaterial>>>
+            Res<RenderAssets<GpuMesh>>, Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuMaterial<CustomMaterialAsset>>>
         ),
         (mesh_pipeline, render_mesh_pass, depth_texture): (
             Res<RenderAssets<GpuCustomRenderPipeline>>, Res<CustomRenderPass>, Res<DepthTexture>

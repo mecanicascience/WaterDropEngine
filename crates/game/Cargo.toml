@@ -23,7 +23,7 @@ wde-wgpu = { path = "../wgpu" }
 bytemuck = { version = "1.14", features = [ "derive" ] }
 
 [dependencies.bevy]
-version = "0.14"
+version = "0.15"
 default-features = false
 features = [
     "multi_threaded",

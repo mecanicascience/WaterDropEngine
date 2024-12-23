@@ -23,8 +23,9 @@ wgpu = { version = "22.1", features = [ "serde" ] }
 bytemuck = { version = "1.12", features = [ "derive" ] }
 
 [dependencies.bevy]
-version = "0.14"
+version = "0.15"
 default-features = false
 features = [
-    "multi_threaded"
+    "multi_threaded",
+    "bevy_window"
 ]

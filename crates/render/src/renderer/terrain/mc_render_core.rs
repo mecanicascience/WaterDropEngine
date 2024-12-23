@@ -2,22 +2,22 @@ use bevy::prelude::*;
 use crate::{assets::{GpuBuffer, GpuTexture, RenderAssets, RenderAssetsPlugin}, core::{RenderApp, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, renderer::depth::DepthTexture};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp}, instance::WRenderInstance};
 
-use super::{mc_compute_core::MarchingCubesHandlerGPU, mc_render_pipeline::{GpuMarchingCubesRenderPipeline, MarchingCubesRenderPipeline}};
+use super::{mc_compute_core::MarchingCubesHandlerGPU, mc_render_pipeline::{GpuMarchingCubesRenderPipeline, MarchingCubesRenderPipeline, MarchingCubesRenderPipelineAsset}};
 
 pub struct MarchingCubesRenderPass;
 impl Plugin for MarchingCubesRenderPass {
     fn build(&self, app: &mut App) {
         // Pipelines
         app
-            .init_asset::<MarchingCubesRenderPipeline>()
+            .init_asset::<MarchingCubesRenderPipelineAsset>()
             .add_plugins(RenderAssetsPlugin::<GpuMarchingCubesRenderPipeline>::default());
     }
 
     fn finish(&self, app: &mut App) {
         // Create the render pipeline
-        let pipeline: Handle<MarchingCubesRenderPipeline> = app.world_mut()
-            .get_resource::<AssetServer>().unwrap().add(MarchingCubesRenderPipeline);
-        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(pipeline);
+        let pipeline = app.world_mut()
+            .get_resource::<AssetServer>().unwrap().add(MarchingCubesRenderPipelineAsset);
+        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(MarchingCubesRenderPipeline(pipeline));
     }
 }
 

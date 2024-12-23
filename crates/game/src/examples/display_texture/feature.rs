@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wde_render::{assets::{GpuMesh, GpuTexture, Mesh, ModelBoundingBox, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
+use wde_render::{assets::{GpuMesh, GpuTexture, MeshAsset, ModelBoundingBox, RenderAssets, Texture}, core::{extract_macros::ExtractWorld, Extract, Render, RenderApp, RenderSet, SwapchainFrame}, pipelines::{CachedPipelineIndex, CachedPipelineStatus, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::{bind_group::{BindGroup, BindGroupLayout, WgpuBindGroup, WgpuBindGroupLayout}, command_buffer::{RenderPassBuilder, RenderPassColorAttachment, WCommandBuffer}, instance::WRenderInstance, render_pipeline::WShaderStages, vertex::WVertex};
 
 use super::component::DisplayTextureComponent;
@@ -42,7 +42,7 @@ impl FromWorld for DisplayTexturePipeline {
 
 #[derive(Resource, Default)]
 pub struct DisplayTextureMesh {
-    pub mesh: Handle<Mesh>,
+    pub mesh: Handle<MeshAsset>,
 }
 
 #[derive(Resource, Default)]
@@ -58,13 +58,13 @@ impl Plugin for DisplayTextureFeature {
             render_app
                 .init_resource::<DisplayTextureHolder>()
                 .add_systems(Extract, extract_texture)
-                .add_systems(Render, DisplayTexturePipeline::build.in_set(RenderSet::Prepare).run_if(run_once()))
+                .add_systems(Render, DisplayTexturePipeline::build.in_set(RenderSet::Prepare).run_if(run_once))
                 .add_systems(Render, prepare_texture_bind_group.in_set(RenderSet::BindGroups))
                 .add_systems(Render, render_texture.in_set(RenderSet::Render));
         }
 
         // Create the 2d quad mesh
-        let post_process_mesh: Handle<Mesh> = app.world_mut().add_asset(Mesh {
+        let post_process_mesh: Handle<MeshAsset> = app.world_mut().add_asset(MeshAsset {
             label: "PostProcessQuad".to_string(),
             vertices: vec![
                 WVertex { position: [-1.0, 1.0, 0.0], uv: [0.0, 1.0], normal: [0.0, 0.0, 0.0] },

@@ -1,4 +1,4 @@
-use bevy::{asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext}, ecs::system::lifetimeless::SRes, prelude::*, utils::tracing::error};
+use bevy::{asset::{io::Reader, AssetLoader, LoadContext}, ecs::system::lifetimeless::SRes, prelude::*, utils::tracing::error};
 use image::GenericImageView;
 use thiserror::Error;
 use serde::{Deserialize, Serialize};
@@ -61,11 +61,11 @@ impl AssetLoader for TextureLoader {
     type Settings = TextureLoaderSettings;
     type Error = TextureLoaderError;
 
-    async fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader<'_>,
-        settings: &'a TextureLoaderSettings,
-        load_context: &'a mut LoadContext<'_>,
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        settings: &TextureLoaderSettings,
+        load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         debug!("Loading texture on the CPU from {}.", load_context.asset_path());
 
