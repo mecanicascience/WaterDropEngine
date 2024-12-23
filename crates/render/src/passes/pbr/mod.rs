@@ -18,6 +18,8 @@ pub use pbr_textures::*;
 
 use crate::{assets::RenderAssetsPlugin, core::{Extract, Render, RenderApp, RenderSet}};
 
+use super::render_graph::RenderGraph;
+
 pub(crate) struct PbrFeaturesPlugin;
 impl Plugin for PbrFeaturesPlugin {
     fn build(&self, app: &mut App) {
@@ -41,15 +43,18 @@ impl Plugin for PbrFeaturesPlugin {
             .init_asset::<PbrLightingRenderPipelineAsset>()
             .add_plugins(RenderAssetsPlugin::<GpuPbrLightingRenderPipeline>::default());
 
-        // Add the pbr render passes
+        // Init the render graph
         app
             .init_resource::<PbrLightingRenderPassMesh>()
             .add_systems(Startup, PbrLightingRenderPassMesh::init);
         app.get_sub_app_mut(RenderApp).unwrap()
-            .init_resource::<PbrLightingRenderPassMesh>()
-            .add_systems(Extract,
-                (PbrLightingRenderPassMesh::extract_mesh, PbrGBufferRenderPass::create_batches)
-            .chain());
+            .init_resource::<PbrLightingRenderPassMesh>();
+
+        // Add the pbr render passes
+        let mut render_graph = app.get_sub_app_mut(RenderApp).unwrap()
+            .world_mut().get_resource_mut::<RenderGraph>().unwrap();
+        render_graph.add_pass::<PbrGBufferRenderPass>(0);
+        render_graph.add_pass::<PbrLightingRenderPass>(1);
     }
 
     fn finish(&self, app: &mut App) {

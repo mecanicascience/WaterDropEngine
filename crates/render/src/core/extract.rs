@@ -2,6 +2,8 @@
 
 use bevy::{log::Level, prelude::*, utils::tracing::span};
 
+use crate::passes::render_graph::RenderGraph;
+
 use super::{EmptyWorld, Extract, MainWorld};
 
 /// The extract system for the renderer.
@@ -16,6 +18,15 @@ pub(crate) fn main_extract(main_world: &mut World, render_world: &mut World) {
 
     {
         let _extract_span = span!(Level::DEBUG, "extract").entered();
+
+        // Run the render graph extract
+        // We bypass the render graph system because we need to extract the render graph before running the extract schedule
+        render_world.resource_scope(|render_world, mut graph: Mut<RenderGraph>| {
+            let main_world = &mut render_world.get_resource_mut::<MainWorld>().unwrap().0 as *mut World;
+            let main_world = unsafe { &mut *main_world };
+            graph.extract(main_world, render_world);
+        });
+
         // Run the extract schedule
         render_world.run_schedule(Extract);
     }

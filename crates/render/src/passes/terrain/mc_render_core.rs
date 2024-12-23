@@ -1,47 +1,20 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuBuffer, GpuTexture, RenderAssets, RenderAssetsPlugin}, core::{RenderApp, SwapchainFrame}, features::CameraFeatureRender, pipelines::{CachedPipelineStatus, PipelineManager}, passes::depth::DepthTexture};
+use crate::{assets::{GpuBuffer, GpuTexture, RenderAssets}, core::SwapchainFrame, features::CameraFeatureRender, passes::{depth::DepthTexture, render_graph::RenderPass}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp}, instance::WRenderInstance};
 
-use super::{mc_compute_core::MarchingCubesHandlerGPU, mc_render_pipeline::{GpuMarchingCubesRenderPipeline, MarchingCubesRenderPipeline, MarchingCubesRenderPipelineAsset}};
+use super::{mc_compute_core::MarchingCubesHandlerGPU, mc_render_pipeline::GpuMarchingCubesRenderPipeline};
 
+#[derive(Default)]
 pub struct MarchingCubesRenderPass;
-impl Plugin for MarchingCubesRenderPass {
-    fn build(&self, app: &mut App) {
-        // Pipelines
-        app
-            .init_asset::<MarchingCubesRenderPipelineAsset>()
-            .add_plugins(RenderAssetsPlugin::<GpuMarchingCubesRenderPipeline>::default());
-    }
-
-    fn finish(&self, app: &mut App) {
-        // Create the render pipeline
-        let pipeline = app.world_mut()
-            .get_resource::<AssetServer>().unwrap().add(MarchingCubesRenderPipelineAsset);
-        app.get_sub_app_mut(RenderApp).unwrap().world_mut().spawn(MarchingCubesRenderPipeline(pipeline));
-    }
-}
-
-impl MarchingCubesRenderPass {
-    /// Render the different batches.
-    pub fn render_terrain(
-        (render_instance, swapchain_frame, pipeline_manager): (
-            Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
-        ),
-        camera_layout : Res<CameraFeatureRender>,
-        (textures, buffers): (
-            Res<RenderAssets<GpuTexture>>, Res<RenderAssets<GpuBuffer>>
-        ),
-        (mc_pipeline, depth_texture): (
-            Res<RenderAssets<GpuMarchingCubesRenderPipeline>>, Res<DepthTexture>
-        ),
-        handler: Res<MarchingCubesHandlerGPU>,
-    ) {
+impl RenderPass for MarchingCubesRenderPass {
+    fn render(&self, render_world: &World) {
         // Get the render instance and swapchain frame
+        let render_instance = render_world.get_resource::<WRenderInstance<'static>>().unwrap();
         let render_instance = render_instance.data.read().unwrap();
-        let swapchain_frame = swapchain_frame.data.as_ref().unwrap();
 
         // Check if depth texture is ready
-        let depth_texture = match textures.get(&depth_texture.texture) {
+        let textures = render_world.get_resource::<RenderAssets<GpuTexture>>().unwrap();
+        let depth_texture = match textures.get(&render_world.get_resource::<DepthTexture>().unwrap().texture) {
             Some(tex) => if render_instance.surface_config.as_ref().unwrap().width == tex.texture.size.0
                 && render_instance.surface_config.as_ref().unwrap().height == tex.texture.size.1 {
                 tex
@@ -52,12 +25,14 @@ impl MarchingCubesRenderPass {
         };
 
         // Check if pipeline is ready
-        let mcbuffer_pipeline = match mc_pipeline.iter().next() {
+        let mcbuffer_pipeline = match render_world.get_resource::<RenderAssets<GpuMarchingCubesRenderPipeline>>().unwrap().iter().next() {
             Some((_, pipeline)) => pipeline,
             None => return
         };
 
         // Test if swapchain frame and depth texture have the same size
+        let swapchain_frame = render_world.get_resource::<SwapchainFrame>().unwrap();
+        let swapchain_frame = swapchain_frame.data.as_ref().unwrap();
         if swapchain_frame.texture.texture.size().width != depth_texture.texture.size.0 || swapchain_frame.texture.texture.size().height != depth_texture.texture.size.1 {
             warn!("Swapchain frame and depth texture have different sizes: {:?} vs {:?}.", swapchain_frame.texture.texture.size(), depth_texture.texture.size);
             return;
@@ -80,18 +55,21 @@ impl MarchingCubesRenderPass {
             });
 
             // Render the mesh
+            let pipeline_manager = render_world.get_resource::<PipelineManager>().unwrap();
             if let (
                 CachedPipelineStatus::OkRender(pipeline),
                 Some(camera_bg)
             ) = (
                 pipeline_manager.get_pipeline(mcbuffer_pipeline.cached_pipeline_index),
-                &camera_layout.bind_group
+                &render_world.get_resource::<CameraFeatureRender>().unwrap().bind_group
             ) {
                 // Set the camera bind group
                 render_pass.set_bind_group(0, camera_bg);
 
                 // Set the pipeline
                 if render_pass.set_pipeline(pipeline).is_ok() {
+                    let handler = render_world.get_resource::<MarchingCubesHandlerGPU>().unwrap();
+                    let buffers = render_world.get_resource::<RenderAssets<GpuBuffer>>().unwrap();
                     for (_, chunk) in handler.active_chunks.iter() {
                         // Check if the chunk is generated
                         if !chunk.generated {

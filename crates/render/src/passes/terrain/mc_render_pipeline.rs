@@ -5,7 +5,7 @@ use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
 
 #[derive(Default, Asset, Clone, TypePath)]
 pub struct MarchingCubesRenderPipelineAsset;
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct MarchingCubesRenderPipeline(pub Handle<MarchingCubesRenderPipelineAsset>);
 pub struct GpuMarchingCubesRenderPipeline {
     pub cached_pipeline_index: CachedPipelineIndex

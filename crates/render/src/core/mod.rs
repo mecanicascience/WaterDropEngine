@@ -15,7 +15,7 @@ use wde_wgpu::instance::{create_instance, WLimits, WRenderTexture};
 use window::{extract_surface_size, send_surface_resized, SurfaceResized, WindowPlugins};
 use std::ops::{Deref, DerefMut};
 
-use crate::{components:: RenderComponentsPlugin, features::RenderFeaturesPlugin, pipelines::PipelineManagerPlugin, passes::RendererPlugin};
+use crate::{components:: RenderComponentsPlugin, features::RenderFeaturesPlugin, passes::{render_graph::RenderGraph, RendererPlugin}, pipelines::PipelineManagerPlugin};
 
 
 /// Stores the main world for rendering as a resource.
@@ -152,6 +152,11 @@ impl Plugin for RenderCorePlugin {
                 .add_systems(Render, 
                     apply_extract_commands.in_set(RenderSet::ExtractCommands)) // Apply the extract commands
                 .set_extract(main_extract); // Register the extract commands
+
+            // Add render graph system
+            render_app
+                .init_resource::<RenderGraph>()
+                .add_systems(Render, RenderGraph::render.in_set(RenderSet::Render));
 
             // Init wgpu instance
             render_app.add_systems(Extract, (init_surface.run_if(run_once), extract_surface_size).chain());

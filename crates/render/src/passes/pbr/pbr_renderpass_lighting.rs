@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::{assets::{GpuMesh, MeshAsset, ModelBoundingBox, RenderAssets}, core::{extract_macros::ExtractWorld, SwapchainFrame}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineStatus, PipelineManager}, passes::depth::DepthTextureLayout};
+use crate::{assets::{GpuMesh, MeshAsset, ModelBoundingBox, RenderAssets}, core::SwapchainFrame, features::{CameraFeatureRender, LightsFeatureBuffer}, passes::{depth::DepthTextureLayout, render_graph::RenderPass}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, WCommandBuffer}, instance::WRenderInstance, vertex::WVertex};
 
 use super::{GpuPbrLightingRenderPipeline, PbrDeferredTexturesLayout};
@@ -28,38 +28,29 @@ impl PbrLightingRenderPassMesh {
         });
         render_pass.deferred_mesh = Some(deferred_mesh);
     }
+}
 
-    /// Extract the texture handle every frame
-    pub fn extract_mesh(mesh_cpu: ExtractWorld<Res<PbrLightingRenderPassMesh>>, mut render_pass: ResMut<PbrLightingRenderPassMesh>) {
+#[derive(Resource, Default)]
+pub struct PbrLightingRenderPass;
+impl RenderPass for PbrLightingRenderPass {
+    fn extract(&self, main_world: &mut World, render_world: &mut World) {
+        let mesh_cpu = main_world.get_resource::<PbrLightingRenderPassMesh>().unwrap();
+        let mut render_pass = render_world.get_resource_mut::<PbrLightingRenderPassMesh>().unwrap();
         render_pass.deferred_mesh = None;
         if let Some(ref mesh_cpu) = mesh_cpu.deferred_mesh {
             render_pass.deferred_mesh = Some(mesh_cpu.clone_weak());
         }
     }
-}
 
-#[derive(Resource)]
-pub struct PbrLightingRenderPass;
-impl PbrLightingRenderPass {
-    /// Render the different batches.
-    pub fn render_lighting(
-        (render_instance, swapchain_frame, pipeline_manager): (
-            Res<WRenderInstance<'static>>, Res<SwapchainFrame>,  Res<PipelineManager>
-        ),
-        meshes: Res<RenderAssets<GpuMesh>>,
-        (lighting_pipeline, deferred_mesh, ): (
-            Res<RenderAssets<GpuPbrLightingRenderPipeline>>, Res<PbrLightingRenderPassMesh>
-        ),
-        (camera_layout, depth_texture_layout, textures_layout, lights_layout): (
-            Res<CameraFeatureRender>, Res<DepthTextureLayout>, Res<PbrDeferredTexturesLayout>, Res<LightsFeatureBuffer>
-        )
-    ) {
+    fn render(&self, world: &World) {
         // Get the render instance and swapchain frame
+        let render_instance = world.get_resource::<WRenderInstance>().unwrap();
         let render_instance = render_instance.data.read().unwrap();
-        let swapchain_frame = swapchain_frame.data.as_ref().unwrap();
+        let swapchain_frame = world.get_resource::<SwapchainFrame>().unwrap().data.as_ref().unwrap();
 
         // Check if mesh is ready
-        let deferred_mesh = match &deferred_mesh.deferred_mesh {
+        let meshes = world.get_resource::<RenderAssets<GpuMesh>>().unwrap();
+        let deferred_mesh = match &world.get_resource::<PbrLightingRenderPassMesh>().unwrap().deferred_mesh {
             Some(mesh) => match meshes.get(mesh) {
                 Some(mesh) => mesh,
                 None => return
@@ -68,7 +59,8 @@ impl PbrLightingRenderPass {
         };
 
         // Check if pipeline is ready
-        let lighting_pipeline = match lighting_pipeline.iter().next() {
+        let pipeline_manager = world.get_resource::<PipelineManager>().unwrap();
+        let lighting_pipeline = match world.get_resource::<RenderAssets<GpuPbrLightingRenderPipeline>>().unwrap().iter().next() {
             Some((_, pipeline)) => pipeline,
             None => return
         };
@@ -92,10 +84,10 @@ impl PbrLightingRenderPass {
                 Some(lights_bind_group)
             ) = (
                 pipeline_manager.get_pipeline(lighting_pipeline.cached_pipeline_index),
-                &camera_layout.bind_group,
-                &depth_texture_layout.bind_group,
-                &textures_layout.deferred_bind_group,
-                &lights_layout.bind_group
+                &world.get_resource::<CameraFeatureRender>().unwrap().bind_group,
+                &world.get_resource::<DepthTextureLayout>().unwrap().bind_group,
+                &world.get_resource::<PbrDeferredTexturesLayout>().unwrap().deferred_bind_group,
+                &world.get_resource::<LightsFeatureBuffer>().unwrap().bind_group
             ) {
                 // Set the pipeline
                 if render_pass.set_pipeline(pipeline).is_ok() {

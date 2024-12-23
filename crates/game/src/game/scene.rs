@@ -33,7 +33,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
         }))
     ));
 
-    // // Load the materials
+    // Load the materials
     // let container_albedo = asset_server.load_with_settings("models/container_albedo.png", |settings: &mut TextureLoaderSettings| {
     //     settings.label = "container-albedo".to_string();
     //     settings.format = WTextureFormat::Rgba8UnormSrgb;
@@ -44,10 +44,11 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
     //     settings.format = WTextureFormat::R8Unorm;
     //     settings.usages = WTextureUsages::TEXTURE_BINDING;
     // });
-    // let red_box = materials.add(PbrMaterial {
+    // let red_box = materials.add(PbrMaterialAsset {
     //     label: "container".to_string(),
-    //     albedo_t:   Some(container_albedo),
-    //     specular_t: Some(container_specular),
+    //     albedo: (1.0, 0.0, 0.0, 1.0),
+    //     // albedo_t:   Some(container_albedo),
+    //     // specular_t: Some(container_specular),
     //     ..Default::default()
     // });
     // let blue = materials.add(PbrMaterial {
@@ -57,16 +58,16 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
     //     ..Default::default()
     // });
 
-    // // Load the models
+    // Load the models
     // let suzanne = asset_server.load("models/suzanne.obj");
     // let cube = asset_server.load("models/container.obj");
 
-    // // Spawn the entities
-    // commands.spawn(PbrBundle {
-    //     transform: Transform::from_xyz(0.0, 0.0, 0.0),
-    //     mesh: cube.clone(),
-    //     material: red_box.clone()
-    // });
+    // Spawn the entities
+    // commands.spawn((
+    //     Transform::from_xyz(0.0, 0.0, 0.0),
+    //     Mesh(cube.clone()),
+    //     PbrMaterial(red_box.clone())
+    // ));
     // commands.spawn(PbrBundle {
     //     transform: Transform::from_xyz(5.0, 0.0, 0.0).with_scale(Vec3::splat(3.0)),
     //     mesh: cube.clone(),

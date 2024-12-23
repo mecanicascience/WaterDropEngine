@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use depth::{DepthTexture, DepthTextureLayout};
 use gizmo::GizmoFeaturesPlugin;
 use pbr::PbrFeaturesPlugin;
-use render_graph::RenderGraphPlugin;
 use terrain::TerrainFeaturesPlugin;
 
 use crate::core::{Extract, Render, RenderApp, RenderSet};
@@ -30,9 +29,5 @@ impl Plugin for RendererPlugin {
             .add_plugins(PbrFeaturesPlugin)
             .add_plugins(GizmoFeaturesPlugin)
             .add_plugins(TerrainFeaturesPlugin);
-
-        // Add the render graph
-        app
-            .add_plugins(RenderGraphPlugin);
     }
 }
