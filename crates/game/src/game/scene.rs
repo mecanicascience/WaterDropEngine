@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use wde_render::{assets::{materials::{PbrBundle, PbrMaterial}, meshes::PlaneMesh, TextureLoaderSettings}, components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}};
-use wde_wgpu::texture::{WTextureFormat, WTextureUsages};
+use wde_render::{assets::{materials::{PbrBundle, PbrMaterial}, meshes::PlaneMesh}, components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}};
 
 pub struct GamePlugin;
 impl Plugin for GamePlugin {

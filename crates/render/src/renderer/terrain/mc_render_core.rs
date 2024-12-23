@@ -56,6 +56,12 @@ impl MarchingCubesRenderPass {
             Some((_, pipeline)) => pipeline,
             None => return
         };
+
+        // Test if swapchain frame and depth texture have the same size
+        if swapchain_frame.texture.texture.size().width != depth_texture.texture.size.0 || swapchain_frame.texture.texture.size().height != depth_texture.texture.size.1 {
+            warn!("Swapchain frame and depth texture have different sizes: {:?} vs {:?}.", swapchain_frame.texture.texture.size(), depth_texture.texture.size);
+            return;
+        }
         
         // Create the render pass
         let mut command_buffer = WCommandBuffer::new(&render_instance, "marching-cubes");

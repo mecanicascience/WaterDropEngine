@@ -13,9 +13,6 @@ pub struct TerrainChunkMaterial {
     pub albedo: Option<Handle<Texture>>,
 }
 
-#[repr(C)]
-#[derive(Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub(crate) struct TerrainChunkMaterialUniform;
 impl Material for TerrainChunkMaterial {
     fn describe(&self, builder: &mut MaterialBuilder) {
         // Build the material
