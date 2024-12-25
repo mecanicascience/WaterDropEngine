@@ -22,6 +22,8 @@ wde-render = { path = "../render" }
 wde-wgpu = { path = "../wgpu" }
 bytemuck = { version = "1.14", features = [ "derive" ] }
 noise = "0.9"
+physx = "0.19"
+physx-sys = "0.11"
 
 [dependencies.bevy]
 version = "0.15"
