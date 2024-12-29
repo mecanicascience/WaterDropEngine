@@ -4,7 +4,7 @@ use spawner::MarchingCubesSpawner;
 use compute_core::MCComputePointsCore;
 use wde_render::{assets::RenderAssetsPlugin, core::{Extract, Render, RenderApp, RenderSet}};
 
-use super::mc_chunk::{MCChunksList, MCSpawnEvent};
+use super::{mc_chunk::{MCChunksList, MCSpawnEvent}, mc_compute_main::MCTerrainNoiseParameters};
 
 mod spawner;
 mod compute_core;
@@ -29,6 +29,7 @@ impl Plugin for MCSpawnPlugin {
 
         // Compute pass
         app.get_sub_app_mut(RenderApp).unwrap()
+            .init_resource::<MCTerrainNoiseParameters>()
             .init_resource::<MCChunksList>()
             .add_systems(Extract, MCComputePointsCore::extract)
             .add_systems(Render, (

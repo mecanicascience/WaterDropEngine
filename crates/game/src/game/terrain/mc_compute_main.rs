@@ -4,12 +4,38 @@ use wde_wgpu::buffer::BufferUsage;
 
 use super::mc_chunk::{MC_MAX_POINTS, MC_MAX_TRIANGLES};
 
+/**
+ * Description of the noise to generate the terrain.
+ */
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug, Resource)]
+pub struct MCTerrainNoiseParameters {
+    amplitude:      f32,   // Amplitude of the noise
+    frequency:      f32,   // Frequency of the noise
+    ground_percent: f32,   // Percentage of the ground
+    octaves:        u32,   // Number of octaves
+    persistence:    f32,   // Persistence of the noise
+    lacunarity:     f32    // Lacunarity of the noise
+}
+impl Default for MCTerrainNoiseParameters {
+    fn default() -> Self {
+        MCTerrainNoiseParameters {
+            amplitude:      40.0,
+            frequency:      0.005,
+            ground_percent: 0.1,
+            octaves:        8,
+            persistence:    0.5,
+            lacunarity:     2.0
+        }
+    }
+}
+
 /**
  * Description of a chunk for the compute shader used in the marching cubes algorithm.
  */
-pub struct GpuMarchingCubesDescription {
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
+pub struct GpuMCDescription {
     pub translation:       [f32; 4], // Translation in world space of the current chunk (x, y, z, 0)
     pub chunk_length:      [f32; 4], // Length of the chunk (x, y, z, 0)
     pub chunk_sub_count:   [u32; 4], // Number of sub-chunks (x, y, z, 0)
@@ -25,7 +51,8 @@ pub struct MCComputeHandler {
     pub desc_gpu: Option<Handle<Buffer>>,
     pub points_cpu: Option<Handle<Buffer>>,
     pub triangles_cpu: Option<Handle<Buffer>>,
-    pub triangles_gpu: Option<Handle<Buffer>>
+    pub triangles_gpu: Option<Handle<Buffer>>,
+    pub noise_parameters: Option<Handle<Buffer>>
 }
 #[derive(Resource, Default)]
 pub struct MCComputeHandlerGPU {
@@ -34,7 +61,8 @@ pub struct MCComputeHandlerGPU {
     pub desc_gpu: Option<Handle<Buffer>>,
     pub points_cpu: Option<Handle<Buffer>>,
     pub triangles_cpu: Option<Handle<Buffer>>,
-    pub triangles_gpu: Option<Handle<Buffer>>
+    pub triangles_gpu: Option<Handle<Buffer>>,
+    pub noise_parameters: Option<Handle<Buffer>>
 }
 impl MCComputeHandler {
     /** Creates the asset handler buffers and instance (runs once). */
@@ -47,13 +75,13 @@ impl MCComputeHandler {
         let max_buffer_size = device_limits.0.max_storage_buffer_binding_size as usize;
         let desc_cpu = Buffer {
             label: "marching-cubes-desc-cpu".to_string(),
-            size: std::mem::size_of::<GpuMarchingCubesDescription>(),
+            size: std::mem::size_of::<GpuMCDescription>(),
             usage: BufferUsage::MAP_READ | BufferUsage::COPY_DST,
             content: None
         };
         let desc_gpu = Buffer {
             label: "marching-cubes-desc-gpu".to_string(),
-            size: std::mem::size_of::<GpuMarchingCubesDescription>(),
+            size: std::mem::size_of::<GpuMCDescription>(),
             usage: BufferUsage::STORAGE | BufferUsage::COPY_DST | BufferUsage::COPY_SRC,
             content: None
         };
@@ -75,6 +103,12 @@ impl MCComputeHandler {
             usage: BufferUsage::STORAGE | BufferUsage::COPY_SRC,
             content: None
         };
+        let noise_parameters = Buffer {
+            label: "marching-cubes-noise-parameters".to_string(),
+            size: std::mem::size_of::<MCTerrainNoiseParameters>(),
+            usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
+            content: None
+        };
 
         // Create the handler
         commands.insert_resource(MCComputeHandler {
@@ -82,7 +116,8 @@ impl MCComputeHandler {
             desc_gpu: Some(asset_server.add(desc_gpu)),
             points_cpu: Some(asset_server.add(points_cpu)),
             triangles_cpu: Some(asset_server.add(triangles_cpu)),
-            triangles_gpu: Some(asset_server.add(triangles_gpu))
+            triangles_gpu: Some(asset_server.add(triangles_gpu)),
+            noise_parameters: Some(asset_server.add(noise_parameters))
         });
     }
 
@@ -99,6 +134,7 @@ impl MCComputeHandler {
             handler_render.points_cpu = handler_update.points_cpu.clone();
             handler_render.triangles_cpu = handler_update.triangles_cpu.clone();
             handler_render.triangles_gpu = handler_update.triangles_gpu.clone();
+            handler_render.noise_parameters = handler_update.noise_parameters.clone();
         }
     }
 }

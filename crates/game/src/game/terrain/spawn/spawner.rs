@@ -40,7 +40,7 @@ impl MarchingCubesSpawner {
                     chunk_length: chunk_length.into(),
                     chunk_sub_count: chunk_sub_count.into(),
                     iso_level
-                }));
+                })); 
             }
         }
 

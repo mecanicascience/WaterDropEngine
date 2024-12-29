@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use wde_render::{assets::{GpuBuffer, RenderAssets}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::BindGroup, command_buffer::WCommandBuffer, instance::WRenderInstance};
 
-use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCPendingChunk, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_TRIANGLES}, mc_compute_main::{GpuMarchingCubesDescription, MCComputeHandlerGPU}};
+use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCPendingChunk, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_TRIANGLES}, mc_compute_main::{GpuMCDescription, MCComputeHandlerGPU}};
 
 use super::compute_pipeline::GpuMCComputePipelineGenerate;
 
@@ -122,7 +122,7 @@ impl MCComputeCorePoints {
 
             // Update the description buffer
             trace!("Running the compute shader to generate the triangles for the chunk {:?}.", chunk.index);
-            let desc_buff = GpuMarchingCubesDescription {
+            let desc_buff = GpuMCDescription {
                 translation: [desc.translation.x, desc.translation.y, desc.translation.z, 0.0],
                 chunk_length: [desc.chunk_length.x, desc.chunk_length.y, desc.chunk_length.z, 0.0],
                 chunk_sub_count: [desc.chunk_sub_count.x, desc.chunk_sub_count.y, desc.chunk_sub_count.z, 0],
@@ -182,7 +182,7 @@ impl MCComputeCorePoints {
             let cpu_buff = &buffers.get(desc_buffer_cpu).unwrap().buffer;
             cpu_buff.copy_from_buffer(&render_instance, &buffers.get(desc_buffer_gpu).unwrap().buffer);
             cpu_buff.map_read(&render_instance, |data| {
-                let desc = bytemuck::from_bytes::<GpuMarchingCubesDescription>(&data);
+                let desc = bytemuck::from_bytes::<GpuMCDescription>(&data);
                 triangles_counter = desc.triangles_counter;
                 c_sub_count = [desc.chunk_sub_count[0] as usize, desc.chunk_sub_count[1] as usize, desc.chunk_sub_count[2] as usize];
             });
