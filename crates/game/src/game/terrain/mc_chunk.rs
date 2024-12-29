@@ -3,7 +3,7 @@ use wde_render::assets::Buffer;
 use wde_wgpu::bind_group::WgpuBindGroup;
 
 // =========== MARCHING CUBES MAX SUB COUNT ===========
-pub const MC_MAX_SUB_COUNT: [u32; 3] = [15, 4, 15];
+pub const MC_MAX_SUB_COUNT: [u32; 3] = [150, 40, 150];
 
 // =========== CHUNK INDEX ===========
 pub type MCChunkIndex = (i32, i32, i32);

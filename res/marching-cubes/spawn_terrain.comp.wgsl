@@ -28,7 +28,7 @@ fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
     );
 
     // Perlin noise parameters
-    var amplitude = 150.0;
+    var amplitude = 60.0;
     var frequency = 0.005;
     let ground_percent = 0.1;
 
@@ -60,7 +60,7 @@ fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
  * * `chunk_sub_count` - The number of grid cells in each dimension.
  */
 fn index_from_coord(coord: vec3<u32>, chunk_sub_count: vec3<u32>) -> u32 {
-    return coord.x + chunk_sub_count.x * (coord.y + chunk_sub_count.y * coord.z);
+    return (coord.x * chunk_sub_count.y + coord.y) * chunk_sub_count.z + coord.z;
 }
 
 

@@ -122,14 +122,13 @@ impl MCComputePointsCore {
      * Generate the tasks for creating the points of each chunk.
      */
     pub fn compute(
-        query: Query<(Entity, &MCRegisteredChunk)>,
-        mut commands: Commands,
-        chunks_list: Res<MCChunksList>,
+        (query, mut commands): (Query<(Entity, &MCRegisteredChunk)>, Commands),
+        (chunks_list, handler): (Res<MCChunksList>, Res<MCComputeHandlerGPU>),
         mut buffers: ResMut<RenderAssets<GpuBuffer>>,
         render_instance: Res<WRenderInstance<'static>>,
-        pipeline_manager: Res<PipelineManager>,
-        handler: Res<MCComputeHandlerGPU>,
-        pipeline: Res<RenderAssets<GpuMCComputePipelineSpawn>>
+        (pipeline, pipeline_manager): (
+            Res<RenderAssets<GpuMCComputePipelineSpawn>>, Res<PipelineManager>
+        )
     ) {
         // Get the compute pipeline
         let compute_pipeline = match pipeline.iter().next() {
@@ -206,48 +205,6 @@ impl MCComputePointsCore {
 
             // Submit the command buffer
             command_buffer.submit(&render_instance);
-
-            // Generate points in CPU
-            fn f(x: f32, y: f32, z: f32) -> f32 {
-                // let mut amplitude = 150.0;
-                // let mut frequency = 0.005;
-                // let ground_percent = 0.1;
-
-                // let octaves = 8;
-                // let persistence = 0.5;
-                // let lacunarity = 2.0;
-
-                // let seed = 0;
-                // let simplex_noise = noise::OpenSimplex::new(seed);
-
-                // // Perlin noise parameters
-                // let chunk_length = [500.0, 100.0, 500.0];
-                // let mut height = 0.0;
-                // for _ in 0..octaves {
-                //     height += amplitude * simplex_noise.get([x as f64 * frequency, y as f64 * frequency, z as f64 * frequency]);
-                //     amplitude *= persistence;
-                //     frequency *= lacunarity;
-                // }
-                // let ground = y + ground_percent * chunk_length[1];
-                // ground + height as f32
-
-                x * x + y * y + z * z - 40.0
-            }
-            let mut points_list = vec![[0.0, 0.0, 0.0, 0.0]; (desc.chunk_sub_count.x * desc.chunk_sub_count.y * desc.chunk_sub_count.z) as usize];
-            for i in 0..desc.chunk_sub_count.x {
-                for j in 0..desc.chunk_sub_count.y {
-                    for k in 0..desc.chunk_sub_count.z {
-                        let position = Vec3::new(
-                            desc.translation.x - desc.chunk_length.x / 2.0 + i as f32 * desc.chunk_length.x / (desc.chunk_sub_count.x as f32 - 1.0),
-                            desc.translation.y - desc.chunk_length.y / 2.0 + j as f32 * desc.chunk_length.y / (desc.chunk_sub_count.y as f32 - 1.0),
-                            desc.translation.z - desc.chunk_length.z / 2.0 + k as f32 * desc.chunk_length.z / (desc.chunk_sub_count.z as f32 - 1.0),
-                        );
-                        let value = f(position[0], position[1], position[2]);
-                        points_list[(i * desc.chunk_sub_count.y * desc.chunk_sub_count.z + j * desc.chunk_sub_count.z + k) as usize] = [position.x, position.y, position.z, value];
-                    }
-                }
-            }
-            buffers.get_mut(&chunk.points_gpu).unwrap().buffer.write(&render_instance, bytemuck::cast_slice(&points_list), 0);
 
             // Spawn the chunk entity
             commands.entity(entity).despawn();
