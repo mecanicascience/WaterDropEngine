@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use wde_render::{assets::Buffer, core::{extract_macros::ExtractWorld, DeviceLimits}};
 use wde_wgpu::buffer::BufferUsage;
 
-use crate::terrain::mc_chunk::MC_MAX_SUB_COUNT;
+use super::mc_chunk::{MC_MAX_POINTS, MC_MAX_TRIANGLES};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug, Default)]
@@ -24,8 +24,8 @@ pub struct MCComputeHandler {
     pub desc_cpu: Option<Handle<Buffer>>,
     pub desc_gpu: Option<Handle<Buffer>>,
     pub points_cpu: Option<Handle<Buffer>>,
-    pub vertices_cpu: Option<Handle<Buffer>>,
-    pub vertices_gpu: Option<Handle<Buffer>>
+    pub triangles_cpu: Option<Handle<Buffer>>,
+    pub triangles_gpu: Option<Handle<Buffer>>
 }
 #[derive(Resource, Default)]
 pub struct MCComputeHandlerGPU {
@@ -33,8 +33,8 @@ pub struct MCComputeHandlerGPU {
     pub desc_cpu: Option<Handle<Buffer>>,
     pub desc_gpu: Option<Handle<Buffer>>,
     pub points_cpu: Option<Handle<Buffer>>,
-    pub vertices_cpu: Option<Handle<Buffer>>,
-    pub vertices_gpu: Option<Handle<Buffer>>
+    pub triangles_cpu: Option<Handle<Buffer>>,
+    pub triangles_gpu: Option<Handle<Buffer>>
 }
 impl MCComputeHandler {
     /** Creates the asset handler buffers and instance (runs once). */
@@ -59,19 +59,19 @@ impl MCComputeHandler {
         };
         let points_cpu = Buffer {
             label: "marching-cubes-points-cpu".to_string(),
-            size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * (MC_MAX_SUB_COUNT[0] * MC_MAX_SUB_COUNT[1] * MC_MAX_SUB_COUNT[2]) as usize, max_buffer_size),
+            size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * MC_MAX_POINTS as usize, max_buffer_size),
             usage: BufferUsage::MAP_READ | BufferUsage::COPY_DST,
             content: None
         };
-        let vertices_cpu = Buffer {
-            label: "marching-cubes-vertices-cpu".to_string(),
-            size: std::cmp::min(std::mem::size_of::<[f32; 12]>() * 5 * (MC_MAX_SUB_COUNT[0] * MC_MAX_SUB_COUNT[1] * MC_MAX_SUB_COUNT[2]) as usize, max_buffer_size),
+        let triangles_cpu = Buffer {
+            label: "marching-cubes-triangles-cpu".to_string(),
+            size: std::cmp::min(std::mem::size_of::<[f32; 12]>() * MC_MAX_TRIANGLES as usize, max_buffer_size),
             usage: BufferUsage::MAP_READ | BufferUsage::COPY_DST,
             content: None
         };
-        let vertices_gpu = Buffer {
-            label: "marching-cubes-vertices-gpu".to_string(),
-            size: std::cmp::min(std::mem::size_of::<[f32; 12]>() * 5 * (MC_MAX_SUB_COUNT[0] * MC_MAX_SUB_COUNT[1] * MC_MAX_SUB_COUNT[2]) as usize, max_buffer_size),
+        let triangles_gpu = Buffer {
+            label: "marching-cubes-triangles-gpu".to_string(),
+            size: std::cmp::min(std::mem::size_of::<[f32; 12]>() * MC_MAX_TRIANGLES as usize, max_buffer_size),
             usage: BufferUsage::STORAGE | BufferUsage::COPY_SRC,
             content: None
         };
@@ -81,8 +81,8 @@ impl MCComputeHandler {
             desc_cpu: Some(asset_server.add(desc_cpu)),
             desc_gpu: Some(asset_server.add(desc_gpu)),
             points_cpu: Some(asset_server.add(points_cpu)),
-            vertices_cpu: Some(asset_server.add(vertices_cpu)),
-            vertices_gpu: Some(asset_server.add(vertices_gpu))
+            triangles_cpu: Some(asset_server.add(triangles_cpu)),
+            triangles_gpu: Some(asset_server.add(triangles_gpu))
         });
     }
 
@@ -97,8 +97,8 @@ impl MCComputeHandler {
             handler_render.desc_cpu = handler_update.desc_cpu.clone();
             handler_render.desc_gpu = handler_update.desc_gpu.clone();
             handler_render.points_cpu = handler_update.points_cpu.clone();
-            handler_render.vertices_cpu = handler_update.vertices_cpu.clone();
-            handler_render.vertices_gpu = handler_update.vertices_gpu.clone();
+            handler_render.triangles_cpu = handler_update.triangles_cpu.clone();
+            handler_render.triangles_gpu = handler_update.triangles_gpu.clone();
         }
     }
 }

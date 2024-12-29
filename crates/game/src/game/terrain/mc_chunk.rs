@@ -2,8 +2,15 @@ use bevy::{prelude::*, utils::HashMap};
 use wde_render::assets::Buffer;
 use wde_wgpu::bind_group::WgpuBindGroup;
 
-// =========== MARCHING CUBES MAX SUB COUNT ===========
-pub const MC_MAX_SUB_COUNT: [u32; 3] = [150, 40, 150];
+// =========== MARCHING CUBES PARAMETERS ===========
+/** Maximum LOD sudivision count */
+pub const MC_MAX_SUB_COUNT: [u32; 3] = [75, 30, 75];
+/** Maximum number of chunks to process per frame */
+pub const MC_MAX_CHUNKS_PROCESS_PER_FRAME: usize = 3;
+/** Maximum number of triangles allowed */
+pub const MC_MAX_POINTS: u32 = MC_MAX_SUB_COUNT[0] * MC_MAX_SUB_COUNT[1] * MC_MAX_SUB_COUNT[2];
+pub const MC_MAX_TRIANGLES: u32 = 500_000;
+
 
 // =========== CHUNK INDEX ===========
 pub type MCChunkIndex = (i32, i32, i32);

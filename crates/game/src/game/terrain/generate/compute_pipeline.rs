@@ -13,11 +13,11 @@ pub struct GpuMCComputePipelineGenerate {
     // Bind group layouts
     pub desc_gpu_layout: Option<BindGroupLayout>,
     pub points_gpu_layout: Option<BindGroupLayout>,
-    pub vertices_gpu_layout: Option<BindGroupLayout>,
+    pub triangles_gpu_layout: Option<BindGroupLayout>,
 
     // Bind groups
     pub desc_gpu_group: Option<WgpuBindGroup>,
-    pub vertices_gpu_group: Option<WgpuBindGroup>
+    pub triangles_gpu_group: Option<WgpuBindGroup>
 }
 impl RenderAsset for GpuMCComputePipelineGenerate {
     type SourceAsset = MCComputePipelineGenerateAsset;
@@ -42,7 +42,7 @@ impl RenderAsset for GpuMCComputePipelineGenerate {
                 WShaderStages::COMPUTE,
                 BufferBindingType::Storage { read_only: true });
         });
-        let vertices_gpu_layout = BindGroupLayout::new("marching-cubes-generate-vertices", |builder| {
+        let vertices_gpu_layout = BindGroupLayout::new("marching-cubes-generate-triangles", |builder| {
             builder.add_buffer(0,
                 WShaderStages::COMPUTE,
                 BufferBindingType::Storage { read_only: false });
@@ -50,7 +50,7 @@ impl RenderAsset for GpuMCComputePipelineGenerate {
 
         // Create the pipeline
         let pipeline_desc = ComputePipelineDescriptor {
-            label: "marching-cubes",
+            label: "marching-cubes-generate",
             comp: Some(assets_server.load("marching-cubes/marching_cube.comp.wgsl")),
             bind_group_layouts: vec![desc_gpu_layout.clone(), points_gpu_layout.clone(), vertices_gpu_layout.clone()],
             ..Default::default()
@@ -61,9 +61,9 @@ impl RenderAsset for GpuMCComputePipelineGenerate {
             cached_pipeline_index: cached_index,
             desc_gpu_layout: Some(desc_gpu_layout),
             points_gpu_layout: Some(points_gpu_layout),
-            vertices_gpu_layout: Some(vertices_gpu_layout),
+            triangles_gpu_layout: Some(vertices_gpu_layout),
             desc_gpu_group: None,
-            vertices_gpu_group: None
+            triangles_gpu_group: None
         })
     }
 

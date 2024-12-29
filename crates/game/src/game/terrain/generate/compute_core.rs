@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use wde_render::{assets::{GpuBuffer, RenderAssets}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::BindGroup, command_buffer::WCommandBuffer, instance::WRenderInstance};
 
-use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCPendingChunk}, mc_compute_main::{GpuMarchingCubesDescription, MCComputeHandlerGPU}};
+use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCPendingChunk, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_TRIANGLES}, mc_compute_main::{GpuMarchingCubesDescription, MCComputeHandlerGPU}};
 
 use super::compute_pipeline::GpuMCComputePipelineGenerate;
 
@@ -23,23 +23,23 @@ impl MCComputeCorePoints {
         // Create the bind groups for the handler if they are not already created
         if compute_pipeline.desc_gpu_group.is_none() && handler.desc_gpu.is_some() {
             // Get the layouts
-            let (desc_gpu_layout, vertices_layout) = match (
+            let (desc_gpu_layout, triangles_layout) = match (
                 &compute_pipeline.desc_gpu_layout,
-                &compute_pipeline.vertices_gpu_layout
+                &compute_pipeline.triangles_gpu_layout
             ) {
-                (Some(desc_gpu_layout), Some(vertices_layout)) => (
-                    desc_gpu_layout, vertices_layout
+                (Some(desc_gpu_layout), Some(triangles_layout)) => (
+                    desc_gpu_layout, triangles_layout
                 ),
                 _ => return
             };
 
             // Get the buffers
-            let (desc_gpu, vertices) = match (
+            let (desc_gpu, triangles) = match (
                 buffers.get(handler.desc_gpu.as_ref().unwrap()),
-                buffers.get(handler.vertices_gpu.as_ref().unwrap()),
+                buffers.get(handler.triangles_gpu.as_ref().unwrap()),
             ) {
-                (Some(desc_gpu), Some(vertices)) => (
-                    desc_gpu, vertices
+                (Some(desc_gpu), Some(triangles)) => (
+                    desc_gpu, triangles
                 ),
                 _ => return
             };
@@ -49,13 +49,13 @@ impl MCComputeCorePoints {
             let desc_gpu_bind_group = BindGroup::build(
                 "marching-cubes-generate-desc-gpu", &render_instance, &desc_gpu_layout.build(&render_instance),
                 &vec![BindGroup::buffer(0, &desc_gpu.buffer)]);
-            let vertices_bind_group = BindGroup::build(
-                "marching-cubes-generate-vertices-gpu", &render_instance, &vertices_layout.build(&render_instance),
-                &vec![BindGroup::buffer(0, &vertices.buffer)]);
+            let triangles_bind_group = BindGroup::build(
+                "marching-cubes-generate-triangles-gpu", &render_instance, &triangles_layout.build(&render_instance),
+                &vec![BindGroup::buffer(0, &triangles.buffer)]);
 
             // Update the handler
             compute_pipeline.desc_gpu_group = Some(desc_gpu_bind_group);
-            compute_pipeline.vertices_gpu_group = Some(vertices_bind_group);
+            compute_pipeline.triangles_gpu_group = Some(triangles_bind_group);
         }
 
         // Create the bind groups for the chunks if they are not already created
@@ -102,21 +102,26 @@ impl MCComputeCorePoints {
         };
 
         // Check if the handler is ready
-        let (desc_buffer_cpu, desc_buffer_gpu, desc_buffer_group, vertices_cpu, vertices_gpu, vertices_group) = match (
-            &handler.desc_cpu, &handler.desc_gpu, &compute_pipeline.desc_gpu_group, &handler.vertices_cpu, &handler.vertices_gpu, &compute_pipeline.vertices_gpu_group
+        let (desc_buffer_cpu, desc_buffer_gpu, desc_buffer_group, triangles_cpu, triangles_gpu, triangles_group) = match (
+            &handler.desc_cpu, &handler.desc_gpu, &compute_pipeline.desc_gpu_group, &handler.triangles_cpu, &handler.triangles_gpu, &compute_pipeline.triangles_gpu_group
         ) {
-            (Some(desc_buffer_cpu), Some(desc_buffer_gpu), Some(desc_buffer_group), Some(vertices_cpu), Some(vertices_gpu), Some(vertices_group)) => (
-                desc_buffer_cpu, desc_buffer_gpu, desc_buffer_group, vertices_cpu, vertices_gpu, vertices_group
+            (Some(desc_buffer_cpu), Some(desc_buffer_gpu), Some(desc_buffer_group), Some(triangles_cpu), Some(triangles_gpu), Some(triangles_group)) => (
+                desc_buffer_cpu, desc_buffer_gpu, desc_buffer_group, triangles_cpu, triangles_gpu, triangles_group
             ),
             _ => return
         };
 
         // Generate the chunks
+        let mut process_count = 0;
         for (entity, chunk) in query.iter() {
+            process_count += 1;
+            if process_count >= MC_MAX_CHUNKS_PROCESS_PER_FRAME {
+                break;
+            }
             let desc = chunks_list.chunks.get(&chunk.index).unwrap();
 
             // Update the description buffer
-            trace!("Running the compute shader for the chunk {:?}.", chunk.index);
+            trace!("Running the compute shader to generate the triangles for the chunk {:?}.", chunk.index);
             let desc_buff = GpuMarchingCubesDescription {
                 translation: [desc.translation.x, desc.translation.y, desc.translation.z, 0.0],
                 chunk_length: [desc.chunk_length.x, desc.chunk_length.y, desc.chunk_length.z, 0.0],
@@ -149,16 +154,16 @@ impl MCComputeCorePoints {
                     // Set the bind groups
                     compute_pass.set_bind_group(0, desc_buffer_group);
                     compute_pass.set_bind_group(1, points_group);
-                    compute_pass.set_bind_group(2, vertices_group);
+                    compute_pass.set_bind_group(2, triangles_group);
 
                     // Dispatch the compute pass
                     const NUM_THREADS: i32 = 10;
                     let dispatch_count_x = (desc.chunk_sub_count.x as f32 / NUM_THREADS as f32).ceil() as u32;
                     let dispatch_count_y = (desc.chunk_sub_count.y as f32 / NUM_THREADS as f32).ceil() as u32;
                     let dispatch_count_z = (desc.chunk_sub_count.z as f32 / NUM_THREADS as f32).ceil() as u32;
-                    trace!("Dispatching the compute pass for generating chunk {:?} with marching cubes with {} threads and {:?} dispatches.", entity, NUM_THREADS, [dispatch_count_x, dispatch_count_y, dispatch_count_z]);
+                    trace!("Dispatching the compute pass for generating chunk triangles {:?} with marching cubes with {} threads and {:?} dispatches.", entity, NUM_THREADS, [dispatch_count_x, dispatch_count_y, dispatch_count_z]);
                     if let Err(e) = compute_pass.dispatch(dispatch_count_x, dispatch_count_y, dispatch_count_z) {
-                        error!("Failed to dispatch the compute pass for generating chunk {:?} with marching cubes: {:?}", entity, e);
+                        error!("Failed to dispatch the compute pass for generating chunk triangles {:?} with marching cubes: {:?}", entity, e);
                         continue;
                     }
                     generated = true;
@@ -172,39 +177,38 @@ impl MCComputeCorePoints {
             command_buffer.submit(&render_instance);
 
             // Read the indices counter
-            let mut triangles_count = 0;
+            let mut triangles_counter = 0;
             let mut c_sub_count = [0, 0, 0];
             let cpu_buff = &buffers.get(desc_buffer_cpu).unwrap().buffer;
             cpu_buff.copy_from_buffer(&render_instance, &buffers.get(desc_buffer_gpu).unwrap().buffer);
             cpu_buff.map_read(&render_instance, |data| {
                 let desc = bytemuck::from_bytes::<GpuMarchingCubesDescription>(&data);
-                triangles_count = desc.triangles_counter;
+                triangles_counter = desc.triangles_counter;
                 c_sub_count = [desc.chunk_sub_count[0] as usize, desc.chunk_sub_count[1] as usize, desc.chunk_sub_count[2] as usize];
             });
 
             // Warn if the indices counter is too high
-            let vertex_buffer_size = std::mem::size_of::<[f32; 12]>() * 5 * c_sub_count[0] * c_sub_count[1] * c_sub_count[2];
-            if std::mem::size_of::<[f32; 12]>() * (triangles_count as usize) > vertex_buffer_size {
-                error!("In the marching cubes algorithm, there is too much vertices overflowing the vertices buffer. The buffer size is {} and the indices counter is {}.", vertex_buffer_size, triangles_count);
+            if triangles_counter > MC_MAX_TRIANGLES {
+                error!("In the marching cubes algorithm, there is too much triangles overflowing the triangles buffer. The counter is {} while the maximum is {}.", triangles_counter, MC_MAX_TRIANGLES);
                 continue;
             }
 
-            // Read and process the vertices
-            let mut raw_vertices: Vec<f32> = Vec::new();
-            let vertices_buff = &buffers.get(vertices_cpu).unwrap().buffer;
-            vertices_buff.copy_from_buffer(&render_instance, &buffers.get(vertices_gpu).unwrap().buffer);
-            vertices_buff.map_read(&render_instance, |data| {
-                let vertices: &[f32] = bytemuck::cast_slice(&data);
-                raw_vertices.extend_from_slice(&vertices[..triangles_count as usize * 12]);
+            // Read and process the triangles
+            let mut raw_triangles: Vec<f32> = Vec::new();
+            let triangles_buff = &buffers.get(triangles_cpu).unwrap().buffer;
+            triangles_buff.copy_from_buffer(&render_instance, &buffers.get(triangles_gpu).unwrap().buffer);
+            triangles_buff.map_read(&render_instance, |data| {
+                let triangles: &[f32] = bytemuck::cast_slice(&data);
+                raw_triangles.extend_from_slice(&triangles[..triangles_counter as usize * 12]);
             });
 
             // Spawn the chunk entity
-            debug!("Generated {} raw triangles for chunk {:?}.", triangles_count, chunk.index);
+            debug!("Generated {} raw triangles for chunk {:?}.", triangles_counter, chunk.index);
             commands.entity(entity).despawn();
             commands.spawn(MCPendingChunk {
                 index: chunk.index,
-                raw_triangles: raw_vertices,
-                triangles_counter: triangles_count,
+                raw_triangles,
+                triangles_counter,
                 points_gpu: chunk.points_gpu.clone()
             });
         }

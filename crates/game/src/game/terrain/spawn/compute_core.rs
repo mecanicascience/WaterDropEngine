@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use wde_render::{assets::{Buffer, GpuBuffer, RenderAssets}, core::{extract_macros::ExtractWorld, DeviceLimits}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::BindGroup, buffer::BufferUsage, command_buffer::WCommandBuffer, instance::WRenderInstance};
 
-use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCRegisteredChunk, MCSpawnEvent}, mc_compute_main::{GpuMarchingCubesDescription, MCComputeHandlerGPU}};
+use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCRegisteredChunk, MCSpawnEvent, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_POINTS}, mc_compute_main::{GpuMarchingCubesDescription, MCComputeHandlerGPU}};
 
 use super::compute_pipeline::GpuMCComputePipelineSpawn;
 
@@ -35,10 +35,9 @@ impl MCComputePointsCore {
                 chunks_list_render.chunks.insert(*index, desc.clone());
                 
                 // Create the points buffer
-                let c_sub_count = desc.chunk_sub_count;
                 let points_gpu = Buffer {
                     label: format!("marching-cubes-points-{:?}", desc.index),
-                    size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * (c_sub_count[0] * c_sub_count[1] * c_sub_count[2]) as usize, max_buffer_size),
+                    size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * MC_MAX_POINTS as usize, max_buffer_size),
                     usage: BufferUsage::STORAGE | BufferUsage::COPY_DST,
                     content: None
                 };
@@ -147,7 +146,12 @@ impl MCComputePointsCore {
         };
 
         // Generate the chunks
+        let mut process_count = 0;
         for (entity, chunk) in query.iter() {
+            process_count += 1;
+            if process_count >= MC_MAX_CHUNKS_PROCESS_PER_FRAME {
+                break;
+            }
             let desc = chunks_list.chunks.get(&chunk.index).unwrap();
 
             // Update the description buffer
