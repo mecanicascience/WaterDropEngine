@@ -155,7 +155,7 @@ impl RenderPass for PbrGBufferRenderPass {
         render_world.insert_resource(passes);
     }
     
-    fn render(&self, render_world: &World) {
+    fn render(&self, render_world: &mut World) {
         // Get the render instance and swapchain frame
         let render_instance = render_world.get_resource::<WRenderInstance>().unwrap();
         let render_instance = render_instance.data.read().unwrap();

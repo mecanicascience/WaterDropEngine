@@ -56,6 +56,8 @@ pub enum RenderSet {
     Prepare,
     /// Prepare the bind groups.
     BindGroups,
+    /// Process the logic just before rendering.
+    Process,
     /// Render commands.
     Render,
     /// Submit commands.
@@ -79,6 +81,7 @@ impl Render {
             PrepareAssets,
             Prepare,
             BindGroups,
+            Process,
             Render,
             Submit,
             Cleanup,
@@ -175,7 +178,8 @@ impl Plugin for RenderCorePlugin {
         app.insert_sub_app(RenderApp, render_app);
 
         // Add the GPU limits
-        app.insert_resource(DeviceLimits(gpu_limits.unwrap()));
+        app.insert_resource(DeviceLimits(gpu_limits.as_ref().unwrap().clone()));
+        app.get_sub_app_mut(RenderApp).unwrap().insert_resource(DeviceLimits(gpu_limits.unwrap()));
 
         // Add the render pipeline plugins
         app

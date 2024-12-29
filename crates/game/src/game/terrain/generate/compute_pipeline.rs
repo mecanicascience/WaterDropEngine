@@ -1,20 +1,26 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
 use wde_render::{assets::{PrepareAssetError, RenderAsset}, pipelines::{CachedPipelineIndex, ComputePipelineDescriptor, PipelineManager}};
-use wde_wgpu::{bind_group::BindGroupLayout, buffer::BufferBindingType, render_pipeline::WShaderStages};
+use wde_wgpu::{bind_group::{BindGroupLayout, WgpuBindGroup}, buffer::BufferBindingType, render_pipeline::WShaderStages};
 
 #[derive(Default, Asset, Clone, TypePath)]
-pub struct MarchingCubesComputePipelineAsset;
+pub struct MCComputePipelineGenerateAsset;
 #[derive(Component)]
 #[allow(dead_code)]
-pub struct MarchingCubesComputePipeline(pub Handle<MarchingCubesComputePipelineAsset>);
-pub struct GpuMarchingCubesComputePipeline {
+pub struct MCComputePipelineGenerate(pub Handle<MCComputePipelineGenerateAsset>);
+pub struct GpuMCComputePipelineGenerate {
     pub cached_pipeline_index: CachedPipelineIndex,
+
+    // Bind group layouts
     pub desc_gpu_layout: Option<BindGroupLayout>,
-    pub points_layout: Option<BindGroupLayout>,
-    pub vertices_layout: Option<BindGroupLayout>
+    pub points_gpu_layout: Option<BindGroupLayout>,
+    pub vertices_gpu_layout: Option<BindGroupLayout>,
+
+    // Bind groups
+    pub desc_gpu_group: Option<WgpuBindGroup>,
+    pub vertices_gpu_group: Option<WgpuBindGroup>
 }
-impl RenderAsset for GpuMarchingCubesComputePipeline {
-    type SourceAsset = MarchingCubesComputePipelineAsset;
+impl RenderAsset for GpuMCComputePipelineGenerate {
+    type SourceAsset = MCComputePipelineGenerateAsset;
     type Param = (
         SRes<AssetServer>, SResMut<PipelineManager>
     );
@@ -26,21 +32,18 @@ impl RenderAsset for GpuMarchingCubesComputePipeline {
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         // Create the layouts
-        let desc_gpu_layout = BindGroupLayout::new("marching-cubes-desc", |builder| {
+        let desc_gpu_layout = BindGroupLayout::new("marching-cubes-generate-desc", |builder| {
             builder.add_buffer(0,
                 WShaderStages::COMPUTE,
                 BufferBindingType::Storage { read_only: false });
         });
-        let points_layout = BindGroupLayout::new("points-marching-cubes", |builder| {
+        let points_gpu_layout = BindGroupLayout::new("marching-cubes-generate-points", |builder| {
             builder.add_buffer(0,
                 WShaderStages::COMPUTE,
                 BufferBindingType::Storage { read_only: true });
         });
-        let vertices_layout = BindGroupLayout::new("vertices-marching-cubes", |builder| {
+        let vertices_gpu_layout = BindGroupLayout::new("marching-cubes-generate-vertices", |builder| {
             builder.add_buffer(0,
-                WShaderStages::COMPUTE,
-                BufferBindingType::Storage { read_only: false });
-            builder.add_buffer(1,
                 WShaderStages::COMPUTE,
                 BufferBindingType::Storage { read_only: false });
         });
@@ -49,20 +52,22 @@ impl RenderAsset for GpuMarchingCubesComputePipeline {
         let pipeline_desc = ComputePipelineDescriptor {
             label: "marching-cubes",
             comp: Some(assets_server.load("marching-cubes/marching_cube.comp.wgsl")),
-            bind_group_layouts: vec![desc_gpu_layout.clone(), points_layout.clone(), vertices_layout.clone()],
+            bind_group_layouts: vec![desc_gpu_layout.clone(), points_gpu_layout.clone(), vertices_gpu_layout.clone()],
             ..Default::default()
         };
         let cached_index = pipeline_manager.create_compute_pipeline(pipeline_desc);
 
-        Ok(GpuMarchingCubesComputePipeline {
+        Ok(GpuMCComputePipelineGenerate {
             cached_pipeline_index: cached_index,
             desc_gpu_layout: Some(desc_gpu_layout),
-            points_layout: Some(points_layout),
-            vertices_layout: Some(vertices_layout)
+            points_gpu_layout: Some(points_gpu_layout),
+            vertices_gpu_layout: Some(vertices_gpu_layout),
+            desc_gpu_group: None,
+            vertices_gpu_group: None
         })
     }
 
     fn label(&self) -> &str {
-        "marching-cubes"
+        "marching-cubes-generate"
     }
 }

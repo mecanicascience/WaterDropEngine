@@ -2,12 +2,20 @@ use bevy::prelude::*;
 use wde_render::{assets::{GpuBuffer, GpuTexture, RenderAssets}, core::SwapchainFrame, features::CameraFeatureRender, passes::{depth::DepthTexture, render_graph::RenderPass}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp}, instance::WRenderInstance};
 
-use super::{mc_compute_core::MarchingCubesHandlerGPU, mc_render_pipeline::GpuMarchingCubesRenderPipeline};
+use crate::terrain::mc_chunk::MCActiveChunk;
+
+use super::render_pipeline::GpuMCRenderPipeline;
 
 #[derive(Default)]
-pub struct MarchingCubesRenderPass;
-impl RenderPass for MarchingCubesRenderPass {
-    fn render(&self, render_world: &World) {
+pub struct MCRenderPass;
+impl RenderPass for MCRenderPass {
+    fn render(&self, render_world: &mut World) {
+        // Get the active chunks
+        let mut active_chunks = render_world.query::<&MCActiveChunk>();
+        if active_chunks.iter(render_world).count() == 0 {
+            return;
+        }
+
         // Get the render instance and swapchain frame
         let render_instance = render_world.get_resource::<WRenderInstance<'static>>().unwrap();
         let render_instance = render_instance.data.read().unwrap();
@@ -25,7 +33,7 @@ impl RenderPass for MarchingCubesRenderPass {
         };
 
         // Check if pipeline is ready
-        let mcbuffer_pipeline = match render_world.get_resource::<RenderAssets<GpuMarchingCubesRenderPipeline>>().unwrap().iter().next() {
+        let mcbuffer_pipeline = match render_world.get_resource::<RenderAssets<GpuMCRenderPipeline>>().unwrap().iter().next() {
             Some((_, pipeline)) => pipeline,
             None => return
         };
@@ -68,34 +76,28 @@ impl RenderPass for MarchingCubesRenderPass {
 
                 // Set the pipeline
                 if render_pass.set_pipeline(pipeline).is_ok() {
-                    let handler = render_world.get_resource::<MarchingCubesHandlerGPU>().unwrap();
                     let buffers = render_world.get_resource::<RenderAssets<GpuBuffer>>().unwrap();
-                    for (_, chunk) in handler.active_chunks.iter() {
-                        // Check if the chunk is generated
-                        if !chunk.generated {
-                            continue;
-                        }
-
+                    for chunk in active_chunks.iter(render_world) {
                         // Get the vertex and index buffers
-                        if let (
-                            Some(vertex_buffer),
-                            Some(index_buffer)
-                        ) = (
+                        let (vertex_buffer, index_buffer) = match (
                             buffers.get(&chunk.vertices),
                             buffers.get(&chunk.indices)
                         ) {
-                            // Set the mesh buffers
-                            render_pass.set_vertex_buffer(0, &vertex_buffer.buffer);
-                            render_pass.set_index_buffer(&index_buffer.buffer);
+                            (Some(vertex_buffer), Some(index_buffer)) => (vertex_buffer, index_buffer),
+                            _ => continue
+                        };
+                        
+                        // Set the mesh buffers
+                        render_pass.set_vertex_buffer(0, &vertex_buffer.buffer);
+                        render_pass.set_index_buffer(&index_buffer.buffer);
 
-                            // Draw the mesh
-                            match render_pass.draw_indexed(0..chunk.indices_counter, 0..1) {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    error!("Failed to draw: {:?}.", e);
-                                }
-                            };
-                        }
+                        // Draw the mesh
+                        match render_pass.draw_indexed(0..chunk.indices_counter, 0..1) {
+                            Ok(_) => {},
+                            Err(e) => {
+                                error!("Failed to draw: {:?}.", e);
+                            }
+                        };
                     }
                 } else {
                     error!("Failed to set pipeline.");

@@ -42,7 +42,7 @@ impl RenderPass for PbrLightingRenderPass {
         }
     }
 
-    fn render(&self, world: &World) {
+    fn render(&self, world: &mut World) {
         // Get the render instance and swapchain frame
         let render_instance = world.get_resource::<WRenderInstance>().unwrap();
         let render_instance = render_instance.data.read().unwrap();

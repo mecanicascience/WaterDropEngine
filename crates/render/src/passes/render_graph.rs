@@ -9,11 +9,8 @@ pub trait RenderPass: Send + Sync {
      */
     fn extract(&self, _main_world: &mut World, _render_world: &mut World) {}
 
-    /** Update the pass elements in the render_world. */
-    fn update(&self, _render_world: &mut World) {}
-
     /** Render the pass elements. */
-    fn render(&self, _render_world: &World);
+    fn render(&self, _render_world: &mut World);
 }
 
 /** The index of a pass in the render graph. */
@@ -69,34 +66,8 @@ impl RenderGraph {
         // Run the update methods for each pass
         render_world.resource_scope(|render_world, graph: Mut<RenderGraph>| {
             for pass in graph.sorted_passes.iter().map(|id| graph.passes.get(id).unwrap()) {
-                pass.update(render_world);
+                pass.render(render_world);
             }
         });
-
-        // Run the render methods for each pass
-        let graph = render_world.resource::<RenderGraph>();
-        for pass in graph.sorted_passes.iter().map(|id| graph.passes.get(id).unwrap()) {
-            pass.render(render_world);
-        }
     }
 }
-
-
-// pub struct RenderGraphPlugin;
-// impl Plugin for RenderGraphPlugin {
-//     fn build(&self, app: &mut App) {
-        // Set the render graph
-        // app.get_sub_app_mut(RenderApp).unwrap()
-        //     .add_systems(Render, (
-        //         // PBR
-        //         PbrGBufferRenderPass::render,
-        //         PbrLightingRenderPass::render,
-
-        //         // Terrain
-        //         MarchingCubesRenderPass::render,
-
-        //         // Gizmo
-        //         GizmoRenderPass::render
-        //     ).chain().in_set(RenderSet::Render));
-//     }
-// }

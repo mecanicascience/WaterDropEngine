@@ -1,26 +1,24 @@
 // Description of the chunks parameters
 struct MarchingCubesDescription {
-    index:           vec4<f32>,   // Index of the current chunk (x, y, z, 0)
-    translation:     vec4<f32>,   // Translation in world space of the current chunk (x, y, z, 0)
-    chunk_length:    vec4<f32>,   // Length of the chunk
-    chunk_sub_count: vec4<u32>,   // Number of sub-chunks
-    indices_counter: atomic<u32>, // Counter of the indices
-    iso_level:       f32,         // Iso level
-    padding:         f32,         // Padding
-    padding2:        f32,         // Padding
+    translation:       vec4<f32>,   // Translation in world space of the current chunk (x, y, z, 0)
+    chunk_length:      vec4<f32>,   // Length of the chunk
+    chunk_sub_count:   vec4<u32>,   // Number of sub-chunks
+    triangles_counter: atomic<u32>, // Counter of the triangles
+    iso_level:         f32,         // Iso level
+    padding:           vec2<f32>    // Padding
 }
 @group(0) @binding(0) var<storage, read_write> in_desc: MarchingCubesDescription;
 
 // List of points of the marching cubes values
 @group(1) @binding(0) var<storage> in_points: array<vec4<f32>>; // Points of the marching cubes (x, y, z, f(x, y, z))
 
-// List of vertices and indices to store the mesh
-struct Vertex {
-    position_tex_u: vec4<f32>, // Position of the vertex (x, y, z) - U of the vertex
-    tex_v_normal:   vec4<f32>, // V of the vertex - Normal of the vertex (x, y, z)
+// List of triangles to store the mesh
+struct Triangle {
+    position_1: vec4<f32>, // Position of the first  triangle vertex (x, y, z) - (x) of the normal
+    position_2: vec4<f32>, // Position of the second triangle vertex (x, y, z) - (y) of the normal
+    position_3: vec4<f32>, // Position of the third  triangle vertex (x, y, z) - (z) of the normal
 }
-@group(2) @binding(0) var<storage, read_write> out_vertices: array<Vertex>;
-@group(2) @binding(1) var<storage, read_write> out_indices:  array<u32>;
+@group(2) @binding(0) var<storage, read_write> out_triangles: array<Triangle>;
 
 
 @compute @workgroup_size(10, 10, 10)
@@ -342,16 +340,15 @@ fn main(@builtin(global_invocation_id) thread_id: vec3<u32>) {
         let normal = normalize(cross(position[1] - position[0], position[2] - position[0]));
 
         // Increment the atomic counter for the indices
-        let index = atomicAdd(&in_desc.indices_counter, 3u);
+        let index = atomicAdd(&in_desc.triangles_counter, 1u);
 
         // Add the triangles
-        for (var j = 0u; j < 3; j = j + 1) {
-            // Index of the vertex
-            out_vertices[index + j] = Vertex(vec4<f32>(position[j], 0.0), vec4<f32>(0.0, normal));
-
-            // Index of the triangle
-            out_indices[index + j] = index + j;
-        }
+        let tr = Triangle(
+            vec4<f32>(position[0], normal.x),
+            vec4<f32>(position[1], normal.y),
+            vec4<f32>(position[2], normal.z)
+        );
+        out_triangles[index] = tr;
     }
 }
 

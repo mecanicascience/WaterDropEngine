@@ -4,15 +4,15 @@ use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
 
 
 #[derive(Default, Asset, Clone, TypePath)]
-pub struct MarchingCubesRenderPipelineAsset;
+pub struct MCRenderPipelineAsset;
 #[derive(Component, Default)]
 #[allow(dead_code)]
-pub struct MarchingCubesRenderPipeline(pub Handle<MarchingCubesRenderPipelineAsset>);
-pub struct GpuMarchingCubesRenderPipeline {
+pub struct MCRenderPipeline(pub Handle<MCRenderPipelineAsset>);
+pub struct GpuMCRenderPipeline {
     pub cached_pipeline_index: CachedPipelineIndex
 }
-impl RenderAsset for GpuMarchingCubesRenderPipeline {
-    type SourceAsset = MarchingCubesRenderPipelineAsset;
+impl RenderAsset for GpuMCRenderPipeline {
+    type SourceAsset = MCRenderPipelineAsset;
     type Param = (SRes<AssetServer>, SResMut<PipelineManager>, SRes<CameraFeatureRender>);
 
     fn prepare_asset(
@@ -36,7 +36,7 @@ impl RenderAsset for GpuMarchingCubesRenderPipeline {
         };
         let cached_index = pipeline_manager.create_render_pipeline(pipeline_desc);
 
-        Ok(GpuMarchingCubesRenderPipeline {
+        Ok(GpuMCRenderPipeline {
             cached_pipeline_index: cached_index
         })
     }
