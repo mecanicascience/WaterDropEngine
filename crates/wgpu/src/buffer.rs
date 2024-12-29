@@ -69,7 +69,7 @@ impl WBuffer {
     /// * `usage` - The usage of the buffer (vertex, index, uniform, storage).
     /// * `content` - The content of the buffer.
     pub fn new(instance: &WRenderInstanceData, label: &str, size: usize, usage: BufferUsage, content: Option<&[u8]>) -> Self {
-        event!(Level::DEBUG, "Creating new buffer {}.", label);
+        event!(Level::TRACE, "Creating new buffer {}.", label);
 
         // In case the content is not provided, create an empty buffer.
         match content {

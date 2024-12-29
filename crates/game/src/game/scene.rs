@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use wde_render::{assets::{materials::{PbrMaterial, PbrMaterialAsset}, meshes::PlaneMesh, Mesh}, components::{ActiveCamera, Camera, CameraController, CameraView, DirectionalLight, PointLight, SpotLight}};
 
+use super::terrain::TerrainSpawner;
+
 pub struct ScenePlugin;
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
@@ -20,7 +22,8 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>, mut materials: R
             }
         ),
         CameraController::default(),
-        ActiveCamera
+        ActiveCamera,
+        TerrainSpawner::default()
     ));
 
     // Dummy pbr object

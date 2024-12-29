@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use wde_render::{assets::Buffer, core::{extract_macros::ExtractWorld, DeviceLimits}};
 use wde_wgpu::buffer::BufferUsage;
 
-use super::mc_chunk::{MC_MAX_POINTS, MC_MAX_TRIANGLES};
+use super::{MC_MAX_POINTS, MC_MAX_TRIANGLES};
 
 /**
  * Description of the noise to generate the terrain.

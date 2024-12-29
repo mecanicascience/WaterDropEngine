@@ -4,7 +4,7 @@ use bevy::{ecs::world::CommandQueue, prelude::*, tasks::{block_on, futures_lite:
 use wde_render::assets::Buffer;
 use wde_wgpu::{buffer::BufferUsage, vertex::WVertex};
 
-use crate::terrain::mc_chunk::{MCActiveChunk, MCChunksList, MCPendingChunk};
+use crate::terrain::mc_chunk::{MCActiveChunk, MCChunksListRender, MCPendingChunk};
 
 #[derive(Clone, Copy)]
 struct Vec3C { x: f32, y: f32, z: f32 }
@@ -122,7 +122,14 @@ impl MCProcessTaskManager {
                     debug!("Registering chunk {:?} mesh data on the render thread with {} vertices and {} indices.", chunk.index, vertices.len(), indices.len());
 
                     // Get the chunk description
-                    let desc = world.get_resource::<MCChunksList>().unwrap().chunks.get(&chunk.index).unwrap().clone();
+                    let desc = match world.get_resource::<MCChunksListRender>().unwrap().chunks.get(&chunk.index) {
+                        Some(desc) => desc.clone(),
+                        None => {
+                            world.commands().entity(task_entity).despawn();
+                            error!("The chunk description for chunk {:?} is missing. The chunk was probably removed during a parallel task.", chunk.index);
+                            return;
+                        }
+                    };
                     vertices_buffer.label = format!("marching-cubes-vertices-{:?}", desc.index);
                     indices_buffer.label = format!("marching-cubes-indices-{:?}", desc.index);
 

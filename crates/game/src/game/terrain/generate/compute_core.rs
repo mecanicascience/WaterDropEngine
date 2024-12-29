@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use wde_render::{assets::{GpuBuffer, RenderAssets}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::BindGroup, command_buffer::WCommandBuffer, instance::WRenderInstance};
 
-use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCPendingChunk, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_TRIANGLES}, mc_compute_main::{GpuMCDescription, MCComputeHandlerGPU}};
+use crate::terrain::{mc_chunk::{MCChunksListRender, MCLoadingChunk, MCPendingChunk}, mc_compute_main::{GpuMCDescription, MCComputeHandlerGPU}, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_TRIANGLES};
 
 use super::compute_pipeline::GpuMCComputePipelineGenerate;
 
@@ -88,7 +88,7 @@ impl MCComputeCorePoints {
     /** Run the compute pass to generate the chunks. */
     pub fn compute(
         (query, mut commands): (Query<(Entity, &MCLoadingChunk)>, Commands),
-        (chunks_list, handler): (Res<MCChunksList>, Res<MCComputeHandlerGPU>),
+        (chunks_list, handler): (Res<MCChunksListRender>, Res<MCComputeHandlerGPU>),
         mut buffers: ResMut<RenderAssets<GpuBuffer>>,
         render_instance: Res<WRenderInstance<'static>>,
         (pipeline, pipeline_manager): (
@@ -124,8 +124,8 @@ impl MCComputeCorePoints {
             trace!("Running the compute shader to generate the triangles for the chunk {:?}.", chunk.index);
             let desc_buff = GpuMCDescription {
                 translation: [desc.translation.x, desc.translation.y, desc.translation.z, 0.0],
-                chunk_length: [desc.chunk_length.x, desc.chunk_length.y, desc.chunk_length.z, 0.0],
-                chunk_sub_count: [desc.chunk_sub_count.x, desc.chunk_sub_count.y, desc.chunk_sub_count.z, 0],
+                chunk_length: [desc.length.x, desc.length.y, desc.length.z, 0.0],
+                chunk_sub_count: [desc.sub_count.x, desc.sub_count.y, desc.sub_count.z, 0],
                 triangles_counter: 0,
                 iso_level: desc.iso_level,
                 padding: [0, 0]
@@ -158,9 +158,9 @@ impl MCComputeCorePoints {
 
                     // Dispatch the compute pass
                     const NUM_THREADS: i32 = 10;
-                    let dispatch_count_x = (desc.chunk_sub_count.x as f32 / NUM_THREADS as f32).ceil() as u32;
-                    let dispatch_count_y = (desc.chunk_sub_count.y as f32 / NUM_THREADS as f32).ceil() as u32;
-                    let dispatch_count_z = (desc.chunk_sub_count.z as f32 / NUM_THREADS as f32).ceil() as u32;
+                    let dispatch_count_x = (desc.sub_count.x as f32 / NUM_THREADS as f32).ceil() as u32;
+                    let dispatch_count_y = (desc.sub_count.y as f32 / NUM_THREADS as f32).ceil() as u32;
+                    let dispatch_count_z = (desc.sub_count.z as f32 / NUM_THREADS as f32).ceil() as u32;
                     trace!("Dispatching the compute pass for generating chunk triangles {:?} with marching cubes with {} threads and {:?} dispatches.", entity, NUM_THREADS, [dispatch_count_x, dispatch_count_y, dispatch_count_z]);
                     if let Err(e) = compute_pass.dispatch(dispatch_count_x, dispatch_count_y, dispatch_count_z) {
                         error!("Failed to dispatch the compute pass for generating chunk triangles {:?} with marching cubes: {:?}", entity, e);
@@ -203,7 +203,7 @@ impl MCComputeCorePoints {
             });
 
             // Spawn the chunk entity
-            debug!("Generated {} raw triangles for chunk {:?}.", triangles_counter, chunk.index);
+            trace!("Spawning the chunk entity {:?} with {} triangles.", entity, triangles_counter);
             commands.entity(entity).despawn();
             commands.spawn(MCPendingChunk {
                 index: chunk.index,

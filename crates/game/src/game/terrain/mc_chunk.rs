@@ -2,15 +2,6 @@ use bevy::{prelude::*, utils::HashMap};
 use wde_render::assets::Buffer;
 use wde_wgpu::bind_group::WgpuBindGroup;
 
-// =========== MARCHING CUBES PARAMETERS ===========
-/** Maximum LOD sudivision count */
-pub const MC_MAX_SUB_COUNT: [u32; 3] = [75, 30, 75];
-/** Maximum number of chunks to process per frame */
-pub const MC_MAX_CHUNKS_PROCESS_PER_FRAME: usize = 3;
-/** Maximum number of triangles allowed */
-pub const MC_MAX_POINTS: u32 = MC_MAX_SUB_COUNT[0] * MC_MAX_SUB_COUNT[1] * MC_MAX_SUB_COUNT[2];
-pub const MC_MAX_TRIANGLES: u32 = 50_000;
-
 
 // =========== CHUNK INDEX ===========
 pub type MCChunkIndex = (i32, i32, i32);
@@ -21,29 +12,35 @@ pub type MCChunkIndex = (i32, i32, i32);
  * Description of a chunk for the marching cubes algorithm.
  * This description is required for each state of a chunk.
  */
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 pub struct MCChunkDescription {
     /// Index of the chunk
     pub index: MCChunkIndex,
     /// Translation of the center of the chunk
     pub translation: Vec3,
     /// Length of the chunk in each axis
-    pub chunk_length: Vec3,
+    pub length: Vec3,
     /// Number of sub-chunks in each axis
-    pub chunk_sub_count: UVec3,
+    pub sub_count: UVec3,
     /// Iso level for the marching cubes algorithm
     pub iso_level: f32
 }
 
 
 // =========== MARCHING CUBES INTERFACE ===========
-/** Event to spawn a new marching cubes chunk. */
-#[derive(Event)]
-pub struct MCSpawnEvent(pub MCChunkDescription);
-
 /** List of all chunks. */
 #[derive(Resource, Default)]
-pub struct MCChunksList {
+pub struct MCChunksListMain {
+    /** List of all currently alive chunks. */
+    pub current_chunks: HashMap<MCChunkIndex, MCChunkIndex>,
+    /** List of new chunks to spawn. */
+    pub new_chunks: Vec<(MCChunkIndex, MCChunkDescription)>,
+    /** List of old chunks to delete. */
+    pub delete_chunks: Vec<MCChunkIndex>
+}
+/** List of all chunks. */
+#[derive(Resource, Default)]
+pub struct MCChunksListRender {
     pub chunks: HashMap<MCChunkIndex, MCChunkDescription>
 }
 

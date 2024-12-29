@@ -2,54 +2,74 @@ use bevy::prelude::*;
 use wde_render::{assets::{Buffer, GpuBuffer, RenderAssets}, core::{extract_macros::ExtractWorld, DeviceLimits}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{bind_group::BindGroup, buffer::BufferUsage, command_buffer::WCommandBuffer, instance::WRenderInstance};
 
-use crate::terrain::{mc_chunk::{MCChunksList, MCLoadingChunk, MCRegisteredChunk, MCSpawnEvent, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_POINTS}, mc_compute_main::{GpuMCDescription, MCComputeHandlerGPU, MCTerrainNoiseParameters}};
+use crate::terrain::{mc_chunk::{MCActiveChunk, MCChunksListMain, MCChunksListRender, MCLoadingChunk, MCPendingChunk, MCRegisteredChunk}, mc_compute_main::{GpuMCDescription, MCComputeHandlerGPU, MCTerrainNoiseParameters}, MC_MAX_CHUNKS_PROCESS_PER_FRAME, MC_MAX_POINTS};
 
 use super::compute_pipeline::GpuMCComputePipelineSpawn;
 
 pub struct MCComputePointsCore;
 impl MCComputePointsCore {
-    /** Read the events and respond to them. */
-    pub fn handle_chunks(
-        mut chunks_list: ResMut<MCChunksList>,
-        mut events: EventReader<MCSpawnEvent>
-    ) {
-        for event in events.read() {
-            // Add the new chunks to the registered chunks
-            debug!("Adding new chunk {:?} to the spawn list.", event.0.index);
-            chunks_list.chunks.insert(event.0.index, event.0.clone());
-        }
-    }
-
     /** Process the spawn events to generate the chunks on the render thread. */
     pub fn extract(
-        chunks_list_main: ExtractWorld<Res<MCChunksList>>,
-        mut chunks_list_render: ResMut<MCChunksList>,
+        chunks_list_main: ExtractWorld<Res<MCChunksListMain>>,
+        mut chunks_list_render: ResMut<MCChunksListRender>,
         mut commands: Commands,
         asset_server: Res<AssetServer>,
-        device_limits: Res<DeviceLimits>
+        device_limits: Res<DeviceLimits>,
+        (query_registered, query_loading, query_pending, query_active): (
+            Query<(Entity, &MCRegisteredChunk)>,
+            Query<(Entity, &MCLoadingChunk)>,
+            Query<(Entity, &MCPendingChunk)>,
+            Query<(Entity, &MCActiveChunk)>
+        )
     ) {
         // Add the new chunks from the main thread to the render thread
         let max_buffer_size = device_limits.0.max_storage_buffer_binding_size as usize;
-        for (index, desc) in &chunks_list_main.chunks {
-            if !chunks_list_render.chunks.contains_key(index) {
-                chunks_list_render.chunks.insert(*index, desc.clone());
-                
-                // Create the points buffer
-                let points_gpu = Buffer {
-                    label: format!("marching-cubes-points-{:?}", desc.index),
-                    size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * MC_MAX_POINTS as usize, max_buffer_size),
-                    usage: BufferUsage::STORAGE | BufferUsage::COPY_DST,
-                    content: None
-                };
+        for (index, desc) in chunks_list_main.new_chunks.iter() {
+            chunks_list_render.chunks.insert(*index, desc.clone());
+            
+            // Create the points buffer
+            let points_gpu = Buffer {
+                label: format!("marching-cubes-points-{:?}", desc.index),
+                size: std::cmp::min(std::mem::size_of::<[f32; 4]>() * MC_MAX_POINTS as usize, max_buffer_size),
+                usage: BufferUsage::STORAGE | BufferUsage::COPY_DST,
+                content: None
+            };
 
-                commands.spawn((
-                    MCRegisteredChunk {
-                        index: *index,
-                        points_gpu: asset_server.add(points_gpu),
-                        points_gpu_group: None,
-                    },
-                    desc.clone()
-                ));
+            commands.spawn((
+                MCRegisteredChunk {
+                    index: *index,
+                    points_gpu: asset_server.add(points_gpu),
+                    points_gpu_group: None,
+                },
+                desc.clone()
+            ));
+        }
+
+        // Remove the old chunks from the render thread
+        for index in chunks_list_main.delete_chunks.iter() {
+            // Remove the chunk from the list of all chunks
+            chunks_list_render.chunks.remove(index);
+
+            // Remove the chunk from the registered chunks
+            for (entity, chunk) in query_registered.iter() {
+                if chunk.index == *index {
+                    commands.entity(entity).despawn();
+                }
+            }
+            for (entity, chunk) in query_loading.iter() {
+                if chunk.index == *index {
+                    commands.entity(entity).despawn();
+                }
+            }
+            for (entity, chunk) in query_pending.iter() {
+                if chunk.index == *index {
+                    commands.entity(entity).despawn();
+                }
+            }
+            for (entity, chunk) in query_active.iter() {
+                if chunk.index == *index {
+                    commands.entity(entity).despawn();
+                }
             }
         }
     }
@@ -137,7 +157,7 @@ impl MCComputePointsCore {
      */
     pub fn compute(
         (query, mut commands): (Query<(Entity, &MCRegisteredChunk)>, Commands),
-        (chunks_list, handler): (Res<MCChunksList>, Res<MCComputeHandlerGPU>),
+        (chunks_list, handler): (Res<MCChunksListRender>, Res<MCComputeHandlerGPU>),
         mut buffers: ResMut<RenderAssets<GpuBuffer>>,
         render_instance: Res<WRenderInstance<'static>>,
         (pipeline, pipeline_manager): (
@@ -173,8 +193,8 @@ impl MCComputePointsCore {
             trace!("Running the compute shader to compute the points for the chunk {:?}.", chunk.index);
             let desc_buff = GpuMCDescription {
                 translation: [desc.translation.x, desc.translation.y, desc.translation.z, 0.0],
-                chunk_length: [desc.chunk_length.x, desc.chunk_length.y, desc.chunk_length.z, 0.0],
-                chunk_sub_count: [desc.chunk_sub_count.x, desc.chunk_sub_count.y, desc.chunk_sub_count.z, 0],
+                chunk_length: [desc.length.x, desc.length.y, desc.length.z, 0.0],
+                chunk_sub_count: [desc.sub_count.x, desc.sub_count.y, desc.sub_count.z, 0],
                 triangles_counter: 0,
                 iso_level: desc.iso_level,
                 padding: [0, 0]
@@ -207,9 +227,9 @@ impl MCComputePointsCore {
 
                     // Dispatch the compute pass
                     const NUM_THREADS: i32 = 10;
-                    let dispatch_count_x = (desc.chunk_sub_count.x as f32 / NUM_THREADS as f32).ceil() as u32;
-                    let dispatch_count_y = (desc.chunk_sub_count.y as f32 / NUM_THREADS as f32).ceil() as u32;
-                    let dispatch_count_z = (desc.chunk_sub_count.z as f32 / NUM_THREADS as f32).ceil() as u32;
+                    let dispatch_count_x = (desc.sub_count.x as f32 / NUM_THREADS as f32).ceil() as u32;
+                    let dispatch_count_y = (desc.sub_count.y as f32 / NUM_THREADS as f32).ceil() as u32;
+                    let dispatch_count_z = (desc.sub_count.z as f32 / NUM_THREADS as f32).ceil() as u32;
                     trace!("Dispatching the compute pass for spawning the chunk points {:?} with marching cubes with {} threads and {:?} dispatches.", entity, NUM_THREADS, [dispatch_count_x, dispatch_count_y, dispatch_count_z]);
                     if let Err(e) = compute_pass.dispatch(dispatch_count_x, dispatch_count_y, dispatch_count_z) {
                         error!("Failed to dispatch the compute pass for spawning the chunk points {:?} with marching cubes: {:?}", entity, e);
