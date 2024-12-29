@@ -110,7 +110,7 @@ where
     }
 }
 
-impl<'w, 's, P> DerefMut for ExtractWorld<'w, 's, P>
+impl<P> DerefMut for ExtractWorld<'_, '_, P>
 where
     P: ReadOnlySystemParam,
 {

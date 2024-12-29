@@ -87,10 +87,13 @@ impl MCComputeCorePoints {
     
     /** Run the compute pass to generate the chunks. */
     pub fn compute(
-        handler: Res<MCComputeHandlerGPU>, mut buffers: ResMut<RenderAssets<GpuBuffer>>,
-        render_instance: Res<WRenderInstance<'static>>, pipeline: Res<RenderAssets<GpuMCComputePipelineGenerate>>,
-        pipeline_manager: ResMut<PipelineManager>, query: Query<(Entity, &MCLoadingChunk)>,
-        chunks_list: ResMut<MCChunksList>, mut commands: Commands
+        (query, mut commands): (Query<(Entity, &MCLoadingChunk)>, Commands),
+        (chunks_list, handler): (Res<MCChunksList>, Res<MCComputeHandlerGPU>),
+        mut buffers: ResMut<RenderAssets<GpuBuffer>>,
+        render_instance: Res<WRenderInstance<'static>>,
+        (pipeline, pipeline_manager): (
+            Res<RenderAssets<GpuMCComputePipelineGenerate>>, Res<PipelineManager>
+        )
     ) {
         // Get the compute pipeline
         let compute_pipeline = match pipeline.iter().next() {

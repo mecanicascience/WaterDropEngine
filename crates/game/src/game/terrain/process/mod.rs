@@ -1,8 +1,8 @@
 use bevy::prelude::*;
-use process::MCProcessTaskManager;
+use process_chunks::MCProcessTaskManager;
 use wde_render::core::{Render, RenderApp, RenderSet};
 
-mod process;
+mod process_chunks;
 
 pub struct MCProcessPlugin;
 impl Plugin for MCProcessPlugin {

@@ -31,7 +31,7 @@ pub struct RenderPassDepth<'pass> {
     /// The depth operation when storing the texture. By default, store the texture.
     pub store_operation: WStoreOp,
 }
-impl<'pass> Default for RenderPassDepth<'pass> {
+impl Default for RenderPassDepth<'_> {
     fn default() -> Self {
         Self {
             texture: None,
@@ -50,7 +50,7 @@ pub struct RenderPassColorAttachment<'pass> {
     /// The color store operation. By default, store the texture.
     pub store: WStoreOp,
 }
-impl<'pass> Default for RenderPassColorAttachment<'pass> {
+impl Default for RenderPassColorAttachment<'_> {
     fn default() -> Self {
         let color_srgb = 0.1_f64.powf(2.2);
         Self {

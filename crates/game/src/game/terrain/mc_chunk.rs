@@ -66,7 +66,7 @@ pub struct MCLoadingChunk {
 }
 impl Clone for MCLoadingChunk {
     fn clone(&self) -> Self {
-        if !self.points_gpu_group.is_none() {
+        if self.points_gpu_group.is_some() {
             error!("Cannot clone a chunk with a bind group");
         }
         Self {

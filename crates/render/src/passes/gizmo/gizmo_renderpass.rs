@@ -29,7 +29,7 @@ impl RenderPass for GizmoRenderPass {
         
         // If no entities, return
         let mut entities = main_world.query::<(&Transform, &Mesh, &GizmoMaterial)>();
-        if entities.iter(&main_world).count() == 0 {
+        if entities.iter(main_world).count() == 0 {
             return
         }
 
@@ -50,7 +50,7 @@ impl RenderPass for GizmoRenderPass {
 
                 let meshes = render_world.get_resource::<RenderAssets<GpuMesh>>().unwrap();
                 let materials = render_world.get_resource::<RenderAssets<GpuMaterial<GizmoMaterialAsset>>>().unwrap();
-                for (transform, mesh, material) in entities.iter(&main_world) {
+                for (transform, mesh, material) in entities.iter(main_world) {
                     // Check if new element in same batch
                     let last_mesh_ref = last_mesh.as_ref();
                     let last_material_ref = last_material.as_ref();

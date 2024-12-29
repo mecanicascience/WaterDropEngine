@@ -143,8 +143,7 @@ fn init() {
             let h = max_h - 1 - h;
             heights_over_time
                 .iter()
-                .enumerate()
-                .map(|(_t, p)| if h == *p { 'o' } else { ' ' })
+                .map(|p| if h == *p { 'o' } else { ' ' })
                 .collect::<String>()
         })
         .for_each(|line| println!("{}", line));
