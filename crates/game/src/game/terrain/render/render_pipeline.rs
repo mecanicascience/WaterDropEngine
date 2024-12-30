@@ -1,5 +1,5 @@
 use bevy::{ecs::system::lifetimeless::{SRes, SResMut}, prelude::*};
-use wde_render::{assets::{PrepareAssetError, RenderAsset}, features::CameraFeatureRender, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
+use wde_render::{assets::{PrepareAssetError, RenderAsset}, features::{CameraFeatureRender, LightsFeatureBuffer}, pipelines::{CachedPipelineIndex, PipelineManager, RenderPipelineDescriptor}};
 use wde_wgpu::render_pipeline::WDepthStencilDescriptor;
 
 
@@ -13,21 +13,31 @@ pub struct GpuMCRenderPipeline {
 }
 impl RenderAsset for GpuMCRenderPipeline {
     type SourceAsset = MCRenderPipelineAsset;
-    type Param = (SRes<AssetServer>, SResMut<PipelineManager>, SRes<CameraFeatureRender>);
+    type Param = (
+        SRes<AssetServer>, SResMut<PipelineManager>,
+        SRes<CameraFeatureRender>, SRes<LightsFeatureBuffer>
+    );
 
     fn prepare_asset(
-            _asset: Self::SourceAsset,
+            asset: Self::SourceAsset,
             (
                 assets_server, pipeline_manager,
-                camera_feature
+                camera_feature, lights_buffer
             ): &mut bevy::ecs::system::SystemParamItem<Self::Param>
         ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
+
+        // Get the lights buffer layout
+        let lights_layout = match &lights_buffer.bind_group_layout {
+            Some(layout) => layout,
+            None => return Err(PrepareAssetError::RetryNextUpdate(asset))
+        };
+
         // Create the pipeline
         let pipeline_desc = RenderPipelineDescriptor {
             label: "marching-cubes",
             vert: Some(assets_server.load("marching-cubes/render.vert.wgsl")),
             frag: Some(assets_server.load("marching-cubes/render.frag.wgsl")),
-            bind_group_layouts: vec![camera_feature.layout.clone()],
+            bind_group_layouts: vec![camera_feature.layout.clone(), lights_layout.clone()],
             depth: WDepthStencilDescriptor {
                 enabled: true,
                 ..Default::default()
@@ -42,6 +52,6 @@ impl RenderAsset for GpuMCRenderPipeline {
     }
 
     fn label(&self) -> &str {
-        "marching-cubes"
+        "marching-cubes-render"
     }
 }

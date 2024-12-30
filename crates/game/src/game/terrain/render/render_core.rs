@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wde_render::{assets::{GpuBuffer, GpuTexture, RenderAssets}, core::SwapchainFrame, features::CameraFeatureRender, passes::{depth::DepthTexture, render_graph::RenderPass}, pipelines::{CachedPipelineStatus, PipelineManager}};
+use wde_render::{assets::{GpuBuffer, GpuTexture, RenderAssets}, core::SwapchainFrame, features::{CameraFeatureRender, LightsFeatureBuffer}, passes::{depth::DepthTexture, render_graph::RenderPass}, pipelines::{CachedPipelineStatus, PipelineManager}};
 use wde_wgpu::{command_buffer::{RenderPassBuilder, RenderPassColorAttachment, RenderPassDepth, WCommandBuffer, WLoadOp}, instance::WRenderInstance};
 
 use crate::terrain::mc_chunk::MCActiveChunk;
@@ -66,13 +66,16 @@ impl RenderPass for MCRenderPass {
             let pipeline_manager = render_world.get_resource::<PipelineManager>().unwrap();
             if let (
                 CachedPipelineStatus::OkRender(pipeline),
-                Some(camera_bg)
+                Some(camera_bg),
+                Some(lights_bg)
             ) = (
                 pipeline_manager.get_pipeline(mcbuffer_pipeline.cached_pipeline_index),
-                &render_world.get_resource::<CameraFeatureRender>().unwrap().bind_group
+                &render_world.get_resource::<CameraFeatureRender>().unwrap().bind_group,
+                &render_world.get_resource::<LightsFeatureBuffer>().unwrap().bind_group
             ) {
                 // Set the camera bind group
                 render_pass.set_bind_group(0, camera_bg);
+                render_pass.set_bind_group(1, lights_bg);
 
                 // Set the pipeline
                 if render_pass.set_pipeline(pipeline).is_ok() {
