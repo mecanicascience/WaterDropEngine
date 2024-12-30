@@ -14,12 +14,12 @@ mod process;
 mod render;
 
 /** Maximum LOD sudivision count */
-pub const MC_MAX_SUB_COUNT: [u32; 3] = [50, 50, 50];
+pub const MC_MAX_SUB_COUNT: [u32; 3] = [20, 20, 20];
 /** Maximum number of chunks to process per frame */
 pub const MC_MAX_CHUNKS_PROCESS_PER_FRAME: usize = 2;
 /** Maximum number of triangles allowed */
 pub const MC_MAX_POINTS: u32 = MC_MAX_SUB_COUNT[0] * MC_MAX_SUB_COUNT[1] * MC_MAX_SUB_COUNT[2];
-pub const MC_MAX_TRIANGLES: u32 = 50_000;
+pub const MC_MAX_TRIANGLES: u32 = 20_000;
 
 /**
  * This component is used to spawn the terrain spawner.
@@ -41,7 +41,7 @@ impl Default for TerrainSpawner {
     fn default() -> Self {
         TerrainSpawner {
             chunk_radius_count: 6,
-            chunk_length: [100.0, 100.0, 100.0],
+            chunk_length: [200.0, 200.0, 200.0],
             chunk_sub_count: MC_MAX_SUB_COUNT,
             iso_level: 0.0
         }

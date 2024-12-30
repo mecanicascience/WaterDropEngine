@@ -4,7 +4,7 @@ use bevy::{ecs::world::CommandQueue, prelude::*, tasks::{block_on, futures_lite:
 use wde_render::assets::Buffer;
 use wde_wgpu::{buffer::BufferUsage, vertex::WVertex};
 
-use crate::terrain::mc_chunk::{MCActiveChunk, MCChunksListRender, MCPendingChunk};
+use crate::terrain::{mc_chunk::{MCActiveChunk, MCChunksListRender, MCPendingChunk}, MC_MAX_CHUNKS_PROCESS_PER_FRAME};
 
 #[derive(Clone, Copy)]
 struct Vec3C { x: f32, y: f32, z: f32 }
@@ -60,7 +60,12 @@ impl MCProcessTaskManager {
         }
 
         // Process the chunks
+        let mut process_count = 0;
         for chunk in chunks {
+            process_count += 1;
+            if process_count >= MC_MAX_CHUNKS_PROCESS_PER_FRAME {
+                break;
+            }
             let task_entity = commands.spawn_empty().id();
 
             // Spawn a new task to process the chunk
@@ -161,7 +166,12 @@ impl MCProcessTaskManager {
      * If the task is done, despawn the entity.
      */
     pub fn handle_tasks(mut commands: Commands, mut tasks: Query<&mut MCProcessTaskManager>) {
+        let mut process_count = 0;
         for mut task in &mut tasks {
+            process_count += 1;
+            if process_count >= MC_MAX_CHUNKS_PROCESS_PER_FRAME {
+                break;
+            }
             if let Some(mut commands_queue) = block_on(future::poll_once(&mut task.0)) {
                 // Add the commands to the main thread for the next frame
                 commands.append(&mut commands_queue);
