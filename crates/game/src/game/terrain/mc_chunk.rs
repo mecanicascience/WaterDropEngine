@@ -12,7 +12,8 @@ pub type MCChunkIndex = (i32, i32, i32);
  * Description of a chunk for the marching cubes algorithm.
  * This description is required for each state of a chunk.
  */
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct MCChunkDescription {
     /// Index of the chunk
     pub index: MCChunkIndex,

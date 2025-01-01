@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use generate::MCGeneratePlugin;
+use mc_chunk::MCChunkDescription;
 use mc_compute_main::{MCComputeHandler, MCComputeHandlerGPU};
 use process::MCProcessPlugin;
 use render::MCRenderPlugin;
@@ -25,7 +26,8 @@ pub const MC_MAX_TRIANGLES: u32 = 20_000;
  * This component is used to spawn the terrain spawner.
  * There should be only one terrain spawner in the scene.
  */
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 #[require(Transform)]
 pub struct TerrainSpawner {
     /** The number of chunks to spawn in each direction (in a circle). */
@@ -65,5 +67,10 @@ impl Plugin for TerrainPlugin {
         app.get_sub_app_mut(RenderApp).unwrap()
             .init_resource::<MCComputeHandlerGPU>()
             .add_systems(Extract, MCComputeHandler::extract);
+
+        // Register the components to the reflect system
+        app
+            .register_type::<MCChunkDescription>()
+            .register_type::<TerrainSpawner>();
     }
 }

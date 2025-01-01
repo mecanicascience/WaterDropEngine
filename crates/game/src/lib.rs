@@ -1,6 +1,9 @@
 #![allow(clippy::just_underscores_and_digits)]
 #![allow(clippy::type_complexity)]
 
+use std::net::{IpAddr, Ipv4Addr};
+
+use bevy::remote::{http::{Headers, RemoteHttpPlugin}, RemotePlugin};
 use bevy::{core::TaskPoolThreadAssignmentPolicy, input::InputPlugin, log::{Level, LogPlugin}, prelude::*};
 use examples::{ExamplesPugin, SELECTED_EXAMPLE};
 use game::*;
@@ -24,7 +27,7 @@ pub fn start_game() {
     let mut app = App::new();
 
     // Add default bevy plugins
-    let app = app
+    app
         .add_plugins(MinimalPlugins.set(TaskPoolPlugin {
             task_pool_options: TaskPoolOptions {
                 min_total_threads: 1,
@@ -81,7 +84,19 @@ pub fn start_game() {
     if should_add_game_plugin {
         app.add_plugins(GamePlugin);
     }
-    
+
+    // Add the remote plugin if feature is enabled
+    if cfg!(feature = "remote") {
+        let cors_headers = Headers::new()
+            .insert("Access-Control-Allow-Origin", "*")
+            .insert("Access-Control-Allow-Headers", "Content-Type");
+        app
+            .add_plugins(RemotePlugin::default())
+            .add_plugins(RemoteHttpPlugin::default()
+                .with_address(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)))
+                .with_port(8083)
+                .with_headers(cors_headers));
+    }
 
     // Run the app
     info!("Running game engine.");

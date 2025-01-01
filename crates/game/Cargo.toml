@@ -35,5 +35,6 @@ features = [
 
 [features]
 default = []
+remote = ["bevy/bevy_remote"]
 watch = ["bevy/file_watcher", "wde-render/watch"]
 trace = ["bevy/trace_tracy_memory", "wde-render/trace"]

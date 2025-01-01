@@ -10,8 +10,9 @@ pub struct GizmoMaterialAsset {
     /// The color of the material instance.
     pub color: [f32; 4],
 }
-#[derive(Component)]
 /// Describes a simple gizmo material with a color.
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct GizmoMaterial(pub Handle<GizmoMaterialAsset>);
 
 impl Default for GizmoMaterialAsset {

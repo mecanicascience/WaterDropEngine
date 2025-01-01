@@ -13,5 +13,6 @@ fs_extra = "1.2"
 
 [features]
 default = []
+remote = ["wde-game/remote"]
 watch = ["wde-game/watch"]
 trace = ["wde-game/trace"]

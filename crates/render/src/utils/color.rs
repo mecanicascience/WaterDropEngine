@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+use bevy::reflect::Reflect;
+
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 pub enum Color {
     /// Linear RGBA color.
     LinearRgba(f32, f32, f32, f32),

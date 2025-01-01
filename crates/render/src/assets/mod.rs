@@ -43,5 +43,9 @@ impl Plugin for SceneResourcesPlugin {
         // Add cached resources
         app.get_sub_app_mut(RenderApp).unwrap()
             .init_resource::<MaterialsBuilderCache>();
+
+        // Register the components to the reflect system
+        app
+            .register_type::<Mesh>();
     }
 }

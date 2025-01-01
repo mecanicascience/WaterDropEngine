@@ -7,8 +7,9 @@ const AMBIENT_DEFAULT:  f32 = 0.05;
 const DIFFUSE_DEFAULT:  f32 = 0.8;
 const SPECULAR_DEFAULT: f32 = 1.0;
 
-#[derive(Component, Clone, Copy)]
 /// A directional light is a light that emits light in a single direction from an infinite distance.
+#[derive(Component, Clone, Copy, Reflect)]
+#[reflect(Component)]
 pub struct DirectionalLight {
     /// World space direction of the light.
     pub direction: Vec3,
@@ -32,10 +33,11 @@ impl Default for DirectionalLight {
     }
 }
 
-#[derive(Component, Clone, Copy)]
 /// A point light is a light that emits light in all directions from a single point.
 /// Use the `set_attenuation` method to set the attenuation factors of the light. By default, the
 /// light has a full attenuation at 100 units.
+#[derive(Component, Clone, Copy, Reflect)]
+#[reflect(Component)]
 pub struct PointLight {
     /// World space position of the light.
     pub position: Vec3,
@@ -141,10 +143,11 @@ impl Default for PointLight {
     }
 }
 
-#[derive(Component, Clone, Copy)]
 /// A spotlight is a point light with a direction and a cut-off angle.
 /// Use the `set_attenuation` method to set the attenuation factors of the light. By default, the
 /// light has a full attenuation at 50 units.
+#[derive(Component, Clone, Copy, Reflect)]
+#[reflect(Component)]
 pub struct SpotLight {
     /// World space position of the light.
     pub position: Vec3,

@@ -18,7 +18,8 @@ impl Plugin for CameraControllerPlugin {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct CameraController {
     pub enabled: bool,
     pub initialized: bool,

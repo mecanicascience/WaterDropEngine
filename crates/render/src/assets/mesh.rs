@@ -25,7 +25,8 @@ impl Default for ModelBoundingBox {
     }
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
 pub struct Mesh(pub Handle<MeshAsset>);
 #[derive(Asset, TypePath, Clone)]
 pub struct MeshAsset {

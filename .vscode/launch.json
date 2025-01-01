@@ -11,7 +11,7 @@
                     "--bin=wde-engine",
                     "--package=wde-engine",
                     "--target-dir=target",
-                    "--features=trace,watch"
+                    "--features=trace,watch,remote"
                 ],
                 "filter": {
                     "name": "wde-engine",
@@ -34,7 +34,7 @@
                     "--bin=wde-engine",
                     "--package=wde-engine",
                     "--target-dir=target",
-                    "--features=watch"
+                    "--features=watch,remote"
                 ],
                 "filter": {
                     "name": "wde-engine",

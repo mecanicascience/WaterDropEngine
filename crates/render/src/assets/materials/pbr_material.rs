@@ -32,7 +32,8 @@ impl Default for PbrMaterialAsset {
         }
     }
 }
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 /// Describes a physically based rendering material.
 pub struct PbrMaterial(pub Handle<PbrMaterialAsset>);
 

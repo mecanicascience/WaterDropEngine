@@ -3,11 +3,13 @@ use bevy::prelude::*;
 use super::TransformUniform;
 
 /// Tag that list the current active camera.
-#[derive(Component, Default, Clone, Debug)]
+#[derive(Component, Default, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct ActiveCamera;
 
 /// Camera view component with field of view, aspect ratio, near and far planes.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct CameraView {
     pub fov: f32,
     pub znear: f32,
@@ -24,7 +26,8 @@ impl Default for CameraView {
 }
 
 /// Camera is defined by a position and a view.
-#[derive(Component, Default, Clone, Debug)]
+#[derive(Component, Default, Clone, Debug, Reflect)]
+#[reflect(Component)]
 #[require(Transform, CameraView)]
 pub struct Camera;
 
