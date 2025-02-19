@@ -22,8 +22,8 @@ thiserror = "1.0"
 wde-wgpu = { path = "../wgpu" }
 serde = { version = "1.0", features = ["derive"] }
 bytemuck = { version = "1.14", features = [ "derive" ] }
-async-channel = "2.3"
 tobj = "4.0"
+async-channel = "2.3"
 
 [dependencies.image]
 version = "0.25"
@@ -31,7 +31,7 @@ default-features = false
 features = ["png", "jpeg"]
 
 [dependencies.bevy]
-version = "0.15"
+version = "0.15.2"
 default-features = false
 features = [
     "multi_threaded",
